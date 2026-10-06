@@ -71,6 +71,8 @@ export type StaffMember = {
   role: StaffRole;
   /** Bu şəxsin yaza biləcəyi bölmələr. Boş siyahı = hamısı. */
   categories: CategorySlug[];
+  /** Hər kateqoriya üçün seçilmiş alt kateqoriyalar. */
+  subcategories?: Partial<Record<CategorySlug, string[]>>;
   active: boolean;
   createdAt: string;
   invitedBy?: string;

@@ -17,6 +17,16 @@ import { isAdmin, roleLabels, useAuth } from "@/lib/firebase/auth";
 import { formatDate } from "@/lib/i18n/config";
 import type { StaffMember, StaffRole } from "@/lib/types";
 
+// Alt kateqoriyalar
+const SUBCATEGORIES: Partial<Record<CategorySlug, string[]>> = {
+  gundem: ["xəbərlər", "magazin", "mədəniyyət", "müsahibə"],
+  moda: ["küçə modası", "aksesuar", "trend", "moda həftəsi"],
+  gozellik: ["dəri qulluğu", "makiyaj", "saç", "wellness"],
+  "heyat-terzi": ["səyahət", "yemək", "ev", "ailə", "qidalanma", "idman"],
+  astrologiya: ["günlük", "həftəlik", "aylıq", "ulduz xəritəsi"],
+  biznes: ["texnologiya", "karyera", "maliyyə", "startap"],
+};
+
 const ROLE_HINTS: Record<StaffRole, string> = {
   admin: "Hər şeyi görür və dəyişir: işçilər, bannerlər, silmə.",
   editor: "Bütün bölmələrdə məqalə yazır və redaktə edir.",
@@ -36,6 +46,8 @@ export default function StaffPage() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<StaffRole>("author");
   const [allowed, setAllowed] = useState<CategorySlug[]>([]);
+  const [selectedSubcategories, setSelectedSubcategories] = useState<Partial<Record<CategorySlug, string[]>>>({});
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   async function refresh() {
     try {
@@ -81,6 +93,7 @@ export default function StaffPage() {
         email: email.trim().toLowerCase(),
         role,
         categories: role === "author" ? allowed : [],
+        subcategories: role === "author" ? selectedSubcategories : {},
         active: true,
         createdAt: new Date().toISOString(),
         invitedBy: session?.email,
@@ -89,9 +102,10 @@ export default function StaffPage() {
       setEmail("");
       setRole("author");
       setAllowed([]);
+      setSelectedSubcategories({});
       setMessage({
         tone: "success",
-        text: "İşçi əlavə olundu. İndi Firebase → Authentication → Users bölməsində həmin e-poçt üçün hesab yaradın və şifrəni ona göndərin.",
+        text: "Yazar əlavə olundu. İndi Firebase → Authentication → Users bölməsində həmin e-poçt üçün hesab yaradın və şifrəni ona göndərin.",
       });
       await refresh();
     } catch (caught) {
@@ -102,6 +116,77 @@ export default function StaffPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function startEdit(member: StaffMember) {
+    setEditingId(member.id);
+    setName(member.name);
+    setEmail(member.email);
+    setRole(member.role);
+    setAllowed(member.categories || []);
+    setSelectedSubcategories(member.subcategories || {});
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setName("");
+    setEmail("");
+    setRole("author");
+    setAllowed([]);
+    setSelectedSubcategories({});
+  }
+
+  async function handleUpdate() {
+    if (!editingId) return;
+    
+    setBusy(true);
+    setMessage(null);
+    try {
+      await saveStaff(editingId, {
+        name: name.trim(),
+        role,
+        categories: role === "author" ? allowed : [],
+        subcategories: role === "author" ? selectedSubcategories : {},
+      });
+      setMessage({ tone: "success", text: "Dəyişikliklər yadda saxlanıldı." });
+      cancelEdit();
+      await refresh();
+    } catch (caught) {
+      setMessage({
+        tone: "error",
+        text: caught instanceof Error ? caught.message : "Yenilənmədi.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function toggleCategory(cat: CategorySlug) {
+    setAllowed((prev) => {
+      const newAllowed = prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat];
+      
+      // Kateqoriya silinirsə, onun alt kateqoriyalarını da sil
+      if (!newAllowed.includes(cat)) {
+        setSelectedSubcategories((prevSub) => {
+          const newSub = { ...prevSub };
+          delete newSub[cat];
+          return newSub;
+        });
+      }
+      
+      return newAllowed;
+    });
+  }
+
+  function toggleSubcategory(cat: CategorySlug, sub: string) {
+    setSelectedSubcategories((prev) => {
+      const current = prev[cat] || [];
+      const newSubs = current.includes(sub)
+        ? current.filter((s) => s !== sub)
+        : [...current, sub];
+      
+      return { ...prev, [cat]: newSubs };
+    });
   }
 
   async function toggleActive(member: StaffMember) {
@@ -147,8 +232,8 @@ export default function StaffPage() {
   return (
     <>
       <PageHeader
-        title="İşçilər"
-        description="Redaksiya heyəti və onların icazələri. İşçi buraya əlavə olunandan sonra Firebase-də hesabı yaradılır."
+        title="Yazarlar və İşçilər"
+        description="Redaksiya heyəti, yazarlar və onların icazələri. Yazar buraya əlavə olunandan sonra Firebase-də hesabı yaradılır."
       />
 
       <div className="px-6 py-8 lg:px-10">
@@ -161,7 +246,7 @@ export default function StaffPage() {
         <div className="grid gap-6 xl:grid-cols-12">
           {/* Yeni işçi */}
           <div className="xl:col-span-4">
-            <Panel title="Yeni işçi əlavə et">
+            <Panel title={editingId ? "Yazarı redaktə et" : "Yeni yazar əlavə et"}>
               <div className="space-y-5">
                 <Field label="Ad və soyad">
                   <input
@@ -172,13 +257,14 @@ export default function StaffPage() {
                   />
                 </Field>
 
-                <Field label="E-poçt" hint="Panelə bu e-poçt ilə daxil olacaq.">
+                <Field label="E-poçt" hint={editingId ? "E-poçt dəyişdirilə bilməz" : "Panelə bu e-poçt ilə daxil olacaq."}>
                   <input
                     type="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     className={inputClass}
                     placeholder="ad@nesreenmagazine.com"
+                    disabled={!!editingId}
                   />
                 </Field>
 
@@ -190,49 +276,85 @@ export default function StaffPage() {
                   >
                     <option value="admin">Admin</option>
                     <option value="editor">Redaktor</option>
-                    <option value="author">Müəllif</option>
+                    <option value="author">Yazar/Müəllif</option>
                   </select>
                 </Field>
 
                 {role === "author" && (
-                  <Field
-                    label="Hansı bölmələrdə yaza bilər"
-                    hint="Heç biri seçilməsə, bütün bölmələr açıq olur."
-                  >
-                    <div className="space-y-2">
-                      {categories.map((category) => (
-                        <label
-                          key={category.slug}
-                          className="flex items-center gap-3 font-ui text-[13px] text-ink"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={allowed.includes(category.slug)}
-                            onChange={(event) =>
-                              setAllowed((current) =>
-                                event.target.checked
-                                  ? [...current, category.slug]
-                                  : current.filter((slug) => slug !== category.slug),
-                              )
-                            }
-                            className="h-4 w-4 accent-[#7b2233]"
-                          />
-                          {category.name.az}
-                        </label>
-                      ))}
-                    </div>
-                  </Field>
+                  <div className="space-y-4">
+                    <Field
+                      label="Hansı bölmələrdə yaza bilər"
+                      hint="Heç biri seçilməsə, bütün bölmələr açıq olur."
+                    >
+                      <div className="space-y-3">
+                        {categories.map((category) => (
+                          <div key={category.slug} className="border border-line bg-cream-deep/30 p-3">
+                            <label className="flex items-center gap-3 font-ui text-[13px] text-ink">
+                              <input
+                                type="checkbox"
+                                checked={allowed.includes(category.slug)}
+                                onChange={() => toggleCategory(category.slug)}
+                                className="h-4 w-4 accent-bordo"
+                              />
+                              <span className="font-semibold">{category.name.az}</span>
+                            </label>
+
+                            {/* Alt kateqoriyalar */}
+                            {allowed.includes(category.slug) && SUBCATEGORIES[category.slug] && SUBCATEGORIES[category.slug]!.length > 0 && (
+                              <div className="ml-7 mt-2 space-y-2 border-l-2 border-gold/30 pl-3">
+                                <p className="font-ui text-[11px] uppercase tracking-wide text-muted">
+                                  Alt kateqoriyalar:
+                                </p>
+                                {SUBCATEGORIES[category.slug]!.map((sub) => (
+                                  <label
+                                    key={sub}
+                                    className="flex items-center gap-2 font-ui text-[12px] text-ink-soft"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedSubcategories[category.slug]?.includes(sub)}
+                                      onChange={() => toggleSubcategory(category.slug, sub)}
+                                      className="h-3.5 w-3.5 accent-gold"
+                                    />
+                                    {sub}
+                                  </label>
+                                ))}
+                                {selectedSubcategories[category.slug]?.length === 0 && (
+                                  <p className="font-ui text-[11px] italic text-muted">
+                                    Heç biri seçilməyibsə bütün alt kateqoriyalara icazə var
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </Field>
+                  </div>
                 )}
 
-                <Button onClick={() => void handleAdd()} disabled={busy} className="w-full">
-                  {busy ? "Əlavə olunur…" : "Əlavə et"}
-                </Button>
+                <div className="flex gap-2">
+                  {editingId ? (
+                    <>
+                      <Button onClick={() => void handleUpdate()} disabled={busy} className="flex-1">
+                        {busy ? "Yenilənir…" : "Dəyişiklikləri yadda saxla"}
+                      </Button>
+                      <Button variant="ghost" onClick={cancelEdit} disabled={busy}>
+                        Ləğv et
+                      </Button>
+                    </>
+                  ) : (
+                    <Button onClick={() => void handleAdd()} disabled={busy} className="w-full">
+                      {busy ? "Əlavə olunur…" : "Yazar əlavə et"}
+                    </Button>
+                  )}
+                </div>
               </div>
             </Panel>
 
             <div className="mt-6">
               <Alert>
-                <strong>Vacib:</strong> işçini buraya əlavə etdikdən sonra Firebase konsolunda
+                <strong>Vacib:</strong> yazarı buraya əlavə etdikdən sonra Firebase konsolunda
                 <em> Authentication → Users → Add user</em> bölməsindən eyni e-poçt üçün hesab
                 yaradın və şifrəni ona göndərin. Şifrəni sonra özü dəyişə bilər.
               </Alert>
@@ -241,12 +363,12 @@ export default function StaffPage() {
 
           {/* Siyahı */}
           <div className="xl:col-span-8">
-            <Panel title="Redaksiya heyəti">
+            <Panel title="Redaksiya heyəti və yazarlar">
               {!staff ? (
                 <p className="py-12 text-center font-ui text-[13px] text-muted">Yüklənir…</p>
               ) : staff.length === 0 ? (
                 <Empty
-                  title="Hələ işçi əlavə edilməyib"
+                  title="Hələ yazar əlavə edilməyib"
                   text="Siz .env.local faylındakı NEXT_PUBLIC_ADMIN_EMAILS siyahısı sayəsində admin kimi giriş etmisiniz."
                 />
               ) : (
@@ -254,22 +376,44 @@ export default function StaffPage() {
                   {staff.map((member) => (
                     <li key={member.id} className="py-5">
                       <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="font-display text-lg text-ink">{member.name}</p>
                           <p className="mt-0.5 font-ui text-[12.5px] text-muted">
                             {member.email}
                           </p>
+                          
+                          {/* Kateqoriyalar və alt kateqoriyalar */}
+                          {member.categories && member.categories.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                              {member.categories.map((catSlug) => {
+                                const cat = categories.find((c) => c.slug === catSlug);
+                                const subs = member.subcategories?.[catSlug] || [];
+                                
+                                return (
+                                  <div key={catSlug} className="border-l-2 border-gold/50 pl-3">
+                                    <p className="font-ui text-[12px] font-semibold text-ink">
+                                      {cat?.name.az || catSlug}
+                                    </p>
+                                    {subs.length > 0 && (
+                                      <p className="mt-0.5 font-ui text-[11px] text-muted">
+                                        Alt kateqoriyalar: {subs.join(", ")}
+                                      </p>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                          
+                          {(!member.categories || member.categories.length === 0) && member.role === "author" && (
+                            <p className="mt-2 font-ui text-[11.5px] text-muted">
+                              Bütün bölmələr və kateqoriyalar
+                            </p>
+                          )}
+
                           <p className="mt-2 font-ui text-[11.5px] text-muted">
-                            {member.categories.length > 0
-                              ? member.categories
-                                  .map(
-                                    (slug) =>
-                                      categories.find((c) => c.slug === slug)?.name.az ?? slug,
-                                  )
-                                  .join(" · ")
-                              : "Bütün bölmələr"}
                             {member.createdAt &&
-                              ` · ${formatDate(member.createdAt.slice(0, 10), "az")}`}
+                              `Əlavə edildi: ${formatDate(member.createdAt.slice(0, 10), "az")}`}
                           </p>
                         </div>
 
@@ -286,6 +430,13 @@ export default function StaffPage() {
                             <option value="editor">{roleLabels.editor}</option>
                             <option value="author">{roleLabels.author}</option>
                           </select>
+
+                          <Button
+                            variant="ghost"
+                            onClick={() => startEdit(member)}
+                          >
+                            Redaktə
+                          </Button>
 
                           <Button
                             variant="ghost"
