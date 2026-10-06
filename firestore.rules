@@ -1,0 +1,99 @@
+rules_version = '2';
+
+/**
+ * NESREEN MAGAZINE — Firestore təhlükəsizlik qaydaları
+ *
+ * Dizayn və proqramlaşdırma: Cradex Agency · https://cradexagency.com
+ *
+ * Firebase konsolunda: Firestore Database → Rules → bu mətni yapışdırıb Publish.
+ *
+ * Məntiq:
+ *   • Oxucu yalnız dərc olunmuş məqalələri, bürc şərhlərini və aktiv bannerləri görür.
+ *   • Yazmaq üçün redaksiya heyətində olmaq lazımdır (staff sənədi + active: true).
+ *   • İşçiləri idarə etmək, silmək və banner qoymaq yalnız adminə açıqdır.
+ *   • Abunəlik və əlaqə formaları hər kəsə yazmağa açıqdır, amma oxumağa yox.
+ */
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- köməkçi funksiyalar ----------
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // İşçi sənədinin ID-si həmin şəxsin e-poçtudur (kiçik hərflərlə).
+    function staffId() {
+      return request.auth.token.email.lower();
+    }
+
+    function staffDoc() {
+      return get(/databases/$(database)/documents/staff/$(staffId()));
+    }
+
+    function isStaff() {
+      return signedIn()
+        && request.auth.token.email != null
+        && exists(/databases/$(database)/documents/staff/$(staffId()))
+        && staffDoc().data.active == true;
+    }
+
+    function isAdmin() {
+      return isStaff() && staffDoc().data.role == 'admin';
+    }
+
+    // ---------- məqalələr ----------
+
+    match /articles/{articleId} {
+      // Hər kəs dərc olunmuş məqaləni oxuya bilər.
+      allow read: if resource.data.status == 'published' || isStaff();
+      allow create, update: if isStaff();
+      allow delete: if isAdmin();
+    }
+
+    // ---------- bürc şərhləri ----------
+
+    match /horoscopes/{sign} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    // ---------- reklam bannerləri ----------
+
+    match /banners/{bannerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---------- redaksiya heyəti ----------
+
+    match /staff/{memberEmail} {
+      // İşçi öz sənədini oxuya bilər; siyahını yalnız admin görür.
+      allow read: if isAdmin()
+                  || (signedIn() && memberEmail == request.auth.token.email.lower());
+      allow write: if isAdmin();
+    }
+
+    // ---------- məktub abunəliyi ----------
+
+    match /subscribers/{subscriberId} {
+      allow create: if request.resource.data.email is string
+                    && request.resource.data.email.size() < 200;
+      allow read, update, delete: if isStaff();
+    }
+
+    // ---------- əlaqə mesajları ----------
+
+    match /messages/{messageId} {
+      allow create: if request.resource.data.message is string
+                    && request.resource.data.message.size() < 5000;
+      allow read, update: if isStaff();
+      allow delete: if isAdmin();
+    }
+
+    // Yuxarıda sadalanmayan hər şey bağlıdır.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

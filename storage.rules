@@ -1,0 +1,70 @@
+rules_version = '2';
+
+/**
+ * NESREEN MAGAZINE — Firebase Storage qaydaları
+ *
+ * Dizayn və proqramlaşdırma: Cradex Agency · https://cradexagency.com
+ *
+ * Firebase konsolunda: Storage → Rules → bu mətni yapışdırıb Publish.
+ *
+ * Məntiq:
+ *   • Şəkilləri hər kəs görə bilər (sayt onları oxucuya göstərir).
+ *   • Yükləmək yalnız redaksiya heyətinə açıqdır və yalnız şəkil formatında,
+ *     ölçüsü 8 MB-dan çox olmayan fayllar qəbul edilir.
+ */
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isStaff() {
+      return request.auth != null
+        && request.auth.token.email != null
+        && firestore.exists(
+             /databases/(default)/documents/staff/$(request.auth.token.email.lower())
+           )
+        && firestore.get(
+             /databases/(default)/documents/staff/$(request.auth.token.email.lower())
+           ).data.active == true;
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*')
+        && request.resource.size < 8 * 1024 * 1024;
+    }
+
+    // Məqalə üz qabıqları
+    match /covers/{fileName} {
+      allow read: if true;
+      allow write: if isStaff() && isImage();
+    }
+
+    // Reklam bannerləri
+    match /banners/{fileName} {
+      allow read: if true;
+      allow write: if isStaff() && isImage();
+    }
+
+    // Məqalə mətnindəki şəkillər
+    match /inline/{fileName} {
+      allow read: if true;
+      allow write: if isStaff() && isImage();
+    }
+
+    // E-jurnalın üz qabıqları
+    match /ejournal-covers/{fileName} {
+      allow read: if true;
+      allow write: if isStaff() && isImage();
+    }
+
+    // E-jurnalın PDF nömrələri — 60 MB-a qədər
+    match /ejournals/{fileName} {
+      allow read: if true;
+      allow write: if isStaff()
+        && request.resource.contentType == 'application/pdf'
+        && request.resource.size < 60 * 1024 * 1024;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

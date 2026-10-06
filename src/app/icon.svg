@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <title>Nesreen Magazine</title>
+  <rect width="96" height="96" rx="14" fill="#7b2233"/>
+  <g transform="translate(48 48) scale(1.28)" fill="none" stroke="#f4e6c9" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+    <g>
+      <path d="M0 0 C -9 -5 -17 -14 -15 -23 C -13.5 -30.5 -5.5 -33 0 -27.5 C 5.5 -33 13.5 -30.5 15 -23 C 17 -14 9 -5 0 0 Z"/>
+      <path d="M0 0 C -9 -5 -17 -14 -15 -23 C -13.5 -30.5 -5.5 -33 0 -27.5 C 5.5 -33 13.5 -30.5 15 -23 C 17 -14 9 -5 0 0 Z" transform="rotate(72)"/>
+      <path d="M0 0 C -9 -5 -17 -14 -15 -23 C -13.5 -30.5 -5.5 -33 0 -27.5 C 5.5 -33 13.5 -30.5 15 -23 C 17 -14 9 -5 0 0 Z" transform="rotate(144)"/>
+      <path d="M0 0 C -9 -5 -17 -14 -15 -23 C -13.5 -30.5 -5.5 -33 0 -27.5 C 5.5 -33 13.5 -30.5 15 -23 C 17 -14 9 -5 0 0 Z" transform="rotate(216)"/>
+      <path d="M0 0 C -9 -5 -17 -14 -15 -23 C -13.5 -30.5 -5.5 -33 0 -27.5 C 5.5 -33 13.5 -30.5 15 -23 C 17 -14 9 -5 0 0 Z" transform="rotate(288)"/>
+    </g>
+    <circle cx="0" cy="0" r="4.4" fill="#c9a227" stroke="#c9a227"/>
+  </g>
+</svg>
