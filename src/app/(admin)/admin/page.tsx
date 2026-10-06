@@ -58,8 +58,8 @@ export default function AdminDashboard() {
   return (
     <>
       <PageHeader
-        title={`Salam, ${session?.name?.split(" ")[0] ?? "redaktor"}`}
-        description="Jurnalın bugünkü vəziyyəti və sürətli keçidlər."
+        title="Salam, Nesrin Abbasova"
+        description="Sizi yenidən görmək xoşdur!"
       />
 
       <div className="space-y-6 px-6 py-8 lg:px-10">
