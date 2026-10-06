@@ -77,6 +77,38 @@
     color: #fbf8f4;
   }
 
+  html.dark .bg-cream {
+    background-color: #1a1614;
+  }
+
+  html.dark .bg-cream-deep {
+    background-color: #2a2422;
+  }
+
+  html.dark .text-ink {
+    color: #fbf8f4;
+  }
+
+  html.dark .text-ink-soft {
+    color: #d4cfc9;
+  }
+
+  html.dark .text-muted {
+    color: #9e9589;
+  }
+
+  html.dark .border-line {
+    border-color: #3a3432;
+  }
+
+  html.dark .bg-bordo-deep {
+    background-color: #5c1626;
+  }
+
+  html.dark .paper-grain {
+    background-color: #1a1614;
+  }
+
   h1, h2, h3, h4, h5 {
     font-family: var(--font-display);
     font-weight: 400;

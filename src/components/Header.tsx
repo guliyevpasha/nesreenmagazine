@@ -324,7 +324,7 @@ export default function Header({
           </Link>
 
           <div className="flex items-center gap-2 md:gap-4">
-            <ThemeToggle />
+            <ThemeToggle locale={locale} />
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
