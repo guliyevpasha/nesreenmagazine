@@ -39,6 +39,7 @@ const ICONS = {
   mail: "M3 6h18v12H3V6Zm0 .5 9 6.5 9-6.5",
   staff: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-6 9c0-3.3 2.7-6 6-6s6 2.7 6 6M17 8a2.8 2.8 0 1 0 0-5.6M18 20c0-2.6-1.1-4.9-2.8-6.2",
   site: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 0c2.5 2.4 3.8 5.5 3.8 9S14.5 18.6 12 21c-2.5-2.4-3.8-5.5-3.8-9S9.5 5.4 12 3ZM3.3 9h17.4M3.3 15h17.4",
+  analytics: "M3 3v18h18M7 16l4-4 4 4 6-6",
   logout: "M15 17v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v2M19 12H9m10 0-3-3m3 3-3 3",
   menu: "M3 6h18M3 12h18M3 18h18",
   close: "M6 6l12 12M18 6 6 18",
@@ -120,6 +121,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           label="Panel"
           icon={ICONS.dashboard}
           active={pathname === "/admin"}
+        />
+        <NavLink
+          href="/admin/analytics"
+          label="Statistika"
+          icon={ICONS.analytics}
+          active={pathname === "/admin/analytics"}
         />
 
         <p className="mt-6 px-4 pb-2 font-ui text-[10px] uppercase tracking-[0.2em] text-cream/35">
