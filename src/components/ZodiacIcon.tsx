@@ -80,14 +80,6 @@ const ELEMENT_TINT: Record<ZodiacElement, string> = {
   water: "#e9edee",
 };
 
-/** Dark mode üçün daha tünd fon çaları */
-const ELEMENT_TINT_DARK: Record<ZodiacElement, string> = {
-  fire: "#2d1f1e",
-  earth: "#252320",
-  air: "#262421",
-  water: "#1f2426",
-};
-
 export default function ZodiacIcon({
   sign,
   element,
@@ -103,10 +95,7 @@ export default function ZodiacIcon({
 }) {
   return (
     <svg viewBox="0 0 96 96" className={className} aria-hidden="true">
-      {/* Light mode circle */}
-      <circle cx="48" cy="48" r="46" fill={ELEMENT_TINT[element]} className="dark:hidden" />
-      {/* Dark mode circle */}
-      <circle cx="48" cy="48" r="46" fill={ELEMENT_TINT_DARK[element]} className="hidden dark:block" />
+      <circle cx="48" cy="48" r="46" fill={ELEMENT_TINT[element]} />
       {withRing && (
         <circle
           cx="48"
@@ -116,7 +105,6 @@ export default function ZodiacIcon({
           stroke="var(--color-gold)"
           strokeWidth="0.7"
           opacity="0.55"
-          className="dark:opacity-30"
         />
       )}
       <g
@@ -126,7 +114,6 @@ export default function ZodiacIcon({
         strokeWidth={strokeWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="dark:stroke-[#e88ba3]"
       >
         {GLYPHS[sign].map((d, index) => (
           <path key={index} d={d} />

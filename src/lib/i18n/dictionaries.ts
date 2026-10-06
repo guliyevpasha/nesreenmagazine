@@ -22,8 +22,6 @@ const az = {
     magazine: "Jurnal",
     editions: "Nəşrlər",
     selected: "Seçilənlər",
-    darkMode: "Qaranlıq rejim",
-    lightMode: "İşıqlı rejim",
   },
   common: {
     readMore: "Ardını oxu",
@@ -217,8 +215,6 @@ const en: Dictionary = {
     magazine: "Magazine",
     editions: "Editions",
     selected: "Editor's Picks",
-    darkMode: "Dark mode",
-    lightMode: "Light mode",
   },
   common: {
     readMore: "Read more",
@@ -410,8 +406,6 @@ const ru: Dictionary = {
     magazine: "Журнал",
     editions: "Издания",
     selected: "Избранное",
-    darkMode: "Тёмный режим",
-    lightMode: "Светлый режим",
   },
   common: {
     readMore: "Читать далее",
@@ -602,8 +596,6 @@ const tr: Dictionary = {
     magazine: "Dergi",
     editions: "Yayınlar",
     selected: "Seçkiler",
-    darkMode: "Karanlık mod",
-    lightMode: "Aydınlık mod",
   },
   common: {
     readMore: "Devamını oku",
@@ -795,8 +787,6 @@ const ar: Dictionary = {
     magazine: "المجلة",
     editions: "الإصدارات",
     selected: "المختارات",
-    darkMode: "الوضع الداكن",
-    lightMode: "الوضع الفاتح",
   },
   common: {
     readMore: "اقرأ المزيد",

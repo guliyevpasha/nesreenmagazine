@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import Logo from "@/components/Logo";
 import SearchOverlay, { type SearchItem } from "@/components/SearchOverlay";
-import ThemeToggle from "@/components/ThemeToggle";
 import { categories } from "@/lib/categories";
 import {
   localeNames,
@@ -324,7 +323,6 @@ export default function Header({
           </Link>
 
           <div className="flex items-center gap-2 md:gap-4">
-            <ThemeToggle locale={locale} />
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
