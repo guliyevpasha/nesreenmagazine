@@ -3,6 +3,11 @@
  * Açarlar hələ əlavə edilməyibsə, sayt `src/lib/content` qovluğundakı
  * hazır məqalələrlə (seed) işləyir — heç nə sınmır.
  */
+import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
+import { getAuth, type Auth } from "firebase/auth";
+
 export const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "",
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "",
@@ -17,6 +22,27 @@ export const isFirebaseConfigured =
   firebaseConfig.apiKey.length > 0 &&
   firebaseConfig.projectId.length > 0 &&
   firebaseConfig.appId.length > 0;
+
+// Initialize Firebase
+let app: FirebaseApp;
+let db: Firestore;
+let storage: FirebaseStorage;
+let auth: Auth;
+
+if (isFirebaseConfigured && typeof window !== "undefined") {
+  // Only initialize on client side
+  if (!getApps().length) {
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = getApps()[0];
+  }
+  
+  db = getFirestore(app);
+  storage = getStorage(app);
+  auth = getAuth(app);
+}
+
+export { app, db, storage, auth };
 
 /** Firestore kolleksiyalarının adları. */
 export const COLLECTIONS = {
