@@ -165,28 +165,29 @@ export default function Footer({ locale }: { locale: Locale }) {
 
       {/* Privacy Policy Modal */}
       {showPrivacy && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="relative max-w-2xl w-full max-h-[80vh] overflow-y-auto bg-white rounded-lg">
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">{dict.footer.privacy}</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowPrivacy(false)}>
+          <div className="relative max-w-2xl w-full max-h-[80vh] overflow-y-auto bg-cream dark:bg-[#1a1715] rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-cream dark:bg-[#1a1715] border-b border-line dark:border-[#2d2925] p-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-ink dark:text-cream">{dict.footer.privacy}</h2>
               <button 
                 onClick={() => setShowPrivacy(false)}
-                className="text-gray-500 hover:text-gray-700 text-xl"
+                className="text-muted dark:text-[#b5aca0] hover:text-bordo dark:hover:text-[#e88ba3] text-2xl w-8 h-8 flex items-center justify-center"
+                aria-label="Bağla"
               >
                 ×
               </button>
             </div>
-            <div className="p-6 text-sm text-gray-700 leading-relaxed">
+            <div className="p-6 text-sm text-ink-soft dark:text-[#e0dbd5] leading-relaxed">
               <p className="mb-4">
                 Bu məxfilik siyasəti Nesreen Magazine saytında şəxsi məlumatlarınızın necə toplandığı və istifadə edildiyi barədə məlumat verir.
               </p>
-              <h3 className="font-semibold mb-2">Topladığımız məlumatlar:</h3>
+              <h3 className="font-semibold mb-2 text-ink dark:text-cream">Topladığımız məlumatlar:</h3>
               <ul className="list-disc pl-6 mb-4 space-y-1">
                 <li>Newsletter abunəliyi üçün e-poçt ünvanı</li>
                 <li>Əlaqə formu vasitəsilə göndərilən şəxsi məlumatlar</li>
                 <li>Sayt istifadəsi haqqında analitik məlumatlar</li>
               </ul>
-              <h3 className="font-semibold mb-2">Məlumatların istifadəsi:</h3>
+              <h3 className="font-semibold mb-2 text-ink dark:text-cream">Məlumatların istifadəsi:</h3>
               <ul className="list-disc pl-6 mb-4 space-y-1">
                 <li>Newsletter göndərmək üçün</li>
                 <li>Sorğularınıza cavab vermək üçün</li>
@@ -195,7 +196,7 @@ export default function Footer({ locale }: { locale: Locale }) {
               <p className="mb-4">
                 Şəxsi məlumatlarınız üçüncü tərəflərə satılmır və ya paylaşılmır. İstədiyiniz zaman newsletter abunəliyindən çıxa bilərsiniz.
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted dark:text-[#b5aca0]">
                 Son yenilənmə: {new Date().toLocaleDateString(locale === 'az' ? 'az-AZ' : locale)}
               </p>
             </div>
@@ -205,38 +206,39 @@ export default function Footer({ locale }: { locale: Locale }) {
 
       {/* Terms of Use Modal */}
       {showTerms && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="relative max-w-2xl w-full max-h-[80vh] overflow-y-auto bg-white rounded-lg">
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">{dict.footer.terms}</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowTerms(false)}>
+          <div className="relative max-w-2xl w-full max-h-[80vh] overflow-y-auto bg-cream dark:bg-[#1a1715] rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-cream dark:bg-[#1a1715] border-b border-line dark:border-[#2d2925] p-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-ink dark:text-cream">{dict.footer.terms}</h2>
               <button 
                 onClick={() => setShowTerms(false)}
-                className="text-gray-500 hover:text-gray-700 text-xl"
+                className="text-muted dark:text-[#b5aca0] hover:text-bordo dark:hover:text-[#e88ba3] text-2xl w-8 h-8 flex items-center justify-center"
+                aria-label="Bağla"
               >
                 ×
               </button>
             </div>
-            <div className="p-6 text-sm text-gray-700 leading-relaxed">
+            <div className="p-6 text-sm text-ink-soft dark:text-[#e0dbd5] leading-relaxed">
               <p className="mb-4">
                 Bu istifadə şərtləri Nesreen Magazine saytından istifadə qaydalarını müəyyən edir.
               </p>
-              <h3 className="font-semibold mb-2">İstifadə qaydaları:</h3>
+              <h3 className="font-semibold mb-2 text-ink dark:text-cream">İstifadə qaydaları:</h3>
               <ul className="list-disc pl-6 mb-4 space-y-1">
                 <li>Sayt məzmunu yalnız şəxsi istifadə üçündir</li>
                 <li>Məqalələri icazəsiz kopyalamaq qadağandır</li>
                 <li>Saytda təhqiredici və ya qanunuzə zidd məzmun paylaşmaq olmaz</li>
               </ul>
-              <h3 className="font-semibold mb-2">Məsuliyyət:</h3>
+              <h3 className="font-semibold mb-2 text-ink dark:text-cream">Məsuliyyət:</h3>
               <ul className="list-disc pl-6 mb-4 space-y-1">
                 <li>Sayt məzmunu "olduğu kimi" təqdim edilir</li>
                 <li>Məlumatların dəqiqliyinə zəmanət verilmir</li>
                 <li>İstifadəçilər öz riskləri ilə saytdan istifadə edirlər</li>
               </ul>
-              <h3 className="font-semibold mb-2">Müəlliflik hüquqları:</h3>
+              <h3 className="font-semibold mb-2 text-ink dark:text-cream">Müəlliflik hüquqları:</h3>
               <p className="mb-4">
                 Saytdakı bütün məzmun Nesreen Magazine-ə məxsusdur və müəlliflik hüquqları ilə qorunur.
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted dark:text-[#b5aca0]">
                 Son yenilənmə: {new Date().toLocaleDateString(locale === 'az' ? 'az-AZ' : locale)}
               </p>
             </div>
