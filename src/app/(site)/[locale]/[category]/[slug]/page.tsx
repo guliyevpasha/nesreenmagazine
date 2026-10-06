@@ -90,7 +90,27 @@ export default async function ArticlePage({
   const dict = getDictionary(locale);
 
   const article = await getArticleBySlug(slug);
-  if (!article || article.category !== rawCategory) notFound();
+  
+  // Məqalə yoxdursa və ya kateqoriya uyğun gəlmirsə, "Coming Soon" göstər
+  if (!article || article.category !== rawCategory) {
+    return (
+      <div className="container-mag flex min-h-[60vh] flex-col items-center justify-center py-20 text-center">
+        <div className="mx-auto max-w-md">
+          <RoseMark className="mx-auto h-12 w-12 text-gold/30" strokeWidth={1} />
+          <h1 className="mt-8 text-3xl font-display">{dict.soon.badge}</h1>
+          <p className="mt-4 text-lg text-ink-soft">
+            Bu məqalə hazırlanır. Yaxın zamanda dərc olunacaq.
+          </p>
+          <Link 
+            href={routes.category(locale, rawCategory)} 
+            className="btn-ghost mt-8"
+          >
+            {categoryName(rawCategory, locale)} bölməsinə qayıt
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const title = pick(article.title, locale);
   const excerpt = pick(article.excerpt, locale);

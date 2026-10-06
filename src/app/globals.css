@@ -53,6 +53,10 @@
     color-scheme: light;
   }
 
+  html.dark {
+    color-scheme: dark;
+  }
+
   html {
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
@@ -66,6 +70,11 @@
     line-height: 1.75;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+  }
+
+  html.dark body {
+    background-color: #1a1614;
+    color: #fbf8f4;
   }
 
   h1, h2, h3, h4, h5 {
