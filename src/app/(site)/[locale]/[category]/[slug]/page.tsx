@@ -11,7 +11,7 @@ import { RoseMark } from "@/components/Logo";
 import SectionHeading from "@/components/SectionHeading";
 import ShareButtons from "@/components/ShareButtons";
 import { categoryName, isCategorySlug } from "@/lib/categories";
-import { getAllArticles, getArticleBySlug, getRelatedArticles } from "@/lib/data/articles";
+import { getArticleBySlug, getRelatedArticles } from "@/lib/data/articles";
 import { siteUrl } from "@/lib/firebase/config";
 import { formatDate, isLocale, locales, type Locale } from "@/lib/i18n/config";
 import { getDictionary, interpolate } from "@/lib/i18n/dictionaries";
@@ -20,16 +20,12 @@ import { routes } from "@/lib/routes";
 import { pick, pickTags } from "@/lib/types";
 
 export const revalidate = 3600; // 1 saat
+export const dynamicParams = true; // bilinməyən slug-lar runtime-da render olsun
 
-export async function generateStaticParams() {
-  const articles = await getAllArticles();
-  return locales.flatMap((locale) =>
-    articles.map((article) => ({
-      locale,
-      category: article.category,
-      slug: article.slug,
-    })),
-  );
+// Build zamanı Firestore-a qoşulmaq əvəzinə səhifələr
+// istifadəçi ilk dəfə açanda render olunur (ISR).
+export function generateStaticParams() {
+  return [];
 }
 
 export async function generateMetadata({
