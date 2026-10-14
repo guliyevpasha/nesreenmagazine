@@ -1,6 +1,9 @@
 import type { CategorySlug } from "@/lib/categories";
 import type { Locale } from "@/lib/i18n/config";
 
+// Re-export Locale for convenience
+export type { Locale };
+
 /** Beş dildə mətn. Admin paneldə hər dil üçün ayrıca xana var. */
 export type LocalizedText = Record<Locale, string>;
 
@@ -99,6 +102,40 @@ export type AdBanner = {
   startsAt?: string;
   endsAt?: string;
 };
+
+/** E-kitab banner - biznes məqalələrində göstərilən reklam */
+export type EbookBanner = {
+  id: string;
+  active: boolean;
+  /** Cover şəkli */
+  coverImage: string;
+  /** Preview slider şəkilləri */
+  previewImages: string[];
+  /** Affiliate link */
+  href: string;
+  /** Başlıq */
+  title: LocalizedText;
+  /** Alt başlıq */
+  subtitle: LocalizedText;
+  /** Təsvir */
+  description: LocalizedText;
+  /** Xüsusiyyətlər (4 bullet point) */
+  features: Record<Locale, string[]>;
+  /** CTA button mətni */
+  ctaText: LocalizedText;
+  /** Qiymət */
+  price: string;
+  /** Köhnə qiymət */
+  originalPrice: string;
+  /** Endirim badge mətni */
+  discountText: LocalizedText;
+  /** Badge mətni (yuxarıda) */
+  badgeText: LocalizedText;
+  createdAt: string;
+  updatedAt?: string;
+};
+
+export type EbookBannerInput = Omit<EbookBanner, "id" | "updatedAt">;
 
 /** Boş dil obyekti yaratmaq üçün köməkçi. */
 export function emptyLocalized(): LocalizedText {

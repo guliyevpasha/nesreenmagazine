@@ -35,6 +35,7 @@ const ICONS = {
   articles: "M5 4h11l3 3v13H5V4Zm11 0v3h3M8 11h8M8 15h8M8 7h4",
   stars: "M12 3l2.3 5.2L20 9.3l-4 3.9.9 5.8L12 16.3 7.1 19l.9-5.8-4-3.9 5.7-1.1L12 3Z",
   banner: "M3 6h18v9H3V6Zm4 13h10M12 15v4",
+  ebook: "M12 6.25v13.5M5 10h13.5M5 14h13.5M8 18h8M8 6h8M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z",
   ejournal: "M5 4h9l5 5v11H5V4Zm9 0v5h5M9 13h6M9 16h4",
   mail: "M3 6h18v12H3V6Zm0 .5 9 6.5 9-6.5",
   staff: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-6 9c0-3.3 2.7-6 6-6s6 2.7 6 6M17 8a2.8 2.8 0 1 0 0-5.6M18 20c0-2.6-1.1-4.9-2.8-6.2",
@@ -169,6 +170,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           active={pathname.startsWith("/admin/banners")}
         />
         <NavLink
+          href="/admin/ebook-banner"
+          label="E-kitab Reklamı"
+          icon={ICONS.ebook}
+          active={pathname.startsWith("/admin/ebook-banner")}
+        />
+        <NavLink
           href="/admin/messages"
           label="Mesajlar"
           icon={ICONS.mail}
@@ -198,7 +205,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       </nav>
 
       <div className="border-t border-white/10 px-5 py-5">
-        <p className="truncate font-ui text-[13px] text-cream">{session.name}</p>
+        <p className="truncate font-ui text-[13px] font-semibold text-cream">Nesrin Abbasova</p>
         <p className="mt-0.5 truncate font-ui text-[11px] text-cream/45">{session.email}</p>
         <p className="mt-2 inline-block bg-gold/20 px-2 py-0.5 font-ui text-[10px] uppercase tracking-[0.14em] text-gold-soft">
           {roleLabels[session.role]}

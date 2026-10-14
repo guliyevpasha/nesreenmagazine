@@ -65,6 +65,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ---------- e-kitab bannerləri ----------
+
+    match /ebookBanners/{bannerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // ---------- redaksiya heyəti ----------
 
     match /staff/{memberEmail} {

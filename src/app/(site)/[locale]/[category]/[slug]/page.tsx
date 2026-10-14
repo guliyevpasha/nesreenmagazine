@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 // MÜVƏQQƏTİ: reklam sahələri gizlədilib — geri qaytarmaq üçün bu sətri silin, aşağıdakı importu bərpa edin.
 // import AdSlot from "@/components/AdSlot";
 import ArticleCard from "@/components/ArticleCard";
+import EbookBanner from "@/components/EbookBanner";
 import CoverArt from "@/components/CoverArt";
 import { RoseMark } from "@/components/Logo";
 import SectionHeading from "@/components/SectionHeading";
@@ -18,7 +19,7 @@ import { markdownToHtml, markdownToPlainText } from "@/lib/markdown";
 import { routes } from "@/lib/routes";
 import { pick, pickTags } from "@/lib/types";
 
-export const revalidate = 300;
+export const revalidate = 3600; // 1 saat
 
 export async function generateStaticParams() {
   const articles = await getAllArticles();
@@ -213,6 +214,11 @@ export default async function ArticlePage({
 
         {secondHalf.trim().length > 0 && (
           <>
+            {/* E-kitab reklamı - bütün məqalələrdə */}
+            <div className="my-12">
+              <EbookBanner locale={locale} />
+            </div>
+            
             {/* MÜVƏQQƏTİ: reklam sahəsi gizlədilib — bu bloku şərhdən çıxarmaqla geri qaytarın.
             <div className="my-12">
               <AdSlot slot="article-inline" locale={locale} />

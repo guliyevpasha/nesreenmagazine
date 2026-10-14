@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "seed-ebook": "tsx --env-file=.env.local scripts/seed-ebook.ts",
     "typecheck": "tsc --noEmit",
     "add-images": "tsx --env-file=.env.local scripts/add-unsplash-images.ts",
     "add-static-images": "tsx scripts/add-static-images.ts"

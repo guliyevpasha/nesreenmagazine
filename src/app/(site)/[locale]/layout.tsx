@@ -27,7 +27,7 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { routes } from "@/lib/routes";
 import { pick, pickTags } from "@/lib/types";
 
-export const revalidate = 300;
+export const revalidate = 3600; // 1 saat
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));

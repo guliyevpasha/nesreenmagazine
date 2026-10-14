@@ -152,7 +152,7 @@ export default function BannersPage() {
     <>
       <PageHeader
         title="Reklam bannerləri"
-        description="Saytda beş banner sahəsi var. Sahə boş olduqda oxucuya «kirayə verilir» örtüyü görünür."
+        description="Saytda beş banner sahəsi var. Sahə boş olduqda oxucuya «kirayə verilir» örtüyü görünür. Biznes bölməsində avtomatik e-kitab reklamı göstərilir."
       />
 
       <div className="px-6 py-8 lg:px-10">

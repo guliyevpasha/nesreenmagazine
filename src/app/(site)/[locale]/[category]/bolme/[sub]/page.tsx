@@ -16,7 +16,7 @@ import { isLocale, locales, type Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { routes } from "@/lib/routes";
 
-export const revalidate = 300;
+export const revalidate = 3600; // 1 saat
 
 type Params = { locale: string; category: string; sub: string };
 

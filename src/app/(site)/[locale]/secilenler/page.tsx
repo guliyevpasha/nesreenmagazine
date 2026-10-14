@@ -9,7 +9,7 @@ import { isLocale, locales, type Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { routes } from "@/lib/routes";
 
-export const revalidate = 300;
+export const revalidate = 3600; // 1 saat
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));

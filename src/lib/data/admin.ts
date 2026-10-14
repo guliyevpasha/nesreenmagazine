@@ -243,3 +243,74 @@ export async function uploadFile(file: File, folder = "covers"): Promise<string>
 
 /** Köhnə ad — şəkil yükləyən yerlər bunu çağırır. */
 export const uploadImage = uploadFile;
+
+/* ---------------------------- E-kitab Banner ---------------------------- */
+
+export async function listEbookBanners(): Promise<import("@/lib/types").EbookBanner[]> {
+  const snapshot = await getDocs(
+    query(collection(db(), "ebookBanners"), orderBy("createdAt", "desc")),
+  );
+  return snapshot.docs.map((item) => ({
+    ...(item.data() as Omit<import("@/lib/types").EbookBanner, "id">),
+    id: item.id,
+  }));
+}
+
+export async function getEbookBanner(
+  id: string,
+): Promise<import("@/lib/types").EbookBanner | null> {
+  const snapshot = await getDoc(doc(db(), "ebookBanners", id));
+  if (!snapshot.exists()) return null;
+  return {
+    ...(snapshot.data() as Omit<import("@/lib/types").EbookBanner, "id">),
+    id: snapshot.id,
+  };
+}
+
+export async function getActiveEbookBanner(): Promise<import("@/lib/types").EbookBanner | null> {
+  const banners = await listEbookBanners();
+  return banners.find((b) => b.active) ?? null;
+}
+
+export async function addEbookBanner(
+  data: import("@/lib/types").EbookBannerInput,
+): Promise<string> {
+  const ref = await addDoc(collection(db(), "ebookBanners"), {
+    ...data,
+    createdAt: new Date().toISOString(),
+  });
+  return ref.id;
+}
+
+export async function saveEbookBanner(
+  id: string,
+  updates: Partial<import("@/lib/types").EbookBanner>,
+): Promise<void> {
+  await updateDoc(doc(db(), "ebookBanners", id), {
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+export async function removeEbookBanner(id: string): Promise<void> {
+  await deleteDoc(doc(db(), "ebookBanners", id));
+}
+
+export async function duplicateEbookBanner(id: string): Promise<string> {
+  const original = await getEbookBanner(id);
+  if (!original) throw new Error("Banner tapılmadı");
+
+  const { id: _, active, createdAt, updatedAt, ...rest } = original;
+  return addEbookBanner({
+    ...rest,
+    active: false,
+    title: {
+      az: `${original.title.az} (kopya)`,
+      en: `${original.title.en} (copy)`,
+      ru: `${original.title.ru} (копия)`,
+      tr: `${original.title.tr} (kopya)`,
+      ar: `${original.title.ar} (نسخة)`,
+    },
+    createdAt: new Date().toISOString(),
+  });
+}
