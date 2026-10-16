@@ -53,6 +53,31 @@ export const COLLECTIONS = {
   subscribers: "subscribers",
   messages: "messages",
   ejournals: "ejournals",
+  // CRM
+  crmClients: "crmClients",
+  crmActivities: "crmActivities",
+  adOrders: "adOrders",
+  contentPlan: "contentPlan",
+  // SEO
+  seoRedirects: "seoRedirects",
+  seoSettings: "seoSettings",
+  // Sayt parametrləri
+  siteSettings: "siteSettings",
+  // Audit jurnalı
+  auditLogs: "auditLogs",
+  // Bildirişlər
+  notifications: "notifications",
+  // Versiya tarixçəsi
+  articleVersions: "articleVersions",
+  // E-kitab bannerləri (əvvəl hardcoded idi)
+  ebookBanners: "ebookBanners",
+  // Analytics
+  pageViews: "pageViews",
+  articleAnalytics: "articleAnalytics",
+  sessions: "sessions",
+  dailyAnalytics: "dailyAnalytics",
+  crmAnalytics: "crmAnalytics",
+  revenueAnalytics: "revenueAnalytics",
 } as const;
 
 /** Saytın kanonik ünvanı — metadata və sitemap üçün. */

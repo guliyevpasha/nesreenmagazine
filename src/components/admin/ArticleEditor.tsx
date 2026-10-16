@@ -8,6 +8,7 @@ import {
   createArticle,
   removeArticle,
   saveArticle,
+  snapshotArticleVersion,
   uploadImage,
 } from "@/lib/data/admin";
 import { canEditCategory, isAdmin, useAuth } from "@/lib/firebase/auth";
@@ -19,6 +20,7 @@ import {
   estimateReadingMinutes,
   type Article,
   type ArticleInput,
+  type ArticleStatus,
   type LocalizedTags,
   type LocalizedText,
 } from "@/lib/types";
@@ -32,6 +34,7 @@ import {
   inputClass,
   labelClass,
 } from "./ui";
+import AIContentAssistant from "./AIContentAssistant";
 
 /** Başlıqdan URL üçün ünvan düzəldir: "Payız 2026" → "payiz-2026". */
 function slugify(value: string): string {
@@ -73,6 +76,7 @@ function emptyArticle(): ArticleInput {
     author: "Nesreen",
     publishedAt: new Date().toISOString().slice(0, 10),
     readingMinutes: 0,
+    scheduledAt: undefined,
   };
 }
 
@@ -148,7 +152,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
     }
   }
 
-  async function handleSave(nextStatus?: "draft" | "published") {
+  async function handleSave(nextStatus?: ArticleStatus) {
     setMessage(null);
 
     if (!draft.title.az.trim()) {
@@ -163,6 +167,12 @@ export default function ArticleEditor({ article }: { article?: Article }) {
       return;
     }
 
+    // Planlaşdırılmış dərc yoxlaması
+    if (nextStatus === "scheduled" && !draft.scheduledAt) {
+      setMessage({ tone: "error", text: "Planlaşdırılmış dərc üçün tarix-vaxt seçin." });
+      return;
+    }
+
     const payload: ArticleInput = {
       ...draft,
       slug,
@@ -171,16 +181,37 @@ export default function ArticleEditor({ article }: { article?: Article }) {
         draft.readingMinutes > 0
           ? draft.readingMinutes
           : estimateReadingMinutes(draft.body.az || draft.body.en || ""),
+      // Scheduled deyilsə scheduledAt-ı sil
+      scheduledAt: nextStatus === "scheduled" ? draft.scheduledAt : undefined,
     };
 
     setBusy(true);
     try {
       if (article) {
         await saveArticle(article.id, payload);
+        // Versiya snapshot-u yarat
+        await snapshotArticleVersion({
+          articleId: article.id,
+          article: payload,
+          summary: nextStatus === "published"
+            ? "Dərc edildi"
+            : nextStatus === "scheduled"
+            ? `Planlaşdırıldı: ${draft.scheduledAt}`
+            : "Redaktə edildi",
+          userEmail: session?.email ?? "unknown",
+        });
         setDraft(payload);
         setMessage({ tone: "success", text: "Dəyişikliklər yadda saxlanıldı." });
       } else {
         const id = await createArticle(payload);
+        // Yeni məqalə üçün ilk versiya
+        await snapshotArticleVersion({
+          articleId: id,
+          article: payload,
+          summary: "Məqalə yaradıldı",
+          userEmail: session?.email ?? "unknown",
+          currentVersion: 0,
+        });
         setMessage({ tone: "success", text: "Məqalə yaradıldı." });
         router.push(`/admin/articles/${id}`);
       }
@@ -380,6 +411,28 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                 />
               </Field>
 
+              <Field
+                label="Planlaşdırılmış dərc"
+                hint="Gələcək tarix-vaxt seçsəniz, məqalə avtomatik dərc ediləcək."
+              >
+                <input
+                  type="datetime-local"
+                  value={draft.scheduledAt ?? ""}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      scheduledAt: event.target.value || undefined,
+                    }))
+                  }
+                  className={inputClass}
+                />
+                {draft.scheduledAt && new Date(draft.scheduledAt) > new Date() && (
+                  <p className="mt-1 font-ui text-[11px] text-gold-soft">
+                    ⏰ Planlaşdırılıb: {new Date(draft.scheduledAt).toLocaleString("az-AZ")}
+                  </p>
+                )}
+              </Field>
+
               <Field label="Müəllif">
                 <input
                   type="text"
@@ -506,6 +559,25 @@ export default function ArticleEditor({ article }: { article?: Article }) {
               </Field>
             </div>
           </Panel>
+
+          {/* AI Kontent Köməkçisi */}
+          <AIContentAssistant
+            title={draft.title[activeLocale]}
+            body={draft.body[activeLocale]}
+            category={draft.category}
+            onApplyTitle={(t) =>
+              setDraft((cur) => ({
+                ...cur,
+                title: { ...cur.title, [activeLocale]: t },
+              }))
+            }
+            onApplyExcerpt={(e) =>
+              setDraft((cur) => ({
+                ...cur,
+                excerpt: { ...cur.excerpt, [activeLocale]: e },
+              }))
+            }
+          />
         </div>
       </div>
 
@@ -519,11 +591,25 @@ export default function ArticleEditor({ article }: { article?: Article }) {
             className={`border px-2.5 py-1 font-ui text-[10px] uppercase tracking-[0.14em] ${
               draft.status === "published"
                 ? "border-gold bg-gold/15 text-ink"
+                : draft.status === "scheduled"
+                ? "border-blue-300 bg-blue-50 text-blue-700"
                 : "border-line bg-cream-deep text-muted"
             }`}
           >
-            {draft.status === "published" ? "Dərc olunub" : "Qaralama"}
+            {draft.status === "published"
+              ? "Dərc olunub"
+              : draft.status === "scheduled"
+              ? "Planlaşdırılıb"
+              : "Qaralama"}
           </span>
+          {article && (
+            <a
+              href={`/admin/article-versions?articleId=${article.id}`}
+              className="font-ui text-[10px] uppercase tracking-[0.12em] text-muted hover:text-bordo transition-colors"
+            >
+              Versiyalar →
+            </a>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -535,6 +621,11 @@ export default function ArticleEditor({ article }: { article?: Article }) {
           <Button variant="ghost" onClick={() => void handleSave("draft")} disabled={busy}>
             Qaralama saxla
           </Button>
+          {draft.scheduledAt && new Date(draft.scheduledAt) > new Date() && (
+            <Button variant="ghost" onClick={() => void handleSave("scheduled")} disabled={busy}>
+              {busy ? "Saxlanılır…" : "Planlaşdır"}
+            </Button>
+          )}
           <Button onClick={() => void handleSave("published")} disabled={busy}>
             {busy ? "Saxlanılır…" : "Dərc et"}
           </Button>

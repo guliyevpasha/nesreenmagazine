@@ -28,9 +28,14 @@ const SUBCATEGORIES: Partial<Record<CategorySlug, string[]>> = {
 };
 
 const ROLE_HINTS: Record<StaffRole, string> = {
-  admin: "Hər şeyi görür və dəyişir: işçilər, bannerlər, silmə.",
-  editor: "Bütün bölmələrdə məqalə yazır və redaktə edir.",
-  author: "Yalnız ona açılan bölmələrdə yazır.",
+  admin:     "Hər şeyi görür və dəyişir: işçilər, bannerlər, silmə.",
+  editor:    "Bütün bölmələrdə məqalə yazır və redaktə edir.",
+  author:    "Yalnız ona açılan bölmələrdə yazır.",
+  seo:       "SEO parametrləri, yönləndirmələr və axtarış hesabatları.",
+  sales:     "CRM, reklam sifarişləri və kommersiya təklifləri.",
+  finance:   "Ödənişlər, hesab-fakturalar və gəlir hesabatları.",
+  analyst:   "Statistikaya baxış və hesabat ixracı.",
+  moderator: "Məqalə moderasiyası və şərh idarəetməsi.",
 };
 
 export default function StaffPage() {

@@ -188,7 +188,36 @@ export function isAdmin(session: AdminSession | null): boolean {
 }
 
 export const roleLabels: Record<StaffRole, string> = {
-  admin: "Admin",
-  editor: "Redaktor",
-  author: "Müəllif",
+  admin:     "Admin",
+  editor:    "Redaktor",
+  author:    "Müəllif",
+  seo:       "SEO Mütəxəssisi",
+  sales:     "Satış Meneceri",
+  finance:   "Maliyyə Əməkdaşı",
+  analyst:   "Analitik",
+  moderator: "Moderator",
 };
+
+/** Rolun CRM və reklam sifarişlərinə çıxışı. */
+export function canAccessCrm(session: AdminSession | null): boolean {
+  if (!session) return false;
+  return ["admin", "sales", "finance"].includes(session.role);
+}
+
+/** Rolun SEO idarəetməsinə çıxışı. */
+export function canAccessSeo(session: AdminSession | null): boolean {
+  if (!session) return false;
+  return ["admin", "seo"].includes(session.role);
+}
+
+/** Rolun maliyyə məlumatlarına çıxışı. */
+export function canAccessFinance(session: AdminSession | null): boolean {
+  if (!session) return false;
+  return ["admin", "finance"].includes(session.role);
+}
+
+/** Rolun analitika məlumatlarına çıxışı. */
+export function canAccessAnalytics(session: AdminSession | null): boolean {
+  if (!session) return false;
+  return ["admin", "analyst", "editor"].includes(session.role);
+}

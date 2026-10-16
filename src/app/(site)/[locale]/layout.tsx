@@ -10,6 +10,7 @@ import "@/app/globals.css";
 
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
+import AnalyticsProvider from "@/components/AnalyticsProvider";
 import type { SearchItem } from "@/components/SearchOverlay";
 import { AGENCY } from "@/lib/agency";
 import { categoryName } from "@/lib/categories";
@@ -107,6 +108,7 @@ export default async function LocaleLayout({
       suppressHydrationWarning
     >
       <body className="paper-grain min-h-screen">
+        <AnalyticsProvider locale={locale} />
         <Header locale={locale} searchIndex={searchIndex} />
         <main id="main">{children}</main>
         <Footer locale={locale} />

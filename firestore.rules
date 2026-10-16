@@ -12,93 +12,279 @@ rules_version = '2';
  *   • Yazmaq üçün redaksiya heyətində olmaq lazımdır (staff sənədi + active: true).
  *   • İşçiləri idarə etmək, silmək və banner qoymaq yalnız adminə açıqdır.
  *   • Abunəlik və əlaqə formaları hər kəsə yazmağa açıqdır, amma oxumağa yox.
+ *   • CRM, audit, bildirişlər yalnız staff-a açıqdır.
+ *   • Audit qeydləri və versiyalar dəyişdirilə/silinə bilməz — immutable.
+ *
+ * Kolleksiyalar:
+ *   articles, horoscopes, banners, ebookBanners, ejournals,
+ *   staff, subscribers, messages,
+ *   crmClients, crmActivities, adOrders, contentPlan,
+ *   seoRedirects, seoSettings, siteSettings,
+ *   auditLogs, notifications, articleVersions
  */
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ---------- köməkçi funksiyalar ----------
+    // ═══════════════════════════════════════════
+    //  Köməkçi funksiyalar
+    // ═══════════════════════════════════════════
 
+    /** İstifadəçi daxil olub? */
     function signedIn() {
       return request.auth != null;
     }
 
-    // İşçi sənədinin ID-si həmin şəxsin e-poçtudur (kiçik hərflərlə).
+    /** İşçi sənədinin ID-si — e-poçt kiçik hərflə. */
     function staffId() {
       return request.auth.token.email.lower();
     }
 
+    /** Cari istifadəçinin staff sənədi. */
     function staffDoc() {
       return get(/databases/$(database)/documents/staff/$(staffId()));
     }
 
+    /**
+     * Aktiv staff üzvüdürmü?
+     * 1) Daxil olub
+     * 2) E-poçt var
+     * 3) staff kolleksiyasında mövcuddur
+     * 4) active == true
+     */
     function isStaff() {
       return signedIn()
-        && request.auth.token.email != null
-        && exists(/databases/$(database)/documents/staff/$(staffId()))
-        && staffDoc().data.active == true;
+          && request.auth.token.email != null
+          && exists(/databases/$(database)/documents/staff/$(staffId()))
+          && staffDoc().data.active == true;
     }
 
+    /** Admin rolumdamı? */
     function isAdmin() {
       return isStaff() && staffDoc().data.role == 'admin';
     }
 
-    // ---------- məqalələr ----------
+    /** Satış/CRM-ə icazəsi varmı? (admin, sales, finance) */
+    function canAccessCrm() {
+      return isStaff() && staffDoc().data.role in ['admin', 'sales', 'finance'];
+    }
 
+    /** SEO parametrlərinə icazəsi varmı? (admin, seo) */
+    function canAccessSeo() {
+      return isStaff() && staffDoc().data.role in ['admin', 'seo'];
+    }
+
+    // ═══════════════════════════════════════════
+    //  Kontent kolleksiyaları
+    // ═══════════════════════════════════════════
+
+    /** Məqalələr — oxucu yalnız published görür */
     match /articles/{articleId} {
-      // Hər kəs dərc olunmuş məqaləni oxuya bilər.
-      allow read: if resource.data.status == 'published' || isStaff();
+      allow read:   if resource.data.status == 'published' || isStaff();
       allow create, update: if isStaff();
       allow delete: if isAdmin();
     }
 
-    // ---------- bürc şərhləri ----------
-
+    /** Bürc şərhləri — hamı oxuya bilər */
     match /horoscopes/{sign} {
-      allow read: if true;
+      allow read:  if true;
       allow write: if isStaff();
     }
 
-    // ---------- reklam bannerləri ----------
+    /** E-jurnallar — hamı dərc olunmuşları görür */
+    match /ejournals/{ejournalId} {
+      allow read:   if resource.data.status == 'published' || isStaff();
+      allow create, update: if isStaff();
+      allow delete: if isAdmin();
+    }
 
+    // ═══════════════════════════════════════════
+    //  Reklam kolleksiyaları
+    // ═══════════════════════════════════════════
+
+    /** Reklam bannerləri — hamı oxuya bilər, yalnız admin yazır */
     match /banners/{bannerId} {
-      allow read: if true;
+      allow read:  if true;
       allow write: if isAdmin();
     }
 
-    // ---------- e-kitab bannerləri ----------
-
+    /** E-kitab bannerləri */
     match /ebookBanners/{bannerId} {
-      allow read: if true;
+      allow read:  if true;
       allow write: if isAdmin();
     }
 
-    // ---------- redaksiya heyəti ----------
+    // ═══════════════════════════════════════════
+    //  İstifadəçilər
+    // ═══════════════════════════════════════════
 
+    /** Redaksiya heyəti — admin siyahını görür, işçi öz sənədini */
     match /staff/{memberEmail} {
-      // İşçi öz sənədini oxuya bilər; siyahını yalnız admin görür.
       allow read: if isAdmin()
                   || (signedIn() && memberEmail == request.auth.token.email.lower());
-      allow write: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
-    // ---------- məktub abunəliyi ----------
+    // ═══════════════════════════════════════════
+    //  İctimai formalar
+    // ═══════════════════════════════════════════
 
+    /** Məktub abunəliyi — hər kəs abunə ola bilər */
     match /subscribers/{subscriberId} {
       allow create: if request.resource.data.email is string
                     && request.resource.data.email.size() < 200;
       allow read, update, delete: if isStaff();
     }
 
-    // ---------- əlaqə mesajları ----------
-
+    /** Əlaqə mesajları — hər kəs göndərə bilər */
     match /messages/{messageId} {
       allow create: if request.resource.data.message is string
                     && request.resource.data.message.size() < 5000;
       allow read, update: if isStaff();
-      allow delete: if isAdmin();
+      allow delete:       if isAdmin();
     }
 
-    // Yuxarıda sadalanmayan hər şey bağlıdır.
+    // ═══════════════════════════════════════════
+    //  CRM & Biznes
+    // ═══════════════════════════════════════════
+
+    /** CRM müştərilər — yalnız CRM icazəli rollara açıq */
+    match /crmClients/{clientId} {
+      allow read, create, update: if canAccessCrm();
+      allow delete:               if isAdmin();
+    }
+
+    /** CRM aktivliklər */
+    match /crmActivities/{activityId} {
+      allow read, create, update: if canAccessCrm();
+      allow delete:               if canAccessCrm();
+    }
+
+    /** Reklam sifarişləri */
+    match /adOrders/{orderId} {
+      allow read, create, update: if canAccessCrm();
+      allow delete:               if isAdmin();
+    }
+
+    /** Kontent planı — bütün staff üzvləri */
+    match /contentPlan/{itemId} {
+      allow read, create, update, delete: if isStaff();
+    }
+
+    // ═══════════════════════════════════════════
+    //  SEO & Sayt Parametrləri
+    // ═══════════════════════════════════════════
+
+    /** SEO yönləndirmələri — sayt tərəfindən oxunur */
+    match /seoRedirects/{redirectId} {
+      allow read:           if true;
+      allow create, update: if canAccessSeo();
+      allow delete:         if isAdmin();
+    }
+
+    /** SEO parametrləri — tək sənəd */
+    match /seoSettings/{docId} {
+      allow read:  if true;
+      allow write: if isAdmin();
+    }
+
+    /** Sayt parametrləri — tək sənəd */
+    match /siteSettings/{docId} {
+      allow read:  if true;
+      allow write: if isAdmin();
+    }
+
+    // ═══════════════════════════════════════════
+    //  Sistem & Tarixçə
+    // ═══════════════════════════════════════════
+
+    /**
+     * Audit jurnalı — IMMUTABLE
+     * Qeydlər yalnız əlavə edilə bilər, dəyişdirilə və silinə bilməz.
+     */
+    match /auditLogs/{logId} {
+      allow read:   if isStaff();
+      allow create: if isStaff();
+      allow update, delete: if false;
+    }
+
+    /**
+     * Bildirişlər
+     * Read/create/update — staff; delete — yalnız admin.
+     */
+    match /notifications/{notifId} {
+      allow read, create, update: if isStaff();
+      allow delete:               if isAdmin();
+    }
+
+    /**
+     * Məqalə versiyaları — IMMUTABLE
+     * Snapshot-lar yalnız əlavə edilir, dəyişdirilmir.
+     */
+    match /articleVersions/{versionId} {
+      allow read:   if isStaff();
+      allow create: if isStaff();
+      allow update, delete: if false;
+    }
+
+    // ═══════════════════════════════════════════
+    //  Analytics — Tracking və Statistika
+    // ═══════════════════════════════════════════
+
+    /**
+     * Səhifə baxışları — hamı yaza bilər (tracking üçün),
+     * yalnız staff oxuya bilər.
+     */
+    match /pageViews/{viewId} {
+      allow read:   if isStaff();
+      allow create: if true;  // Client-side tracking üçün açıq
+      allow update, delete: if false;
+    }
+
+    /**
+     * Session məlumatları — hamı yaza bilər,
+     * yalnız staff oxuya bilər.
+     */
+    match /sessions/{sessionId} {
+      allow read:   if isStaff();
+      allow create: if true;  // Client-side tracking üçün açıq
+      allow update: if true;  // Session update üçün
+      allow delete: if false;
+    }
+
+    /**
+     * Məqalə analitikası — staff oxuya və yaza bilər.
+     */
+    match /articleAnalytics/{articleId} {
+      allow read:  if isStaff() || true;  // Optionally public for article stats
+      allow write: if isStaff();
+    }
+
+    /**
+     * Gündəlik analytics — yalnız staff.
+     */
+    match /dailyAnalytics/{date} {
+      allow read, write: if isStaff();
+    }
+
+    /**
+     * CRM analytics — CRM icazəli rollara açıq.
+     */
+    match /crmAnalytics/{id} {
+      allow read, write: if canAccessCrm();
+    }
+
+    /**
+     * Gəlir analytics — CRM icazəli rollara açıq.
+     */
+    match /revenueAnalytics/{period} {
+      allow read, write: if canAccessCrm();
+    }
+
+    // ═══════════════════════════════════════════
+    //  Default — hər şey bağlıdır
+    // ═══════════════════════════════════════════
+
     match /{document=**} {
       allow read, write: if false;
     }
