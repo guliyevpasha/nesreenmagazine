@@ -35,8 +35,8 @@ export default function QuickCreateModal({ isOpen, onClose }: QuickCreateModalPr
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z" />
         </svg>
       ),
-      title: "New Article",
-      description: "Write and publish a new magazine article",
+      title: "Yeni Məqalə",
+      description: "Yeni jurnal məqaləsi yaz və dərc et",
       href: "/admin/articles/new",
       color: "from-purple-500 to-purple-600",
       bgColor: "bg-purple-50",
@@ -48,8 +48,8 @@ export default function QuickCreateModal({ isOpen, onClose }: QuickCreateModalPr
           <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z" />
         </svg>
       ),
-      title: "Draft Post",
-      description: "Save article as draft for later",
+      title: "Qaralama",
+      description: "Məqaləni qaralama olaraq saxla",
       href: "/admin/articles/new?status=draft",
       color: "from-orange-500 to-orange-600",
       bgColor: "bg-orange-50",
@@ -61,8 +61,8 @@ export default function QuickCreateModal({ isOpen, onClose }: QuickCreateModalPr
           <path d="M4 16l4.586-4.586a2 2 0 0 1 2.828 0L16 16m-2-2 1.586-1.586a2 2 0 0 1 2.828 0L20 14m-6-6h.01M6 20h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z" />
         </svg>
       ),
-      title: "Upload Media",
-      description: "Add images to media library",
+      title: "Media Yüklə",
+      description: "Media kitabxanasına şəkil əlavə et",
       href: "/admin/media",
       color: "from-blue-500 to-blue-600",
       bgColor: "bg-blue-50",
@@ -74,8 +74,8 @@ export default function QuickCreateModal({ isOpen, onClose }: QuickCreateModalPr
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
       ),
-      title: "New Client",
-      description: "Add client to CRM system",
+      title: "Yeni Müştəri",
+      description: "CRM sisteminə müştəri əlavə et",
       href: "/admin/crm",
       color: "from-green-500 to-green-600",
       bgColor: "bg-green-50",
@@ -87,8 +87,8 @@ export default function QuickCreateModal({ isOpen, onClose }: QuickCreateModalPr
           <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" />
         </svg>
       ),
-      title: "Ad Order",
-      description: "Create new advertising order",
+      title: "Reklam Sifarişi",
+      description: "Yeni reklam sifarişi yarat",
       href: "/admin/ad-orders",
       color: "from-pink-500 to-pink-600",
       bgColor: "bg-pink-50",
@@ -100,8 +100,8 @@ export default function QuickCreateModal({ isOpen, onClose }: QuickCreateModalPr
           <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
         </svg>
       ),
-      title: "Content Task",
-      description: "Add task to content plan",
+      title: "Kontent Tapşırığı",
+      description: "Kontent planına tapşırıq əlavə et",
       href: "/admin/content-plan",
       color: "from-yellow-500 to-yellow-600",
       bgColor: "bg-yellow-50",
@@ -132,9 +132,9 @@ export default function QuickCreateModal({ isOpen, onClose }: QuickCreateModalPr
           <div className="border-b border-slate-200 bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-3 sm:px-6 sm:py-4 rounded-t-xl">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-display text-lg sm:text-xl font-bold text-white">Quick Create</h2>
+                <h2 className="font-display text-lg sm:text-xl font-bold text-white">Tez Yarat</h2>
                 <p className="mt-1 font-ui text-[11px] sm:text-[12px] text-purple-100">
-                  Choose what you want to create
+                  Yaratmaq istədiyinizi seçin
                 </p>
               </div>
               <button
@@ -185,7 +185,7 @@ export default function QuickCreateModal({ isOpen, onClose }: QuickCreateModalPr
           {/* Footer */}
           <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 sm:px-6 rounded-b-xl">
             <p className="text-center font-ui text-[10px] sm:text-[11px] text-slate-500">
-              Press <kbd className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] shadow-sm border border-slate-200">ESC</kbd> to close
+              Bağlamaq üçün <kbd className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] shadow-sm border border-slate-200">ESC</kbd> basın
             </p>
           </div>
         </div>

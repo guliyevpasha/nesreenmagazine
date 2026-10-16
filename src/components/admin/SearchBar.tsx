@@ -13,7 +13,7 @@ interface SearchBarProps {
 }
 
 export default function SearchBar({
-  placeholder = "Search posts, pages, tags, media, comments, staff...",
+  placeholder = "Məqalə, səhifə, etiket, media, şərh, işçi axtar...",
   onSearch,
 }: SearchBarProps) {
   const [query, setQuery] = useState("");
@@ -116,7 +116,7 @@ export default function SearchBar({
       {focused && !query && (
         <div className="absolute left-0 right-0 top-full z-50 mt-2 rounded-lg border border-slate-200 bg-white p-3 shadow-xl">
           <p className="mb-2 font-ui text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
-            Quick Access
+            Tez Keçid
           </p>
           <div className="space-y-1">
             <button
@@ -127,7 +127,7 @@ export default function SearchBar({
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z" />
               </svg>
-              <span>All Articles</span>
+              <span>Bütün Məqalələr</span>
             </button>
             <button
               type="button"
@@ -137,7 +137,7 @@ export default function SearchBar({
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 5v14M5 12h14" />
               </svg>
-              <span>New Article</span>
+              <span>Yeni Məqalə</span>
             </button>
             <button
               type="button"
@@ -147,7 +147,7 @@ export default function SearchBar({
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 16l4.586-4.586a2 2 0 0 1 2.828 0L16 16m-2-2 1.586-1.586a2 2 0 0 1 2.828 0L20 14m-6-6h.01M6 20h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z" />
               </svg>
-              <span>Media Library</span>
+              <span>Media Kitabxanası</span>
             </button>
           </div>
         </div>

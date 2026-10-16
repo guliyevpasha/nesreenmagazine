@@ -135,7 +135,7 @@ export default function AdminDashboard() {
         {/* Əsas KPI kartları */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard
-            label="Published Articles"
+            label="Dərc Olunmuş"
             value={stats ? published : "—"}
             icon={MetricIcons.articles}
             href="/admin/articles"
@@ -144,7 +144,7 @@ export default function AdminDashboard() {
             trend={{ value: 12, isPositive: true }}
           />
           <MetricCard
-            label="Draft Articles"
+            label="Qaralama"
             value={stats ? drafts : "—"}
             icon={MetricIcons.drafts}
             href="/admin/articles"
@@ -152,7 +152,7 @@ export default function AdminDashboard() {
             loading={!stats}
           />
           <MetricCard
-            label="New Messages"
+            label="Yeni Mesaj"
             value={stats ? stats.messages : "—"}
             icon={MetricIcons.messages}
             href="/admin/messages"
@@ -161,7 +161,7 @@ export default function AdminDashboard() {
             trend={{ value: 8, isPositive: true }}
           />
           <MetricCard
-            label="Subscribers"
+            label="Abunəçilər"
             value={stats ? stats.subscribers : "—"}
             icon={MetricIcons.subscribers}
             href="/admin/subscribers"
@@ -190,14 +190,14 @@ export default function AdminDashboard() {
         {/* CRM + Gəlir kartları */}
         <div>
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-display text-xl font-bold text-slate-900">CRM & Revenue</h2>
+            <h2 className="font-display text-xl font-bold text-slate-900">CRM və Gəlir</h2>
             <Link href="/admin/crm" className="font-ui text-[12px] text-purple-600 hover:text-purple-700 font-medium transition-colors">
-              View all →
+              Hamısına bax →
             </Link>
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <MetricCard
-              label="Total Clients"
+              label="Ümumi Müştəri"
               value={stats ? clients.length : "—"}
               icon={MetricIcons.clients}
               href="/admin/crm"
@@ -205,7 +205,7 @@ export default function AdminDashboard() {
               loading={!stats}
             />
             <MetricCard
-              label="Active Clients"
+              label="Aktiv Müştəri"
               value={stats ? activeClients : "—"}
               icon={MetricIcons.clients}
               href="/admin/crm"
@@ -213,7 +213,7 @@ export default function AdminDashboard() {
               loading={!stats}
             />
             <MetricCard
-              label="Active Campaigns"
+              label="Aktiv Kampaniya"
               value={stats ? activeOrders : "—"}
               icon={MetricIcons.orders}
               href="/admin/ad-orders"
@@ -221,7 +221,7 @@ export default function AdminDashboard() {
               loading={!stats}
             />
             <MetricCard
-              label="Paid"
+              label="Ödənilib"
               value={stats ? `${totalRevenue} ₼` : "—"}
               icon={MetricIcons.revenue}
               href="/admin/ad-orders"
@@ -229,7 +229,7 @@ export default function AdminDashboard() {
               loading={!stats}
             />
             <MetricCard
-              label="Debt"
+              label="Borc"
               value={stats ? `${totalDebt} ₼` : "—"}
               icon={MetricIcons.revenue}
               href="/admin/ad-orders"
@@ -237,7 +237,7 @@ export default function AdminDashboard() {
               loading={!stats}
             />
             <MetricCard
-              label="Overdue Payments"
+              label="Gecikmiş Ödəniş"
               value={stats ? overdueOrders : "—"}
               icon={MetricIcons.orders}
               href="/admin/ad-orders"
@@ -251,28 +251,28 @@ export default function AdminDashboard() {
         {stats && plan.length > 0 && (
           <div>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-display text-xl font-bold text-slate-900">Content Plan</h2>
+              <h2 className="font-display text-xl font-bold text-slate-900">Kontent Planı</h2>
               <Link href="/admin/content-plan" className="font-ui text-[12px] text-purple-600 hover:text-purple-700 font-medium transition-colors">
-                View plan →
+                Plana keç →
               </Link>
             </div>
             <div className="grid gap-6 sm:grid-cols-3">
               <MetricCard
-                label="Total Tasks"
+                label="Ümumi Tapşırıq"
                 value={plan.length}
                 icon={MetricIcons.orders}
                 href="/admin/content-plan"
                 color="blue"
               />
               <MetricCard
-                label="Ready to Publish"
+                label="Dərcə Hazır"
                 value={readyPlan}
                 icon={MetricIcons.articles}
                 href="/admin/content-plan"
                 color="green"
               />
               <MetricCard
-                label="Overdue Tasks"
+                label="Gecikmiş"
                 value={overduePlan}
                 icon={MetricIcons.orders}
                 href="/admin/content-plan"

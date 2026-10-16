@@ -547,7 +547,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               >
                 <path d="M12 5v14M5 12h14" />
               </svg>
-              <span>Quick Create</span>
+              <span>Tez Yarat</span>
             </button>
           </div>
         </div>

@@ -22,9 +22,9 @@ export default function DashboardHeader({
 
   useEffect(() => {
     const hour = new Date().getHours();
-    if (hour < 12) setGreeting("Good morning");
-    else if (hour < 18) setGreeting("Good afternoon");
-    else setGreeting("Good evening");
+    if (hour < 12) setGreeting("Sabahınız xeyir");
+    else if (hour < 18) setGreeting("Gününüz xeyir");
+    else setGreeting("Axşamınız xeyir");
 
     // Update time
     const updateTime = () => {
@@ -56,13 +56,13 @@ export default function DashboardHeader({
       <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="animate-fade-in">
           <p className="font-ui text-[10px] sm:text-[11px] font-medium uppercase tracking-[0.2em] text-purple-200">
-            Nesreen Magazine Overview
+            Nesreen Magazine İdarə Paneli
           </p>
           <h1 className="mt-2 font-display text-2xl font-bold text-white transition-all sm:text-3xl lg:text-4xl">
             {greeting}, {userName}
           </h1>
           <p className="mt-2 font-ui text-[12px] sm:text-[13px] text-purple-100">
-            Here's what's new at your publication right now
+            Nəşriyyatınızın son vəziyyətini burada görə bilərsiniz
           </p>
           {currentTime && (
             <p className="mt-1 font-ui text-[10px] sm:text-[11px] text-purple-200/80">
@@ -89,14 +89,14 @@ export default function DashboardHeader({
               >
                 <path d="M12 5v14M5 12h14" />
               </svg>
-              <span className="hidden sm:inline">Quick Create</span>
-              <span className="sm:hidden">Create</span>
+              <span className="hidden sm:inline">Tez Yarat</span>
+              <span className="sm:hidden">Yarat</span>
             </button>
 
             <button
               type="button"
               className="hidden sm:flex h-11 w-11 items-center justify-center rounded-lg bg-white/10 text-white backdrop-blur-sm transition-all hover:bg-white/20 hover:scale-110 active:scale-100"
-              aria-label="All Writer"
+              aria-label="Yazıçılar"
             >
               <svg
                 viewBox="0 0 24 24"
