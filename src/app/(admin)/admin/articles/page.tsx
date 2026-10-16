@@ -198,16 +198,12 @@ export default function ArticlesListPage() {
         {success && <div className="mb-4"><Alert tone="success">{success}</Alert></div>}
 
         {/* Filtrlər */}
-        <div className="mb-6 flex flex-wrap items-center gap-3">
-          <input
-            type="search"
-            value={term}
-            onChange={(event) => setTerm(event.target.value)}
-            placeholder="Başlıq və ya ünvana görə axtar…"
-            className="w-full max-w-xs border border-line bg-paper px-3.5 py-2.5 font-ui text-[14px] text-ink placeholder:text-muted/55 focus:border-bordo focus:outline-none"
-          />
-
-          <div className="flex gap-1.5">
+        <div className="mb-6 space-y-4">
+          {/* Status filter tabs */}
+          <div className="flex flex-wrap items-center gap-2 border-b border-line pb-4">
+            <span className="font-ui text-[11px] uppercase tracking-[0.14em] text-muted mr-2">
+              Status:
+            </span>
             {(
               [
                 { key: "all", label: "Hamısı" },
@@ -216,19 +212,31 @@ export default function ArticlesListPage() {
                 { key: "scheduled", label: "Planlaşdırılıb" },
               ] as const
             ).map((option) => (
-              <Button
+              <button
                 key={option.key}
-                variant={statusFilter === option.key ? "primary" : "ghost"}
                 onClick={() => setStatusFilter(option.key)}
+                className={`border px-4 py-2 font-ui text-[11px] uppercase tracking-[0.14em] transition-all duration-200 ${
+                  statusFilter === option.key
+                    ? "border-gold bg-gold text-bordo-deep shadow-sm"
+                    : "border-line text-ink hover:border-gold hover:text-bordo"
+                }`}
               >
                 {option.label}
-              </Button>
+              </button>
             ))}
+            <span className="ml-auto font-ui text-[12px] text-muted">
+              {articles ? `${visible.length} məqalə` : "yüklənir…"}
+            </span>
           </div>
 
-          <span className="ms-auto font-ui text-[12px] text-muted">
-            {articles ? `${visible.length} məqalə` : "yüklənir…"}
-          </span>
+          {/* Search input */}
+          <input
+            type="search"
+            value={term}
+            onChange={(event) => setTerm(event.target.value)}
+            placeholder="Başlıq və ya ünvana görə axtar…"
+            className="w-full max-w-md border border-line bg-paper px-3.5 py-2.5 font-ui text-[14px] text-ink placeholder:text-muted/55 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/20"
+          />
         </div>
 
         {/* Bölmə keçidləri */}

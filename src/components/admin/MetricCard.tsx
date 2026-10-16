@@ -21,13 +21,13 @@ interface MetricCardProps {
 }
 
 const colorClasses = {
-  purple: "from-purple-500 to-purple-600 bg-purple-50 text-purple-700",
-  pink: "from-pink-500 to-pink-600 bg-pink-50 text-pink-700",
-  blue: "from-blue-500 to-blue-600 bg-blue-50 text-blue-700",
-  green: "from-green-500 to-green-600 bg-green-50 text-green-700",
-  orange: "from-orange-500 to-orange-600 bg-orange-50 text-orange-700",
-  red: "from-red-500 to-red-600 bg-red-50 text-red-700",
-  yellow: "from-yellow-500 to-yellow-600 bg-yellow-50 text-yellow-700",
+  purple: "from-bordo to-bordo-soft bg-bordo/10 text-bordo",
+  pink: "from-gold to-gold-soft bg-gold/10 text-gold",
+  blue: "from-cream to-slate-200 bg-cream text-bordo-deep",
+  green: "from-bordo-soft to-bordo bg-bordo/10 text-bordo-deep",
+  orange: "from-gold-soft to-gold bg-gold/10 text-gold",
+  red: "from-bordo-deep to-bordo bg-bordo/20 text-bordo-deep",
+  yellow: "from-gold to-bordo-soft bg-cream text-bordo",
 };
 
 export default function MetricCard({

@@ -38,9 +38,9 @@ export default function QuickCreateModal({ isOpen, onClose }: QuickCreateModalPr
       title: "Yeni Məqalə",
       description: "Yeni jurnal məqaləsi yaz və dərc et",
       href: "/admin/articles/new",
-      color: "from-purple-500 to-purple-600",
-      bgColor: "bg-purple-50",
-      textColor: "text-purple-700",
+      color: "from-bordo to-bordo-soft",
+      bgColor: "bg-bordo-50",
+      textColor: "text-bordo",
     },
     {
       icon: (
@@ -51,9 +51,9 @@ export default function QuickCreateModal({ isOpen, onClose }: QuickCreateModalPr
       title: "Qaralama",
       description: "Məqaləni qaralama olaraq saxla",
       href: "/admin/articles/new?status=draft",
-      color: "from-orange-500 to-orange-600",
-      bgColor: "bg-orange-50",
-      textColor: "text-orange-700",
+      color: "from-gold to-gold-soft",
+      bgColor: "bg-gold-50",
+      textColor: "text-gold",
     },
     {
       icon: (
@@ -64,9 +64,9 @@ export default function QuickCreateModal({ isOpen, onClose }: QuickCreateModalPr
       title: "Media Yüklə",
       description: "Media kitabxanasına şəkil əlavə et",
       href: "/admin/media",
-      color: "from-blue-500 to-blue-600",
-      bgColor: "bg-blue-50",
-      textColor: "text-blue-700",
+      color: "from-cream to-slate-200",
+      bgColor: "bg-cream",
+      textColor: "text-bordo-deep",
     },
     {
       icon: (
@@ -77,9 +77,9 @@ export default function QuickCreateModal({ isOpen, onClose }: QuickCreateModalPr
       title: "Yeni Müştəri",
       description: "CRM sisteminə müştəri əlavə et",
       href: "/admin/crm",
-      color: "from-green-500 to-green-600",
-      bgColor: "bg-green-50",
-      textColor: "text-green-700",
+      color: "from-bordo-soft to-bordo",
+      bgColor: "bg-bordo-50",
+      textColor: "text-bordo-deep",
     },
     {
       icon: (
@@ -90,9 +90,9 @@ export default function QuickCreateModal({ isOpen, onClose }: QuickCreateModalPr
       title: "Reklam Sifarişi",
       description: "Yeni reklam sifarişi yarat",
       href: "/admin/ad-orders",
-      color: "from-pink-500 to-pink-600",
-      bgColor: "bg-pink-50",
-      textColor: "text-pink-700",
+      color: "from-gold-soft to-gold",
+      bgColor: "bg-gold-50",
+      textColor: "text-gold",
     },
     {
       icon: (
@@ -103,9 +103,9 @@ export default function QuickCreateModal({ isOpen, onClose }: QuickCreateModalPr
       title: "Kontent Tapşırığı",
       description: "Kontent planına tapşırıq əlavə et",
       href: "/admin/content-plan",
-      color: "from-yellow-500 to-yellow-600",
-      bgColor: "bg-yellow-50",
-      textColor: "text-yellow-700",
+      color: "from-gold to-bordo-soft",
+      bgColor: "bg-cream",
+      textColor: "text-bordo",
     },
   ];
 
@@ -129,11 +129,11 @@ export default function QuickCreateModal({ isOpen, onClose }: QuickCreateModalPr
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="border-b border-slate-200 bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-3 sm:px-6 sm:py-4 rounded-t-xl">
+          <div className="border-b border-slate-200 bg-gradient-to-r from-bordo via-bordo-deep to-bordo-soft px-4 py-3 sm:px-6 sm:py-4 rounded-t-xl">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-display text-lg sm:text-xl font-bold text-white">Tez Yarat</h2>
-                <p className="mt-1 font-ui text-[11px] sm:text-[12px] text-purple-100">
+                <p className="mt-1 font-ui text-[11px] sm:text-[12px] text-cream">
                   Yaratmaq istədiyinizi seçin
                 </p>
               </div>

@@ -44,7 +44,6 @@ const ICONS = {
   articles: "M5 4h11l3 3v13H5V4Zm11 0v3h3M8 11h8M8 15h8M8 7h4",
   stars: "M12 3l2.3 5.2L20 9.3l-4 3.9.9 5.8L12 16.3 7.1 19l.9-5.8-4-3.9 5.7-1.1L12 3Z",
   banner: "M3 6h18v9H3V6Zm4 13h10M12 15v4",
-  ebook: "M12 6.25v13.5M5 10h13.5M5 14h13.5M8 18h8M8 6h8M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z",
   ejournal: "M5 4h9l5 5v11H5V4Zm9 0v5h5M9 13h6M9 16h4",
   mail: "M3 6h18v12H3V6Zm0 .5 9 6.5 9-6.5",
   staff: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-6 9c0-3.3 2.7-6 6-6s6 2.7 6 6M17 8a2.8 2.8 0 1 0 0-5.6M18 20c0-2.6-1.1-4.9-2.8-6.2",
@@ -253,18 +252,18 @@ function NavLink({
       href={href}
       className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 font-ui text-[13px] transition-all ${
         active
-          ? "bg-purple-600 text-white shadow-lg shadow-purple-600/50"
-          : "text-slate-400 hover:bg-slate-800 hover:text-white"
+          ? "bg-gold text-bordo-deep shadow-lg shadow-gold/30"
+          : "text-cream/70 hover:bg-white/5 hover:text-cream"
       }`}
     >
       {icon ? (
-        <Icon d={icon} className={`h-[18px] w-[18px] transition-transform group-hover:scale-110 ${active ? "text-white" : "text-slate-500"}`} />
+        <Icon d={icon} className={`h-[18px] w-[18px] transition-transform group-hover:scale-110 ${active ? "text-bordo-deep" : "text-cream/60"}`} />
       ) : (
-        <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-white" : "bg-slate-600"}`} />
+        <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-bordo-deep" : "bg-cream/40"}`} />
       )}
       <span className="flex-1 truncate font-medium">{label}</span>
       {badge && (
-        <span className="rounded-full bg-purple-500/20 px-2 py-0.5 font-ui text-[10px] font-semibold text-purple-300">
+        <span className="rounded-full bg-gold/30 px-2 py-0.5 font-ui text-[10px] font-semibold text-gold-soft">
           {badge}
         </span>
       )}
@@ -300,21 +299,21 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const canManage = isAdmin(session);
 
   const sidebar = (
-    <div className="flex h-full flex-col bg-slate-900">
+    <div className="flex h-full flex-col bg-bordo-deep">
       {/* Logo və branding */}
-      <div className="border-b border-slate-800 px-5 py-6">
+      <div className="border-b border-white/10 px-5 py-6">
         <div className="flex items-center gap-3">
-          <RoseMark className="h-8 w-8 text-purple-400" strokeWidth={1.5} />
+          <RoseMark className="h-8 w-8 text-gold" strokeWidth={1.5} />
           <div>
-            <p className="font-ui text-[15px] font-bold text-white">NESREEN</p>
-            <p className="font-ui text-[10px] uppercase tracking-[0.2em] text-slate-400">Magazine</p>
+            <p className="font-ui text-[15px] font-bold text-cream">NESREEN</p>
+            <p className="font-ui text-[10px] uppercase tracking-[0.2em] text-cream/60">Magazine</p>
           </div>
         </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4 px-3">
         {/* My Dashboard bölməsi */}
-        <p className="px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+        <p className="px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
           My Dashboard
         </p>
         <NavLink
@@ -331,7 +330,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         />
 
         {/* Content bölməsi */}
-        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
           Content
         </p>
         <NavLink
@@ -350,7 +349,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         ))}
 
         {/* SEO Tools */}
-        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
           SEO Tools
         </p>
         <NavLink
@@ -367,7 +366,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         />
 
         {/* Tools bölməsi */}
-        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
           Tools
         </p>
         <NavLink
@@ -384,7 +383,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         />
 
         {/* Marketing bölməsi */}
-        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
           Marketing
         </p>
         <NavLink
@@ -400,12 +399,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           active={pathname.startsWith("/admin/ejournals")}
         />
         <NavLink
-          href="/admin/ebook-banner"
-          label="E-Book Promo"
-          icon={ICONS.ebook}
-          active={pathname.startsWith("/admin/ebook-banner")}
-        />
-        <NavLink
           href="/admin/subscribers"
           label="Subscribers"
           icon={ICONS.subscribers}
@@ -413,7 +406,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         />
 
         {/* CRM bölməsi */}
-        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
           CRM
         </p>
         <NavLink
@@ -436,7 +429,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         />
 
         {/* Notifications */}
-        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
           Notifications
         </p>
         <NavLink
@@ -447,7 +440,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         />
 
         {/* Settings */}
-        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
           Settings
         </p>
         <NavLink
@@ -474,7 +467,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         )}
 
         {/* Profile */}
-        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
           Profile
         </p>
         <a
@@ -491,12 +484,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       {/* User profil */}
       <div className="border-t border-slate-800 p-4">
         <div className="flex items-center gap-3 mb-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 font-ui text-[13px] font-bold text-white">
-            {(session.name || "Demo Admin").charAt(0).toUpperCase()}
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-gold to-gold-soft font-ui text-[13px] font-bold text-bordo-deep">
+            {(session.name || "Nesrin Abbasova").charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
             <p className="truncate font-ui text-[13px] font-semibold text-white">
-              {session.name || "Demo Admin"}
+              {session.name || "Nesrin Abbasova"}
             </p>
             <p className="truncate font-ui text-[11px] text-slate-400">{roleLabels[session.role]}</p>
           </div>

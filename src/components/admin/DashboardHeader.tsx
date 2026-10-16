@@ -13,7 +13,7 @@ interface DashboardHeaderProps {
 }
 
 export default function DashboardHeader({
-  userName = "Demo Admin",
+  userName = "Nesrin Abbasova",
   showQuickCreate = true,
   onQuickCreate,
 }: DashboardHeaderProps) {
@@ -44,7 +44,7 @@ export default function DashboardHeader({
   }, []);
 
   return (
-    <div className="relative overflow-hidden bg-gradient-to-r from-purple-600 via-purple-700 to-pink-600 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+    <div className="relative overflow-hidden bg-gradient-to-r from-bordo via-bordo-deep to-bordo-soft px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
       {/* Background pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute inset-0" style={{

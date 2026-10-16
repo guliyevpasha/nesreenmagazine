@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { categories, getSubcategories, type CategorySlug } from "@/lib/categories";
 import {
@@ -102,6 +102,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
     null,
   );
   const [uploading, setUploading] = useState(false);
+  const [uploadingInline, setUploadingInline] = useState(false);
 
   const allowedCategories = categories.filter((category) =>
     canEditCategory(session, category.slug),
@@ -149,6 +150,31 @@ export default function ArticleEditor({ article }: { article?: Article }) {
       });
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleInlineImageUpload(file: File) {
+    setUploadingInline(true);
+    setMessage(null);
+    try {
+      const url = await uploadImage(file, "inline-images");
+      // Markdown formatında şəkil əlavə et
+      const imageMarkdown = `\n![Şəkil təsviri](${url})\n`;
+      setDraft((current) => ({
+        ...current,
+        body: {
+          ...current.body,
+          [activeLocale]: (current.body[activeLocale] || "") + imageMarkdown,
+        },
+      }));
+      setMessage({ tone: "success", text: "Şəkil mətinə əlavə edildi." });
+    } catch (error) {
+      setMessage({
+        tone: "error",
+        text: error instanceof Error ? error.message : "Şəkil yüklənmədi.",
+      });
+    } finally {
+      setUploadingInline(false);
     }
   }
 
@@ -284,13 +310,30 @@ export default function ArticleEditor({ article }: { article?: Article }) {
               <div>
                 <div className="mb-2 flex items-center justify-between">
                   <label className={labelClass}>Mətn (Markdown)</label>
-                  <button
-                    type="button"
-                    onClick={() => setPreview((value) => !value)}
-                    className="font-ui text-[11px] uppercase tracking-[0.14em] text-bordo hover:opacity-70"
-                  >
-                    {preview ? "Redaktəyə qayıt" : "Önizləmə"}
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {/* Şəkil yükləmə düyməsi */}
+                    <label className="cursor-pointer font-ui text-[11px] uppercase tracking-[0.14em] text-gold hover:text-bordo transition-colors">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploadingInline}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) void handleInlineImageUpload(file);
+                          event.target.value = ""; // Reset input
+                        }}
+                        className="hidden"
+                      />
+                      {uploadingInline ? "Yüklənir…" : "📷 Şəkil əlavə et"}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setPreview((value) => !value)}
+                      className="font-ui text-[11px] uppercase tracking-[0.14em] text-bordo hover:opacity-70"
+                    >
+                      {preview ? "Redaktəyə qayıt" : "Önizləmə"}
+                    </button>
+                  </div>
                 </div>
 
                 {preview ? (

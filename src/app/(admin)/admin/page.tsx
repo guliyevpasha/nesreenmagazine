@@ -191,7 +191,7 @@ export default function AdminDashboard() {
         <div>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-display text-xl font-bold text-slate-900">CRM və Gəlir</h2>
-            <Link href="/admin/crm" className="font-ui text-[12px] text-purple-600 hover:text-purple-700 font-medium transition-colors">
+            <Link href="/admin/crm" className="font-ui text-[12px] text-gold hover:text-bordo font-medium transition-colors">
               Hamısına bax →
             </Link>
           </div>
@@ -252,7 +252,7 @@ export default function AdminDashboard() {
           <div>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="font-display text-xl font-bold text-slate-900">Kontent Planı</h2>
-              <Link href="/admin/content-plan" className="font-ui text-[12px] text-purple-600 hover:text-purple-700 font-medium transition-colors">
+              <Link href="/admin/content-plan" className="font-ui text-[12px] text-gold hover:text-bordo font-medium transition-colors">
                 Plana keç →
               </Link>
             </div>
