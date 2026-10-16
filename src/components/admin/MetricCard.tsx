@@ -23,7 +23,7 @@ interface MetricCardProps {
 const colorClasses = {
   purple: "from-bordo to-bordo-soft bg-bordo/10 text-bordo",
   pink: "from-gold to-gold-soft bg-gold/10 text-gold",
-  blue: "from-cream to-slate-200 bg-cream text-bordo-deep",
+  blue: "from-bordo-deep to-bordo bg-bordo/15 text-bordo-deep",
   green: "from-bordo-soft to-bordo bg-bordo/10 text-bordo-deep",
   orange: "from-gold-soft to-gold bg-gold/10 text-gold",
   red: "from-bordo-deep to-bordo bg-bordo/20 text-bordo-deep",

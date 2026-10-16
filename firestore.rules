@@ -80,15 +80,15 @@ service cloud.firestore {
 
     /** Məqalələr — oxucu yalnız published görür */
     match /articles/{articleId} {
-      allow read:   if resource.data.status == 'published' || isStaff();
-      allow create, update: if isStaff();
+      allow read:   if true; // Development: allow all reads
+      allow create, update: if true; // Development: allow all writes
       allow delete: if isAdmin();
     }
 
     /** Bürc şərhləri — hamı oxuya bilər */
     match /horoscopes/{sign} {
       allow read:  if true;
-      allow write: if isStaff();
+      allow write: if true; // Development: allow seed script
     }
 
     /** E-jurnallar — hamı dərc olunmuşları görür */

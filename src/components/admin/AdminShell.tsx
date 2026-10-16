@@ -157,7 +157,7 @@ function NotificationBell({ userRole }: { userRole: string }) {
           {/* Header */}
           <div className="flex items-center justify-between bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-3">
             <p className="font-ui text-[13px] font-bold text-white">
-              Notifications {unreadCount > 0 && <span className="ml-1">({unreadCount})</span>}
+              Bildirişlər {unreadCount > 0 && <span className="ml-1">({unreadCount})</span>}
             </p>
             {unreadCount > 0 && (
               <button
@@ -165,7 +165,7 @@ function NotificationBell({ userRole }: { userRole: string }) {
                 onClick={() => void handleMarkAllRead()}
                 className="font-ui text-[11px] text-white/90 hover:text-white transition-colors font-medium"
               >
-                Mark all read
+                Hamısını oxunmuş say
               </button>
             )}
           </div>
@@ -173,12 +173,12 @@ function NotificationBell({ userRole }: { userRole: string }) {
           {/* Notifications list */}
           <div className="max-h-96 overflow-y-auto">
             {loading && (
-              <div className="px-4 py-8 text-center font-ui text-[12px] text-slate-500">Loading…</div>
+              <div className="px-4 py-8 text-center font-ui text-[12px] text-slate-500">Yüklənir…</div>
             )}
             {!loading && notifications.length === 0 && (
               <div className="px-4 py-12 text-center">
                 <div className="text-4xl mb-2">🔔</div>
-                <p className="font-ui text-[12px] text-slate-500">No notifications</p>
+                <p className="font-ui text-[12px] text-slate-500">Bildiriş yoxdur</p>
               </div>
             )}
             {!loading && notifications.map((notif) => (
@@ -312,30 +312,30 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4 px-3">
-        {/* My Dashboard bölməsi */}
+        {/* İdarə Panelim */}
         <p className="px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-          My Dashboard
+          İdarə Panelim
         </p>
         <NavLink
           href="/admin"
-          label="Overview"
+          label="İcmal"
           icon={ICONS.dashboard}
           active={pathname === "/admin"}
         />
         <NavLink
           href="/admin/analytics"
-          label="Analytics"
+          label="Analitika"
           icon={ICONS.analytics}
           active={pathname.startsWith("/admin/analytics")}
         />
 
-        {/* Content bölməsi */}
+        {/* Kontent */}
         <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-          Content
+          Kontent
         </p>
         <NavLink
           href="/admin/articles"
-          label="Articles"
+          label="Məqalələr"
           icon={ICONS.articles}
           active={pathname === "/admin/articles" && !activeCategory}
         />
@@ -348,59 +348,59 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           />
         ))}
 
-        {/* SEO Tools */}
+        {/* SEO Alətləri */}
         <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-          SEO Tools
+          SEO Alətləri
         </p>
         <NavLink
           href="/admin/seo"
-          label="SEO Manager"
+          label="SEO İdarəçisi"
           icon={ICONS.seo}
           active={pathname.startsWith("/admin/seo")}
         />
         <NavLink
           href="/admin/astrology"
-          label="Astrology"
+          label="Astrologiya"
           icon={ICONS.stars}
           active={pathname.startsWith("/admin/astrology")}
         />
 
-        {/* Tools bölməsi */}
+        {/* Alətlər */}
         <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-          Tools
+          Alətlər
         </p>
         <NavLink
           href="/admin/media"
-          label="Media Library"
+          label="Media Kitabxanası"
           icon={ICONS.media}
           active={pathname.startsWith("/admin/media")}
         />
         <NavLink
           href="/admin/content-plan"
-          label="Content Plan"
+          label="Kontent Planı"
           icon={ICONS.contentplan}
           active={pathname.startsWith("/admin/content-plan")}
         />
 
-        {/* Marketing bölməsi */}
+        {/* Marketinq */}
         <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-          Marketing
+          Marketinq
         </p>
         <NavLink
           href="/admin/banners"
-          label="Ad Banners"
+          label="Reklam Bannerləri"
           icon={ICONS.banner}
           active={pathname.startsWith("/admin/banners")}
         />
         <NavLink
           href="/admin/ejournals"
-          label="E-Journals"
+          label="E-Jurnallar"
           icon={ICONS.ejournal}
           active={pathname.startsWith("/admin/ejournals")}
         />
         <NavLink
           href="/admin/subscribers"
-          label="Subscribers"
+          label="Abunəçilər"
           icon={ICONS.subscribers}
           active={pathname.startsWith("/admin/subscribers")}
         />
@@ -411,41 +411,41 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         </p>
         <NavLink
           href="/admin/crm"
-          label="Clients"
+          label="Müştərilər"
           icon={ICONS.crm}
           active={pathname.startsWith("/admin/crm")}
         />
         <NavLink
           href="/admin/ad-orders"
-          label="Ad Orders"
+          label="Reklam Sifarişləri"
           icon={ICONS.adorders}
           active={pathname.startsWith("/admin/ad-orders")}
         />
         <NavLink
           href="/admin/sales-forecast"
-          label="Sales Forecast"
+          label="Satış Proqnozu"
           icon={ICONS.analytics}
           active={pathname.startsWith("/admin/sales-forecast")}
         />
 
-        {/* Notifications */}
+        {/* Bildirişlər */}
         <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-          Notifications
+          Bildirişlər
         </p>
         <NavLink
           href="/admin/messages"
-          label="Messages"
+          label="Mesajlar"
           icon={ICONS.mail}
           active={pathname.startsWith("/admin/messages")}
         />
 
-        {/* Settings */}
+        {/* Parametrlər */}
         <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-          Settings
+          Parametrlər
         </p>
         <NavLink
           href="/admin/site-settings"
-          label="Site Settings"
+          label="Sayt Parametrləri"
           icon={ICONS.settings}
           active={pathname.startsWith("/admin/site-settings")}
         />
@@ -453,22 +453,22 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           <>
             <NavLink
               href="/admin/staff"
-              label="Staff"
+              label="İşçilər"
               icon={ICONS.staff}
               active={pathname.startsWith("/admin/staff")}
             />
             <NavLink
               href="/admin/audit"
-              label="Audit Log"
+              label="Audit Jurnalı"
               icon={ICONS.audit}
               active={pathname.startsWith("/admin/audit")}
             />
           </>
         )}
 
-        {/* Profile */}
+        {/* Profil */}
         <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-          Profile
+          Profil
         </p>
         <a
           href="/az"
@@ -477,7 +477,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           className="flex items-center gap-3 rounded-lg px-3 py-2.5 font-ui text-[13px] text-slate-400 transition-all hover:bg-slate-800 hover:text-white"
         >
           <Icon d={ICONS.site} />
-          <span>View Site</span>
+          <span>Sayta bax</span>
         </a>
       </nav>
 
