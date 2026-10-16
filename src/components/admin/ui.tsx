@@ -44,11 +44,11 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <section className={`border border-line bg-paper ${className}`}>
+    <section className={`rounded-xl border border-slate-200 bg-white shadow-sm ${className}`}>
       {(title || description) && (
-        <header className="border-b border-line px-6 py-4">
-          {title && <h2 className="font-display text-xl">{title}</h2>}
-          {description && <p className="mt-1 text-[13px] text-muted">{description}</p>}
+        <header className="border-b border-slate-200 px-6 py-4">
+          {title && <h2 className="font-display text-lg font-bold text-slate-900">{title}</h2>}
+          {description && <p className="mt-1 text-[13px] text-slate-600">{description}</p>}
         </header>
       )}
       <div className="px-6 py-6">{children}</div>

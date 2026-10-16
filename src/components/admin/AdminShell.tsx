@@ -5,6 +5,8 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import Logo, { RoseMark } from "@/components/Logo";
+import QuickCreateModal from "@/components/admin/QuickCreateModal";
+import SearchBar from "@/components/admin/SearchBar";
 import { categories } from "@/lib/categories";
 import {
   listNotifications,
@@ -138,74 +140,77 @@ function NotificationBell({ userRole }: { userRole: string }) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="relative flex h-9 w-9 items-center justify-center text-cream/70 hover:text-cream transition-colors"
-        aria-label="Bildirişlər"
+        className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
+        aria-label="Notifications"
       >
-        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 14.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
         </svg>
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 font-ui text-[9px] font-bold text-white">
+          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-pink-500 to-purple-600 font-ui text-[10px] font-bold text-white shadow-lg animate-pulse">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 border border-line bg-paper shadow-xl z-50">
+        <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border border-slate-200 bg-white shadow-2xl z-50 overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-line px-4 py-3">
-            <p className="font-ui text-[12px] font-semibold text-ink">
-              Bildirişlər {unreadCount > 0 && <span className="ml-1 text-bordo">({unreadCount})</span>}
+          <div className="flex items-center justify-between bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-3">
+            <p className="font-ui text-[13px] font-bold text-white">
+              Notifications {unreadCount > 0 && <span className="ml-1">({unreadCount})</span>}
             </p>
             {unreadCount > 0 && (
               <button
                 type="button"
                 onClick={() => void handleMarkAllRead()}
-                className="font-ui text-[10px] text-muted hover:text-ink transition-colors uppercase tracking-[0.1em]"
+                className="font-ui text-[11px] text-white/90 hover:text-white transition-colors font-medium"
               >
-                Hamısını oxu
+                Mark all read
               </button>
             )}
           </div>
 
-          {/* Bildirişlər siyahısı */}
-          <div className="max-h-80 overflow-y-auto">
+          {/* Notifications list */}
+          <div className="max-h-96 overflow-y-auto">
             {loading && (
-              <div className="px-4 py-6 text-center font-ui text-[12px] text-muted">Yüklənir…</div>
+              <div className="px-4 py-8 text-center font-ui text-[12px] text-slate-500">Loading…</div>
             )}
             {!loading && notifications.length === 0 && (
-              <div className="px-4 py-8 text-center font-ui text-[12px] text-muted">
-                Bildiriş yoxdur
+              <div className="px-4 py-12 text-center">
+                <div className="text-4xl mb-2">🔔</div>
+                <p className="font-ui text-[12px] text-slate-500">No notifications</p>
               </div>
             )}
             {!loading && notifications.map((notif) => (
               <div
                 key={notif.id}
-                className={`border-l-2 border-b border-line px-4 py-3 transition-colors cursor-pointer ${
-                  notif.read ? "bg-paper opacity-60" : "bg-cream-deep/30"
-                } ${priorityColors[notif.priority]} hover:bg-cream-deep/50`}
+                className={`border-l-4 border-b border-slate-100 px-4 py-3 transition-all cursor-pointer ${
+                  notif.read ? "bg-white opacity-70" : "bg-purple-50"
+                } ${priorityColors[notif.priority]} hover:bg-slate-50`}
                 onClick={() => {
                   void handleMarkRead(notif.id);
                   if (notif.href) window.location.href = notif.href;
                 }}
               >
-                <div className="flex items-start gap-2">
-                  <span className="text-base leading-none mt-0.5">{notifIcons[notif.type] ?? "🔔"}</span>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 text-base">
+                    {notifIcons[notif.type] ?? "🔔"}
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-ui text-[12px] font-medium text-ink line-clamp-1">{notif.title}</p>
-                    <p className="mt-0.5 font-ui text-[11px] text-muted line-clamp-2">{notif.body}</p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="font-ui text-[9px] uppercase tracking-[0.1em] text-muted/70">
+                    <p className="font-ui text-[13px] font-semibold text-slate-900 line-clamp-1">{notif.title}</p>
+                    <p className="mt-1 font-ui text-[12px] text-slate-600 line-clamp-2">{notif.body}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="rounded-full bg-slate-200 px-2 py-0.5 font-ui text-[10px] font-medium text-slate-700">
                         {notificationTypeLabels[notif.type]}
                       </span>
-                      <span className="font-ui text-[9px] text-muted/60">
+                      <span className="font-ui text-[10px] text-slate-400">
                         {notif.createdAt.slice(0, 10)}
                       </span>
                     </div>
                   </div>
                   {!notif.read && (
-                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-bordo" />
+                    <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-purple-600 animate-pulse" />
                   )}
                 </div>
               </div>
@@ -213,13 +218,13 @@ function NotificationBell({ userRole }: { userRole: string }) {
           </div>
 
           {/* Footer */}
-          <div className="border-t border-line px-4 py-2">
+          <div className="border-t border-slate-200 bg-slate-50 px-4 py-2">
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="w-full font-ui text-[11px] uppercase tracking-[0.12em] text-muted hover:text-ink transition-colors py-1"
+              className="w-full font-ui text-[11px] font-medium text-slate-600 hover:text-slate-900 transition-colors py-1.5"
             >
-              Bağla
+              Close
             </button>
           </div>
         </div>
@@ -246,16 +251,20 @@ function NavLink({
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 border-s-2 px-4 py-2.5 font-ui text-[13px] transition-colors ${
+      className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 font-ui text-[13px] transition-all ${
         active
-          ? "border-gold bg-white/10 text-cream"
-          : "border-transparent text-cream/65 hover:border-cream/25 hover:bg-white/5 hover:text-cream"
+          ? "bg-purple-600 text-white shadow-lg shadow-purple-600/50"
+          : "text-slate-400 hover:bg-slate-800 hover:text-white"
       }`}
     >
-      {icon ? <Icon d={icon} /> : <span className="h-1 w-1 rounded-full bg-current opacity-60" />}
-      <span className="flex-1 truncate">{label}</span>
+      {icon ? (
+        <Icon d={icon} className={`h-[18px] w-[18px] transition-transform group-hover:scale-110 ${active ? "text-white" : "text-slate-500"}`} />
+      ) : (
+        <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-white" : "bg-slate-600"}`} />
+      )}
+      <span className="flex-1 truncate font-medium">{label}</span>
       {badge && (
-        <span className="rounded-full bg-gold/20 px-2 py-0.5 font-ui text-[10px] text-gold-soft">
+        <span className="rounded-full bg-purple-500/20 px-2 py-0.5 font-ui text-[10px] font-semibold text-purple-300">
           {badge}
         </span>
       )}
@@ -269,15 +278,16 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const activeCategory = searchParams.get("category");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
 
   if (!configured) return <SetupNotice />;
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-cream">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="text-center">
-          <RoseMark className="mx-auto h-10 w-10 animate-pulse text-bordo/60" strokeWidth={1} />
-          <p className="mt-4 font-ui text-xs uppercase tracking-[0.2em] text-muted">
+          <RoseMark className="mx-auto h-10 w-10 animate-pulse text-purple-600/60" strokeWidth={1} />
+          <p className="mt-4 font-ui text-xs uppercase tracking-[0.2em] text-slate-500">
             Yüklənir…
           </p>
         </div>
@@ -290,38 +300,47 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const canManage = isAdmin(session);
 
   const sidebar = (
-    <div className="flex h-full flex-col bg-bordo-deep">
-      <div className="border-b border-white/10 px-5 py-6">
-        <Logo size="sm" className="text-cream" markClassName="text-gold" />
-        <p className="mt-3 font-ui text-[10px] uppercase tracking-[0.22em] text-cream/45">
-          İdarə paneli
-        </p>
+    <div className="flex h-full flex-col bg-slate-900">
+      {/* Logo və branding */}
+      <div className="border-b border-slate-800 px-5 py-6">
+        <div className="flex items-center gap-3">
+          <RoseMark className="h-8 w-8 text-purple-400" strokeWidth={1.5} />
+          <div>
+            <p className="font-ui text-[15px] font-bold text-white">NESREEN</p>
+            <p className="font-ui text-[10px] uppercase tracking-[0.2em] text-slate-400">Magazine</p>
+          </div>
+        </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-5">
+      <nav className="flex-1 overflow-y-auto py-4 px-3">
+        {/* My Dashboard bölməsi */}
+        <p className="px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+          My Dashboard
+        </p>
         <NavLink
           href="/admin"
-          label="Panel"
+          label="Overview"
           icon={ICONS.dashboard}
           active={pathname === "/admin"}
         />
         <NavLink
           href="/admin/analytics"
-          label="Statistika"
+          label="Analytics"
           icon={ICONS.analytics}
-          active={pathname === "/admin/analytics"}
+          active={pathname.startsWith("/admin/analytics")}
         />
 
-        <p className="mt-6 px-4 pb-2 font-ui text-[10px] uppercase tracking-[0.2em] text-cream/35">
-          Məqalələr
+        {/* Content bölməsi */}
+        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+          Content
         </p>
         <NavLink
           href="/admin/articles"
-          label="Bütün məqalələr"
+          label="Articles"
           icon={ICONS.articles}
           active={pathname === "/admin/articles" && !activeCategory}
         />
-        {categories.map((category) => (
+        {categories.slice(0, 5).map((category) => (
           <NavLink
             key={category.slug}
             href={`/admin/articles?category=${category.slug}`}
@@ -330,180 +349,241 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           />
         ))}
 
-        <p className="mt-6 px-4 pb-2 font-ui text-[10px] uppercase tracking-[0.2em] text-cream/35">
-          Bölmələr
+        {/* SEO Tools */}
+        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+          SEO Tools
         </p>
         <NavLink
+          href="/admin/seo"
+          label="SEO Manager"
+          icon={ICONS.seo}
+          active={pathname.startsWith("/admin/seo")}
+        />
+        <NavLink
           href="/admin/astrology"
-          label="Bürc şərhləri"
+          label="Astrology"
           icon={ICONS.stars}
           active={pathname.startsWith("/admin/astrology")}
         />
+
+        {/* Tools bölməsi */}
+        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+          Tools
+        </p>
         <NavLink
           href="/admin/media"
-          label="Media Kitabxanası"
+          label="Media Library"
           icon={ICONS.media}
           active={pathname.startsWith("/admin/media")}
         />
         <NavLink
-          href="/admin/ejournals"
-          label="E-jurnal"
-          icon={ICONS.ejournal}
-          active={pathname.startsWith("/admin/ejournals")}
+          href="/admin/content-plan"
+          label="Content Plan"
+          icon={ICONS.contentplan}
+          active={pathname.startsWith("/admin/content-plan")}
         />
+
+        {/* Marketing bölməsi */}
+        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+          Marketing
+        </p>
         <NavLink
           href="/admin/banners"
-          label="Reklam bannerləri"
+          label="Ad Banners"
           icon={ICONS.banner}
           active={pathname.startsWith("/admin/banners")}
         />
         <NavLink
+          href="/admin/ejournals"
+          label="E-Journals"
+          icon={ICONS.ejournal}
+          active={pathname.startsWith("/admin/ejournals")}
+        />
+        <NavLink
           href="/admin/ebook-banner"
-          label="E-kitab Reklamı"
+          label="E-Book Promo"
           icon={ICONS.ebook}
           active={pathname.startsWith("/admin/ebook-banner")}
         />
         <NavLink
-          href="/admin/messages"
-          label="Mesajlar"
-          icon={ICONS.mail}
-          active={pathname.startsWith("/admin/messages")}
+          href="/admin/subscribers"
+          label="Subscribers"
+          icon={ICONS.subscribers}
+          active={pathname.startsWith("/admin/subscribers")}
         />
-        {canManage && (
-          <NavLink
-            href="/admin/staff"
-            label="İşçilər"
-            icon={ICONS.staff}
-            active={pathname.startsWith("/admin/staff")}
-          />
-        )}
 
-        <p className="mt-6 px-4 pb-2 font-ui text-[10px] uppercase tracking-[0.2em] text-cream/35">
-          CRM və Biznes
+        {/* CRM bölməsi */}
+        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+          CRM
         </p>
         <NavLink
           href="/admin/crm"
-          label="Müştərilər"
+          label="Clients"
           icon={ICONS.crm}
           active={pathname.startsWith("/admin/crm")}
         />
         <NavLink
           href="/admin/ad-orders"
-          label="Reklam Sifarişləri"
+          label="Ad Orders"
           icon={ICONS.adorders}
           active={pathname.startsWith("/admin/ad-orders")}
         />
         <NavLink
           href="/admin/sales-forecast"
-          label="Satış Proqnozu"
+          label="Sales Forecast"
           icon={ICONS.analytics}
           active={pathname.startsWith("/admin/sales-forecast")}
         />
 
-        <p className="mt-6 px-4 pb-2 font-ui text-[10px] uppercase tracking-[0.2em] text-cream/35">
-          Redaksiya
+        {/* Notifications */}
+        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+          Notifications
         </p>
         <NavLink
-          href="/admin/content-plan"
-          label="Kontent Planı"
-          icon={ICONS.contentplan}
-          active={pathname.startsWith("/admin/content-plan")}
-        />
-        <NavLink
-          href="/admin/subscribers"
-          label="Abunəçilər"
-          icon={ICONS.subscribers}
-          active={pathname.startsWith("/admin/subscribers")}
+          href="/admin/messages"
+          label="Messages"
+          icon={ICONS.mail}
+          active={pathname.startsWith("/admin/messages")}
         />
 
-        <p className="mt-6 px-4 pb-2 font-ui text-[10px] uppercase tracking-[0.2em] text-cream/35">
-          Sayt
+        {/* Settings */}
+        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+          Settings
         </p>
         <NavLink
-          href="/admin/seo"
-          label="SEO"
-          icon={ICONS.seo}
-          active={pathname.startsWith("/admin/seo")}
-        />
-        <NavLink
           href="/admin/site-settings"
-          label="Sayt Parametrləri"
+          label="Site Settings"
           icon={ICONS.settings}
           active={pathname.startsWith("/admin/site-settings")}
         />
         {canManage && (
-          <NavLink
-            href="/admin/audit"
-            label="Audit Jurnalı"
-            icon={ICONS.audit}
-            active={pathname.startsWith("/admin/audit")}
-          />
+          <>
+            <NavLink
+              href="/admin/staff"
+              label="Staff"
+              icon={ICONS.staff}
+              active={pathname.startsWith("/admin/staff")}
+            />
+            <NavLink
+              href="/admin/audit"
+              label="Audit Log"
+              icon={ICONS.audit}
+              active={pathname.startsWith("/admin/audit")}
+            />
+          </>
         )}
+
+        {/* Profile */}
+        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+          Profile
+        </p>
         <a
           href="/az"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-3 border-s-2 border-transparent px-4 py-2.5 font-ui text-[13px] text-cream/65 transition-colors hover:bg-white/5 hover:text-cream"
+          className="flex items-center gap-3 rounded-lg px-3 py-2.5 font-ui text-[13px] text-slate-400 transition-all hover:bg-slate-800 hover:text-white"
         >
           <Icon d={ICONS.site} />
-          <span>Saytı aç</span>
+          <span>View Site</span>
         </a>
       </nav>
 
-      <div className="border-t border-white/10 px-5 py-5">
-        <div className="mb-3 flex items-center justify-between">
-          <p className="truncate font-ui text-[13px] font-semibold text-cream">
-            {session.name || "Nesrin Abbasova"}
-          </p>
+      {/* User profil */}
+      <div className="border-t border-slate-800 p-4">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 font-ui text-[13px] font-bold text-white">
+            {(session.name || "Demo Admin").charAt(0).toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="truncate font-ui text-[13px] font-semibold text-white">
+              {session.name || "Demo Admin"}
+            </p>
+            <p className="truncate font-ui text-[11px] text-slate-400">{roleLabels[session.role]}</p>
+          </div>
           <NotificationBell userRole={session.role} />
         </div>
-        <p className="truncate font-ui text-[11px] text-cream/45">{session.email}</p>
-        <p className="mt-2 inline-block bg-gold/20 px-2 py-0.5 font-ui text-[10px] uppercase tracking-[0.14em] text-gold-soft">
-          {roleLabels[session.role]}
-        </p>
         <button
           type="button"
           onClick={() => void signOut()}
-          className="mt-4 flex w-full items-center gap-2 border border-cream/20 px-3 py-2 font-ui text-[11px] uppercase tracking-[0.14em] text-cream/75 transition-colors hover:border-gold hover:text-gold"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-slate-800 px-3 py-2 font-ui text-[12px] text-slate-300 transition-colors hover:bg-slate-700 hover:text-white"
         >
           <Icon d={ICONS.logout} className="h-4 w-4" />
-          Çıxış
+          Logout
         </button>
       </div>
     </div>
   );
 
   return (
-    <div className="flex min-h-screen bg-cream">
-      {/* Geniş ekran */}
+    <div className="flex min-h-screen bg-slate-50">
+      {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 lg:block">{sidebar}</aside>
 
-      {/* Mobil */}
+      {/* Mobile sidebar */}
       {menuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-ink/50" onClick={() => setMenuOpen(false)} />
-          <div className="absolute inset-y-0 start-0 w-72">{sidebar}</div>
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
+          <div className="absolute inset-y-0 start-0 w-72 shadow-2xl">{sidebar}</div>
         </div>
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-center gap-3 border-b border-line bg-paper px-5 py-3 lg:hidden">
+        {/* Desktop Top Bar with Search */}
+        <div className="hidden border-b border-slate-200 bg-white px-6 py-4 lg:block">
+          <div className="flex items-center gap-4">
+            <SearchBar />
+            <button
+              onClick={() => setQuickCreateOpen(true)}
+              className="group flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2.5 font-ui text-[13px] font-semibold text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4 transition-transform group-hover:rotate-90"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              <span>Quick Create</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile header */}
+        <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-5 py-3 lg:hidden">
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
             aria-label="Menyu"
-            className="p-1 text-ink"
+            className="p-1 text-slate-700 hover:text-slate-900"
           >
             <Icon d={ICONS.menu} className="h-6 w-6" />
           </button>
-          <Logo size="sm" className="text-ink" />
-          <div className="ml-auto">
+          <div className="flex items-center gap-2">
+            <RoseMark className="h-6 w-6 text-purple-600" strokeWidth={1.5} />
+            <span className="font-ui text-[14px] font-bold text-slate-900">NESREEN</span>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => setQuickCreateOpen(true)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-600 text-white shadow-lg transition-transform hover:scale-110"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </button>
             <NotificationBell userRole={session.role} />
           </div>
         </div>
 
-        <main className="min-w-0 flex-1">{children}</main>
+        <main className="min-w-0 flex-1 bg-slate-50">{children}</main>
       </div>
+
+      {/* Quick Create Modal */}
+      <QuickCreateModal isOpen={quickCreateOpen} onClose={() => setQuickCreateOpen(false)} />
     </div>
   );
 }

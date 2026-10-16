@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { Alert, Empty, PageHeader, Panel, StatusPill } from "@/components/admin/ui";
+import DashboardHeader from "@/components/admin/DashboardHeader";
+import MetricCard, { MetricIcons } from "@/components/admin/MetricCard";
+import { Alert, Empty, Panel, StatusPill } from "@/components/admin/ui";
 import { categories } from "@/lib/categories";
 import {
   countSubscribers,
@@ -43,6 +46,7 @@ function isOverduePlan(item: ContentPlanItem): boolean {
 
 export default function AdminDashboard() {
   const { session } = useAuth();
+  const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState("");
 
@@ -119,24 +123,52 @@ export default function AdminDashboard() {
 
   return (
     <>
-      <PageHeader
-        title={`Salam, ${session?.name ?? "Nesrin Abbasova"}`}
-        description="Sizi yenidən görmək xoşdur!"
+      <DashboardHeader
+        userName={session?.name ?? "Nesrin Abbasova"}
+        showQuickCreate={true}
+        onQuickCreate={() => router.push("/admin/articles/new")}
       />
 
       <div className="space-y-8 px-6 py-8 lg:px-10">
         {error && <Alert tone="error">{error}</Alert>}
 
         {/* Əsas KPI kartları */}
-        <div className="grid gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
-          {topTiles.map((tile) => (
-            <Link key={tile.label} href={tile.href} className="group bg-paper px-6 py-7 hover:bg-cream-deep transition-colors">
-              <p className="eyebrow text-muted">{tile.label}</p>
-              <p className="mt-3 font-display text-4xl text-ink group-hover:text-bordo transition-colors">
-                {stats ? tile.value : "—"}
-              </p>
-            </Link>
-          ))}
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <MetricCard
+            label="Published Articles"
+            value={stats ? published : "—"}
+            icon={MetricIcons.articles}
+            href="/admin/articles"
+            color="purple"
+            loading={!stats}
+            trend={{ value: 12, isPositive: true }}
+          />
+          <MetricCard
+            label="Draft Articles"
+            value={stats ? drafts : "—"}
+            icon={MetricIcons.drafts}
+            href="/admin/articles"
+            color="orange"
+            loading={!stats}
+          />
+          <MetricCard
+            label="New Messages"
+            value={stats ? stats.messages : "—"}
+            icon={MetricIcons.messages}
+            href="/admin/messages"
+            color="blue"
+            loading={!stats}
+            trend={{ value: 8, isPositive: true }}
+          />
+          <MetricCard
+            label="Subscribers"
+            value={stats ? stats.subscribers : "—"}
+            icon={MetricIcons.subscribers}
+            href="/admin/subscribers"
+            color="green"
+            loading={!stats}
+            trend={{ value: 24, isPositive: true }}
+          />
         </div>
 
         {/* Xəbərdarlıqlar */}
@@ -157,46 +189,95 @@ export default function AdminDashboard() {
 
         {/* CRM + Gəlir kartları */}
         <div>
-          <div className="mb-3 flex items-center justify-between">
-            <p className="font-ui text-[11px] uppercase tracking-[0.2em] text-muted">CRM və Gəlir</p>
-            <Link href="/admin/crm" className="font-ui text-[11px] text-bordo hover:underline uppercase tracking-[0.12em]">
-              CRM-ə keç →
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-display text-xl font-bold text-slate-900">CRM & Revenue</h2>
+            <Link href="/admin/crm" className="font-ui text-[12px] text-purple-600 hover:text-purple-700 font-medium transition-colors">
+              View all →
             </Link>
           </div>
-          <div className="grid gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            {crmTiles.map((tile) => (
-              <Link key={tile.label} href={tile.href} className="group bg-paper px-5 py-5 hover:bg-cream-deep transition-colors">
-                <p className="font-ui text-[10px] uppercase tracking-[0.16em] text-muted">{tile.label}</p>
-                <p className={`mt-2 font-display text-2xl ${tile.color} group-hover:opacity-80 transition-opacity`}>
-                  {stats ? tile.value : "—"}
-                </p>
-              </Link>
-            ))}
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <MetricCard
+              label="Total Clients"
+              value={stats ? clients.length : "—"}
+              icon={MetricIcons.clients}
+              href="/admin/crm"
+              color="purple"
+              loading={!stats}
+            />
+            <MetricCard
+              label="Active Clients"
+              value={stats ? activeClients : "—"}
+              icon={MetricIcons.clients}
+              href="/admin/crm"
+              color="blue"
+              loading={!stats}
+            />
+            <MetricCard
+              label="Active Campaigns"
+              value={stats ? activeOrders : "—"}
+              icon={MetricIcons.orders}
+              href="/admin/ad-orders"
+              color="orange"
+              loading={!stats}
+            />
+            <MetricCard
+              label="Paid"
+              value={stats ? `${totalRevenue} ₼` : "—"}
+              icon={MetricIcons.revenue}
+              href="/admin/ad-orders"
+              color="green"
+              loading={!stats}
+            />
+            <MetricCard
+              label="Debt"
+              value={stats ? `${totalDebt} ₼` : "—"}
+              icon={MetricIcons.revenue}
+              href="/admin/ad-orders"
+              color={totalDebt > 0 ? "red" : "green"}
+              loading={!stats}
+            />
+            <MetricCard
+              label="Overdue Payments"
+              value={stats ? overdueOrders : "—"}
+              icon={MetricIcons.orders}
+              href="/admin/ad-orders"
+              color={overdueOrders > 0 ? "red" : "green"}
+              loading={!stats}
+            />
           </div>
         </div>
 
         {/* Kontent planı xülasəsi */}
         {stats && plan.length > 0 && (
           <div>
-            <div className="mb-3 flex items-center justify-between">
-              <p className="font-ui text-[11px] uppercase tracking-[0.2em] text-muted">Kontent Planı</p>
-              <Link href="/admin/content-plan" className="font-ui text-[11px] text-bordo hover:underline uppercase tracking-[0.12em]">
-                Plana keç →
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-display text-xl font-bold text-slate-900">Content Plan</h2>
+              <Link href="/admin/content-plan" className="font-ui text-[12px] text-purple-600 hover:text-purple-700 font-medium transition-colors">
+                View plan →
               </Link>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="border border-line bg-paper px-5 py-4">
-                <p className="font-ui text-[10px] uppercase tracking-[0.14em] text-muted">Ümumi tapşırıq</p>
-                <p className="mt-1 font-display text-3xl text-ink">{plan.length}</p>
-              </div>
-              <div className="border border-line bg-paper px-5 py-4">
-                <p className="font-ui text-[10px] uppercase tracking-[0.14em] text-muted">Hazır / Dərc</p>
-                <p className="mt-1 font-display text-3xl text-green-600">{readyPlan}</p>
-              </div>
-              <div className={`border bg-paper px-5 py-4 ${overduePlan > 0 ? "border-red-300 bg-red-50/30" : "border-line"}`}>
-                <p className="font-ui text-[10px] uppercase tracking-[0.14em] text-muted">Gecikmiş</p>
-                <p className={`mt-1 font-display text-3xl ${overduePlan > 0 ? "text-red-600" : "text-ink"}`}>{overduePlan}</p>
-              </div>
+            <div className="grid gap-6 sm:grid-cols-3">
+              <MetricCard
+                label="Total Tasks"
+                value={plan.length}
+                icon={MetricIcons.orders}
+                href="/admin/content-plan"
+                color="blue"
+              />
+              <MetricCard
+                label="Ready to Publish"
+                value={readyPlan}
+                icon={MetricIcons.articles}
+                href="/admin/content-plan"
+                color="green"
+              />
+              <MetricCard
+                label="Overdue Tasks"
+                value={overduePlan}
+                icon={MetricIcons.orders}
+                href="/admin/content-plan"
+                color={overduePlan > 0 ? "red" : "green"}
+              />
             </div>
           </div>
         )}

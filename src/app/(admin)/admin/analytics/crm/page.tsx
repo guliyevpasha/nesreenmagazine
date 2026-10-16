@@ -366,7 +366,7 @@ export default function CrmAnalyticsPage() {
                 title="Konversiya Dərəcələri"
                 description="Mərhələ-mərhələ keçid faizi"
               >
-                <BarChart data={conversionData} height={240} defaultColor="#8B2635" />
+                <BarChart data={conversionData} height={240} />
               </Panel>
             </div>
 
