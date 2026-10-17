@@ -1,5 +1,7 @@
 # Nesreen Magazine
 
+Last updated: 2026-10-15
+
 Qadınlar üçün moda, gözəllik, astrologiya, biznes və gündəm jurnalı.
 
 Beş dilli sayt (AZ · EN · RU · TR · AR) və Firebase üzərində qurulmuş öz admin paneli.
