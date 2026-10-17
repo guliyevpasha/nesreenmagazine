@@ -9,12 +9,12 @@ import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getAuth, type Auth } from "firebase/auth";
 
 export const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ?? "",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? "",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? "",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyCh3o8aCIY-56kK1CjvD6-rkDYCm4UNl4E",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "nesreen-magazine.firebaseapp.com",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "nesreen-magazine",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "nesreen-magazine.firebasestorage.app",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "186112409519",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:186112409519:web:9f29a447aef08927c0795a",
 };
 
 /** Firebase-in qoşulub-qoşulmadığını göstərir. */
