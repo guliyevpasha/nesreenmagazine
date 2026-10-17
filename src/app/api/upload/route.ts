@@ -43,8 +43,18 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Upload xətası:', error);
+    
+    // Ətraflı xəta mesajı
+    const errorMessage = error instanceof Error ? error.message : 'Şəkil yüklənmədi';
+    const errorDetails = error instanceof Error ? error.stack : JSON.stringify(error);
+    
+    console.error('Xəta detalları:', errorDetails);
+    
     return NextResponse.json(
-      { error: 'Şəkil yüklənmədi' },
+      { 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? errorDetails : undefined
+      },
       { status: 500 }
     );
   }

@@ -77,7 +77,9 @@ export default function ImageUpload({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Yükləmə uğursuz oldu');
+        const errorMsg = errorData.error || 'Yükləmə uğursuz oldu';
+        const errorDetails = errorData.details ? `\n\nDetallar: ${errorData.details}` : '';
+        throw new Error(errorMsg + errorDetails);
       }
 
       const result = await response.json();
