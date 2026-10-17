@@ -8,24 +8,46 @@ import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getAuth, type Auth } from "firebase/auth";
 
-// Log environment variables for debugging (only in development)
-if (process.env.NODE_ENV === 'development') {
-  console.log('🔍 Firebase Config Debug:', {
-    hasApiKey: !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    hasProjectId: !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    apiKeyLength: process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.length,
-    isUsingFallback: !process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  });
-}
+// Properly handle empty strings from environment variables
+const getEnvValue = (envVar: string | undefined, fallback: string): string => {
+  // Return fallback if envVar is undefined, null, empty string, or whitespace
+  return envVar && envVar.trim().length > 0 ? envVar : fallback;
+};
 
 export const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyCh3o8aCIY-56kK1CjvD6-rkDYCm4UNl4E",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "nesreen-magazine.firebaseapp.com",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "nesreen-magazine",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "nesreen-magazine.firebasestorage.app",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "186112409519",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:186112409519:web:9f29a447aef08927c0795a",
+  apiKey: getEnvValue(
+    process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    "AIzaSyCh3o8aCIY-56kK1CjvD6-rkDYCm4UNl4E"
+  ),
+  authDomain: getEnvValue(
+    process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    "nesreen-magazine.firebaseapp.com"
+  ),
+  projectId: getEnvValue(
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    "nesreen-magazine"
+  ),
+  storageBucket: getEnvValue(
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    "nesreen-magazine.firebasestorage.app"
+  ),
+  messagingSenderId: getEnvValue(
+    process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    "186112409519"
+  ),
+  appId: getEnvValue(
+    process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    "1:186112409519:web:9f29a447aef08927c0795a"
+  ),
 };
+
+// Debug log (development only)
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+  console.log("🔍 Firebase Config:", {
+    apiKeyPresent: firebaseConfig.apiKey.length > 0,
+    projectId: firebaseConfig.projectId,
+  });
+}
 
 /** Firebase-in qoşulub-qoşulmadığını göstərir. */
 export const isFirebaseConfigured =
