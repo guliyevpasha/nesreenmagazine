@@ -8,6 +8,16 @@ import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getAuth, type Auth } from "firebase/auth";
 
+// Log environment variables for debugging (only in development)
+if (process.env.NODE_ENV === 'development') {
+  console.log('🔍 Firebase Config Debug:', {
+    hasApiKey: !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    hasProjectId: !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    apiKeyLength: process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.length,
+    isUsingFallback: !process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  });
+}
+
 export const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyCh3o8aCIY-56kK1CjvD6-rkDYCm4UNl4E",
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "nesreen-magazine.firebaseapp.com",
