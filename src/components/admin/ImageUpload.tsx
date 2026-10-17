@@ -1,7 +1,26 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { uploadFile, validateImageFile, getImageDimensions } from "@/lib/firebase/storage";
+
+// Helper function to get image dimensions
+function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve({ width: img.width, height: img.height });
+    };
+    
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Şəkil oxunmadı'));
+    };
+    
+    img.src = url;
+  });
+}
 
 interface ImageUploadProps {
   onUpload: (url: string, width: number, height: number, storagePath: string) => void;
@@ -29,27 +48,48 @@ export default function ImageUpload({
     setUploading(true);
 
     try {
-      // Validate file
-      const validation = validateImageFile(file, maxSizeMB);
-      if (!validation.valid) {
-        setError(validation.error || "Fayl səhvdir");
+      // Validate file size
+      if (file.size > maxSizeMB * 1024 * 1024) {
+        setError(`Fayl ${maxSizeMB}MB-dan böyük ola bilməz`);
+        setUploading(false);
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('Yalnız şəkil faylları yüklənə bilər');
+        setUploading(false);
         return;
       }
 
       // Get dimensions
       const { width, height } = await getImageDimensions(file);
 
-      // Upload to Firebase
-      const result = await uploadFile(file, folder);
+      // Upload to Cloudinary via API route
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', folder);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Yükləmə uğursuz oldu');
+      }
+
+      const result = await response.json();
 
       // Update preview
       setPreview(result.url);
 
       // Call parent callback
-      onUpload(result.url, width, height, result.path);
+      onUpload(result.url, width, height, result.publicId);
     } catch (err) {
       console.error("Upload error:", err);
-      setError("Şəkil yüklənə bilmədi");
+      setError(err instanceof Error ? err.message : "Şəkil yüklənə bilmədi");
     } finally {
       setUploading(false);
     }

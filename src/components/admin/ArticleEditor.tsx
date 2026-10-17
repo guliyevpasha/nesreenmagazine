@@ -9,7 +9,6 @@ import {
   removeArticle,
   saveArticle,
   snapshotArticleVersion,
-  uploadImage,
 } from "@/lib/data/admin";
 import { canEditCategory, isAdmin, useAuth } from "@/lib/firebase/auth";
 import { locales, type Locale } from "@/lib/i18n/config";
@@ -141,8 +140,23 @@ export default function ArticleEditor({ article }: { article?: Article }) {
     setUploading(true);
     setMessage(null);
     try {
-      const url = await uploadImage(file, "covers");
-      setDraft((current) => ({ ...current, coverImage: url }));
+      // Upload to Cloudinary via API route
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'covers');
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Yükləmə uğursuz oldu');
+      }
+
+      const result = await response.json();
+      setDraft((current) => ({ ...current, coverImage: result.url }));
     } catch (error) {
       setMessage({
         tone: "error",
@@ -157,7 +171,24 @@ export default function ArticleEditor({ article }: { article?: Article }) {
     setUploadingInline(true);
     setMessage(null);
     try {
-      const url = await uploadImage(file, "inline-images");
+      // Upload to Cloudinary via API route
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'inline-images');
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Yükləmə uğursuz oldu');
+      }
+
+      const result = await response.json();
+      const url = result.url;
+
       // Markdown formatında şəkil əlavə et
       const imageMarkdown = `\n![Şəkil təsviri](${url})\n`;
       setDraft((current) => ({
