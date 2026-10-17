@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v2 as cloudinary } from 'cloudinary';
 
-// Cloudinary konfiqurasiyası
+// Cloudinary konfiqurasiyası with fallback values
 cloudinary.config({
-  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'qz8p3xd2',
+  api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '118856389528362',
+  api_secret: process.env.CLOUDINARY_API_SECRET || 'clfgNjW6rYCeRwGcmmBa6Pppqpc',
 });
 
 export async function POST(request: NextRequest) {
