@@ -315,7 +315,6 @@ export default function BannersPage() {
                         <div className="flex items-center gap-2">
                           <Button
                             variant="ghost"
-                            size="sm"
                             onClick={() => {
                               // Fill form with banner data for editing
                               setSlot(banner.slot);
@@ -332,7 +331,6 @@ export default function BannersPage() {
                           </Button>
                           <Button
                             variant="ghost"
-                            size="sm"
                             onClick={() => {
                               // Duplicate banner
                               setSlot(banner.slot);
@@ -349,7 +347,6 @@ export default function BannersPage() {
                           </Button>
                           <Button
                             variant="ghost"
-                            size="sm"
                             onClick={() =>
                               void saveBanner(banner.id, { active: !banner.active }).then(
                                 refresh,
@@ -360,7 +357,6 @@ export default function BannersPage() {
                           </Button>
                           <Button
                             variant="danger"
-                            size="sm"
                             onClick={() => {
                               if (window.confirm("Banner silinsin?")) {
                                 void removeBanner(banner.id).then(refresh);
