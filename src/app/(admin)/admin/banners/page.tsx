@@ -315,6 +315,41 @@ export default function BannersPage() {
                         <div className="flex items-center gap-2">
                           <Button
                             variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              // Fill form with banner data for editing
+                              setSlot(banner.slot);
+                              setAdvertiser(banner.advertiser || "");
+                              setHref(banner.href);
+                              setAlt(banner.alt);
+                              setImage(banner.image);
+                              setStartsAt(banner.startsAt?.slice(0, 10) || "");
+                              setEndsAt(banner.endsAt?.slice(0, 10) || "");
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                            }}
+                          >
+                            Redaktə
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              // Duplicate banner
+                              setSlot(banner.slot);
+                              setAdvertiser((banner.advertiser || "") + " (kopya)");
+                              setHref(banner.href);
+                              setAlt(banner.alt);
+                              setImage(banner.image);
+                              setStartsAt("");
+                              setEndsAt("");
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                            }}
+                          >
+                            Kopyala
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() =>
                               void saveBanner(banner.id, { active: !banner.active }).then(
                                 refresh,
@@ -325,6 +360,7 @@ export default function BannersPage() {
                           </Button>
                           <Button
                             variant="danger"
+                            size="sm"
                             onClick={() => {
                               if (window.confirm("Banner silinsin?")) {
                                 void removeBanner(banner.id).then(refresh);

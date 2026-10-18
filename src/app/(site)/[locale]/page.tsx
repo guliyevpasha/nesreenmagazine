@@ -4,8 +4,6 @@ import { notFound } from "next/navigation";
 // MÜVƏQQƏTİ: reklam sahələri gizlədilib — geri qaytarmaq üçün bu sətri silin, aşağıdakı importu bərpa edin.
 // import AdSlot from "@/components/AdSlot";
 import ArticleCard from "@/components/ArticleCard";
-import EbookMobileBanner from "@/components/EbookMobileBanner";
-import EbookSidebarBanner from "@/components/EbookSidebarBanner";
 import HeroCarousel from "@/components/HeroCarousel";
 import { RoseMark } from "@/components/Logo";
 import SectionHeading from "@/components/SectionHeading";
@@ -74,13 +72,6 @@ export default async function HomePage({
 
   return (
     <>
-      {/* E-kitab bannerləri - PC üçün sağ və sol kənarlarda */}
-      <EbookSidebarBanner locale={locale} side="left" />
-      <EbookSidebarBanner locale={locale} side="right" />
-      
-      {/* E-kitab banner - Mobil üçün aşağıda fixed */}
-      <EbookMobileBanner locale={locale} />
-
       {/* ================= Baş məqalə Carousel ================= */}
       {heroArticles.length > 0 && (
         <HeroCarousel articles={heroArticles} locale={locale} eyebrow={dict.home.heroEyebrow} />

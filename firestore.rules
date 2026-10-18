@@ -78,11 +78,9 @@ service cloud.firestore {
     //  Kontent kolleksiyaları
     // ═══════════════════════════════════════════
 
-    /** Məqalələr — oxucu yalnız published görür */
+    /** Məqalələr — DEVELOPMENT MODE: TAM AÇIQ */
     match /articles/{articleId} {
-      allow read:   if true; // Development: allow all reads
-      allow create, update: if true; // Development: allow all writes
-      allow delete: if isAdmin();
+      allow read, write: if true; // Allow all operations for development
     }
 
     /** Bürc şərhləri — hamı oxuya bilər */
