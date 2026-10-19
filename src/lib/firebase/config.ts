@@ -128,6 +128,9 @@ export const COLLECTIONS = {
   pushTemplates: "pushTemplates",
   userFcmTokens: "userFcmTokens",
   pushDeliveryLogs: "pushDeliveryLogs",
+  // Tərcümə
+  articleTranslations: "articleTranslations",
+  translationJobs: "translationJobs",
 } as const;
 
 /** Saytın kanonik ünvanı — metadata və sitemap üçün. */

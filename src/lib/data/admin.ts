@@ -2493,3 +2493,276 @@ import type {
   SubscriptionPlanType,
 } from "@/lib/types";
 import type { CategorySlug } from "@/lib/categories";
+
+/* ======================================================================
+   Translation Manager
+   ====================================================================== */
+
+/**
+ * Məqalənin tərcümə progress-ini hesabla.
+ */
+export function calculateArticleTranslationProgress(
+  article: Article
+): Record<Locale, TranslationProgress> {
+  const progress: Record<Locale, TranslationProgress> = {} as any;
+
+  // Tərcümə olunmalı sahələr
+  const fields = ["title", "excerpt", "body", "coverAlt"];
+  const totalFields = fields.length;
+
+  for (const locale of ["az", "en", "ru", "tr", "ar"] as Locale[]) {
+    let emptyFields = 0;
+
+    // Title
+    if (!article.title[locale] || article.title[locale].trim() === "") emptyFields++;
+    // Excerpt
+    if (!article.excerpt[locale] || article.excerpt[locale].trim() === "") emptyFields++;
+    // Body
+    if (!article.body[locale] || article.body[locale].trim() === "") emptyFields++;
+    // Cover alt
+    if (!article.coverAlt[locale] || article.coverAlt[locale].trim() === "") emptyFields++;
+
+    const completedFields = totalFields - emptyFields;
+    const percentage = Math.round((completedFields / totalFields) * 100);
+
+    let status: TranslationStatus = "completed";
+    if (emptyFields === totalFields) {
+      status = "empty";
+    } else if (emptyFields > 0) {
+      status = "in_progress";
+    }
+
+    progress[locale] = {
+      locale,
+      percentage,
+      emptyFields,
+      totalFields,
+      status,
+    };
+  }
+
+  return progress;
+}
+
+/**
+ * Məqalə tərcümə məlumatlarını yarat və ya yenilə.
+ */
+export async function upsertArticleTranslation(article: Article): Promise<void> {
+  const progress = calculateArticleTranslationProgress(article);
+
+  // Check if exists
+  const snap = await getDocs(collection(db(), COLLECTIONS.articleTranslations));
+  const existing = snap.docs.find((d) => d.data().articleId === article.id);
+
+  const data = {
+    articleId: article.id,
+    articleSlug: article.slug,
+    progress,
+    lastUpdatedAt: new Date().toISOString(),
+  };
+
+  if (existing) {
+    await updateDoc(doc(db(), COLLECTIONS.articleTranslations, existing.id), data);
+  } else {
+    await addDoc(collection(db(), COLLECTIONS.articleTranslations), data);
+  }
+}
+
+/**
+ * Bütün məqalə tərcümə məlumatlarını siyahıla.
+ */
+export async function listArticleTranslations(): Promise<ArticleTranslation[]> {
+  const snap = await getDocs(
+    query(collection(db(), COLLECTIONS.articleTranslations), orderBy("lastUpdatedAt", "desc"))
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as ArticleTranslation);
+}
+
+/**
+ * Məqalə ID-yə görə tərcümə məlumatı oxu.
+ */
+export async function getArticleTranslation(articleId: string): Promise<ArticleTranslation | null> {
+  const snap = await getDocs(collection(db(), COLLECTIONS.articleTranslations));
+  const doc = snap.docs.find((d) => d.data().articleId === articleId);
+  if (!doc) return null;
+  return { id: doc.id, ...doc.data() } as ArticleTranslation;
+}
+
+/**
+ * Tərcümə işləri siyahıla.
+ */
+export async function listTranslationJobs(): Promise<TranslationJob[]> {
+  const snap = await getDocs(
+    query(collection(db(), COLLECTIONS.translationJobs), orderBy("createdAt", "desc"))
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as TranslationJob);
+}
+
+/**
+ * Yeni tərcümə işi yarat.
+ */
+export async function createTranslationJob(
+  data: TranslationJobInput
+): Promise<TranslationJob> {
+  const docRef = await addDoc(collection(db(), COLLECTIONS.translationJobs), {
+    ...data,
+    createdAt: new Date().toISOString(),
+  });
+
+  const created = await getDoc(docRef);
+  return { id: created.id, ...created.data() } as TranslationJob;
+}
+
+/**
+ * Tərcümə işini yenilə.
+ */
+export async function updateTranslationJob(
+  id: string,
+  updates: Partial<TranslationJobInput>
+): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.translationJobs, id);
+  await updateDoc(docRef, updates);
+}
+
+/**
+ * Tərcümə işini sil.
+ */
+export async function deleteTranslationJob(id: string): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.translationJobs, id);
+  await deleteDoc(docRef);
+}
+
+/**
+ * Boş tərcümələri tap (missing translations).
+ */
+export async function findMissingTranslations(
+  locale: Locale
+): Promise<{ articleId: string; articleSlug: string; emptyFields: string[] }[]> {
+  const articles = await listArticles();
+  const missing: { articleId: string; articleSlug: string; emptyFields: string[] }[] = [];
+
+  for (const article of articles) {
+    const emptyFields: string[] = [];
+
+    if (!article.title[locale] || article.title[locale].trim() === "") {
+      emptyFields.push("title");
+    }
+    if (!article.excerpt[locale] || article.excerpt[locale].trim() === "") {
+      emptyFields.push("excerpt");
+    }
+    if (!article.body[locale] || article.body[locale].trim() === "") {
+      emptyFields.push("body");
+    }
+    if (!article.coverAlt[locale] || article.coverAlt[locale].trim() === "") {
+      emptyFields.push("coverAlt");
+    }
+
+    if (emptyFields.length > 0) {
+      missing.push({
+        articleId: article.id,
+        articleSlug: article.slug,
+        emptyFields,
+      });
+    }
+  }
+
+  return missing;
+}
+
+/**
+ * Tərcümə statistikaları.
+ */
+export async function getTranslationStats(): Promise<TranslationStats> {
+  const [articles, jobs] = await Promise.all([
+    listArticles(),
+    listTranslationJobs(),
+  ]);
+
+  const completionByLocale: Record<Locale, any> = {} as any;
+
+  for (const locale of ["az", "en", "ru", "tr", "ar"] as Locale[]) {
+    let completed = 0;
+    let inProgress = 0;
+    let empty = 0;
+
+    for (const article of articles) {
+      const progress = calculateArticleTranslationProgress(article);
+      const localeProgress = progress[locale];
+
+      if (localeProgress.status === "completed") {
+        completed++;
+      } else if (localeProgress.status === "in_progress") {
+        inProgress++;
+      } else if (localeProgress.status === "empty") {
+        empty++;
+      }
+    }
+
+    const percentage = articles.length > 0 
+      ? Math.round((completed / articles.length) * 100)
+      : 0;
+
+    completionByLocale[locale] = {
+      completed,
+      inProgress,
+      empty,
+      percentage,
+    };
+  }
+
+  const now = new Date();
+  const thisWeekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+
+  const activeJobs = jobs.filter((j) => j.status === "in_progress" || j.status === "pending").length;
+  const completedJobsThisWeek = jobs.filter(
+    (j) => j.status === "completed" && j.completedAt && new Date(j.completedAt) >= thisWeekStart
+  ).length;
+  const overdueJobs = jobs.filter(
+    (j) => 
+      (j.status === "pending" || j.status === "in_progress") && 
+      j.dueDate && 
+      new Date(j.dueDate) < now
+  ).length;
+
+  const stats: TranslationStats = {
+    totalArticles: articles.length,
+    completionByLocale,
+    activeJobs,
+    completedJobsThisWeek,
+    overdueJobs,
+  };
+
+  return stats;
+}
+
+/**
+ * Auto-translate funksiyası (Google Translate API placeholder).
+ * Real inteqrasiya üçün Google Cloud Translation API lazımdır.
+ */
+export async function autoTranslate(
+  request: AutoTranslateRequest
+): Promise<AutoTranslateResponse> {
+  // TODO: Google Translate API inteqrasiyası
+  // Bu placeholder-dir, real tərcümə etmir.
+  
+  console.warn("Auto-translate: Google Translate API inteqrasiyası lazımdır");
+  
+  return {
+    translatedText: `[AUTO-TRANSLATED from ${request.sourceLocale} to ${request.targetLocale}] ${request.text}`,
+    detectedSourceLocale: request.sourceLocale,
+  };
+}
+
+// Import əlavə tipləri
+import type {
+  ArticleTranslation,
+  ArticleTranslationInput,
+  TranslationJob,
+  TranslationJobInput,
+  TranslationStats,
+  TranslationProgress,
+  TranslationStatus,
+  AutoTranslateRequest,
+  AutoTranslateResponse,
+  Locale,
+} from "@/lib/types";

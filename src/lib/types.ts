@@ -1374,6 +1374,129 @@ export type PushNotificationStats = {
 };
 
 /* ======================================================================
+   Translation Manager
+   ====================================================================== */
+
+/** Tərcümə statusu. */
+export type TranslationStatus = "empty" | "in_progress" | "completed" | "outdated";
+
+export const translationStatusLabels: Record<TranslationStatus, string> = {
+  empty:       "Boş",
+  in_progress: "Tərcümə olunur",
+  completed:   "Tamamlanmış",
+  outdated:    "Köhnə",
+};
+
+/** Tərcümə tamamlanma faizi. */
+export type TranslationProgress = {
+  locale: Locale;
+  /** Tamamlanma faizi (0-100). */
+  percentage: number;
+  /** Boş sahələrin sayı. */
+  emptyFields: number;
+  /** Cəmi sahələrin sayı. */
+  totalFields: number;
+  /** Status. */
+  status: TranslationStatus;
+};
+
+/** Məqalə tərcümə məlumatları. */
+export type ArticleTranslation = {
+  id: string;
+  articleId: string;
+  /** Məqalə başlığı (cache). */
+  articleSlug: string;
+  /** Tərcümə progress (hər dil üçün). */
+  progress: Record<Locale, TranslationProgress>;
+  /** Son yeniləmə. */
+  lastUpdatedAt: string;
+  /** Son tərcümə edən. */
+  lastUpdatedBy?: string;
+};
+
+export type ArticleTranslationInput = Omit<ArticleTranslation, "id">;
+
+/** Tərcümə iş növü. */
+export type TranslationJobType = "article" | "ejournal" | "banner" | "category" | "tag";
+
+export const translationJobTypeLabels: Record<TranslationJobType, string> = {
+  article:  "Məqalə",
+  ejournal: "E-jurnal",
+  banner:   "Banner",
+  category: "Kateqoriya",
+  tag:      "Etiket",
+};
+
+/** Tərcümə işi. */
+export type TranslationJob = {
+  id: string;
+  /** İş tipi. */
+  type: TranslationJobType;
+  /** Resurs ID (article, ejournal, etc.). */
+  resourceId: string;
+  /** Resurs başlığı (cache). */
+  resourceTitle: string;
+  /** Tərcümə olunacaq dil. */
+  targetLocale: Locale;
+  /** Status. */
+  status: "pending" | "in_progress" | "completed" | "failed";
+  /** Təyin edilmiş tərcüməçi. */
+  assignedTo?: string;
+  /** Deadline. */
+  dueDate?: string;
+  /** Priority. */
+  priority: "low" | "medium" | "high";
+  /** Tərcümə mənbəyi. */
+  sourceLocale: Locale;
+  /** Qeydlər. */
+  notes?: string;
+  /** Başlanma tarixi. */
+  startedAt?: string;
+  /** Tamamlanma tarixi. */
+  completedAt?: string;
+  createdAt: string;
+  createdBy: string;
+};
+
+export type TranslationJobInput = Omit<TranslationJob, "id">;
+
+/** Tərcümə statistikaları. */
+export type TranslationStats = {
+  /** Cəmi məqalə sayı. */
+  totalArticles: number;
+  /** Hər dildə tamamlanma. */
+  completionByLocale: Record<Locale, {
+    completed: number;
+    inProgress: number;
+    empty: number;
+    percentage: number;
+  }>;
+  /** Aktiv işlər. */
+  activeJobs: number;
+  /** Tamamlanan işlər (bu həftə). */
+  completedJobsThisWeek: number;
+  /** Gecikən işlər. */
+  overdueJobs: number;
+};
+
+/** Auto-translate request (Google Translate API placeholder). */
+export type AutoTranslateRequest = {
+  /** Tərcümə olunacaq mətn. */
+  text: string;
+  /** Mənbə dil. */
+  sourceLocale: Locale;
+  /** Hədəf dil. */
+  targetLocale: Locale;
+};
+
+export type AutoTranslateResponse = {
+  /** Tərcümə olunmuş mətn. */
+  translatedText: string;
+  /** Mənbə dil (detected). */
+  detectedSourceLocale?: Locale;
+};
+
+/* ======================================================================
    E-Jurnal İdarəetməsi (Enhanced with Sales Tracking)
    ====================================================================== */
 
