@@ -42,6 +42,8 @@ export type Article = {
   readingMinutes: number;
   /** Planlaşdırılmış dərc tarixi-vaxtı (yalnız status="scheduled" olduqda). ISO string. */
   scheduledAt?: string;
+  /** Rich media blocks (video, gallery, embeds). */
+  mediaBlocks?: MediaBlock[];
 };
 
 /** Firestore-a yazılan, id-siz forma. */
@@ -966,6 +968,42 @@ export type UserStats = {
   todayCount: number;
   monthlyGrowth: number;
   avgArticlesRead: number;
+};
+
+/* ======================================================================
+   Advanced Text Editor - Rich Media Blocks
+   ====================================================================== */
+
+/** Rich media block tipi. */
+export type MediaBlockType = 
+  | "video"        // YouTube/Vimeo embed
+  | "gallery"      // Image gallery
+  | "instagram"    // Instagram post embed
+  | "twitter"      // Twitter/X post embed
+  | "quote"        // Styled quote block
+  | "html"         // Custom HTML
+  | "divider";     // Styled divider
+
+/** Rich media block. */
+export type MediaBlock = {
+  id: string;
+  type: MediaBlockType;
+  /** Video URL (YouTube, Vimeo). */
+  videoUrl?: string;
+  /** Gallery images. */
+  images?: { url: string; caption: string }[];
+  /** Instagram post URL. */
+  instagramUrl?: string;
+  /** Twitter/X post URL. */
+  twitterUrl?: string;
+  /** Quote text (multilingual). */
+  quoteText?: LocalizedText;
+  /** Quote author. */
+  quoteAuthor?: string;
+  /** Custom HTML. */
+  html?: string;
+  /** Divider style. */
+  dividerStyle?: "solid" | "dashed" | "dotted" | "stars";
 };
 
 /* ======================================================================

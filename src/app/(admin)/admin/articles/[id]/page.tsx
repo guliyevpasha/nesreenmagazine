@@ -78,6 +78,12 @@ export default function EditArticlePage({
         actions={
           <div className="flex gap-2">
             <Link
+              href={`/admin/articles/${id}/media`}
+              className="btn-ghost !py-2.5 !text-[11px]"
+            >
+              🎬 Media Blocks
+            </Link>
+            <Link
               href={`/admin/articles/${id}/versions`}
               className="btn-ghost !py-2.5 !text-[11px]"
             >
