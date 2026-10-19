@@ -28,14 +28,25 @@ const SUBCATEGORIES: Partial<Record<CategorySlug, string[]>> = {
 };
 
 const ROLE_HINTS: Record<StaffRole, string> = {
-  admin:     "Hər şeyi görür və dəyişir: işçilər, bannerlər, silmə.",
-  editor:    "Bütün bölmələrdə məqalə yazır və redaktə edir.",
-  author:    "Yalnız ona açılan bölmələrdə yazır.",
-  seo:       "SEO parametrləri, yönləndirmələr və axtarış hesabatları.",
-  sales:     "CRM, reklam sifarişləri və kommersiya təklifləri.",
-  finance:   "Ödənişlər, hesab-fakturalar və gəlir hesabatları.",
-  analyst:   "Statistikaya baxış və hesabat ixracı.",
-  moderator: "Məqalə moderasiyası və şərh idarəetməsi.",
+  admin:     "🔑 Tam icazə: işçilər, parametrlər, silmə, everything",
+  editor:    "✍️ Bütün bölmələrdə məqalə yazar, redaktə edir",
+  author:    "📝 Yalnız təyin edilmiş bölmələrdə məqalə yazar",
+  seo:       "🔍 SEO parametrləri, sitemap, redirects",
+  sales:     "💼 CRM müştəriləri, reklam sifarişləri",
+  finance:   "💰 Ödənişlər, invoice, gəlir hesabatları",
+  analyst:   "📊 Analytics dashboard, hesabat ixracı",
+  moderator: "🛡️ Məqalə və şərh moderasiyası",
+};
+
+const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
+  admin: ["Hamısı"],
+  editor: ["Məqalələr", "Media", "E-jurnallar", "Bürc", "Content Plan"],
+  author: ["Məqalələr (təyin edilmiş kateqoriyalar)", "Media"],
+  seo: ["SEO Tools", "Analytics", "Redirects", "Sitemap"],
+  sales: ["CRM", "Ad Orders", "Sales Forecast"],
+  finance: ["Ad Orders (ödənişlər)", "Payments", "Invoices"],
+  analyst: ["Analytics", "Subscribers", "Reports"],
+  moderator: ["Məqalələr (moderasiya)", "Messages", "Comments"],
 };
 
 export default function StaffPage() {
