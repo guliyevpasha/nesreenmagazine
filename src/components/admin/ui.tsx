@@ -10,21 +10,33 @@ export function PageHeader({
   title,
   description,
   actions,
+  backHref,
 }: {
   title: string;
   description?: string;
   actions?: ReactNode;
+  backHref?: string;
 }) {
   return (
     <div className="border-b border-line bg-paper px-6 py-7 lg:px-10 lg:py-9">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl">{title}</h1>
-          {description && (
-            <p className="mt-2 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-soft">
-              {description}
-            </p>
+        <div className="flex items-center gap-3">
+          {backHref && (
+            <a
+              href={backHref}
+              className="font-ui text-[13px] text-muted hover:text-bordo transition-colors"
+            >
+              ← Geri
+            </a>
           )}
+          <div>
+            <h1 className="text-3xl">{title}</h1>
+            {description && (
+              <p className="mt-2 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-soft">
+                {description}
+              </p>
+            )}
+          </div>
         </div>
         {actions && <div className="flex flex-wrap items-center gap-3">{actions}</div>}
       </div>
@@ -37,18 +49,23 @@ export function Panel({
   description,
   children,
   className = "",
+  actions,
 }: {
   title?: string;
   description?: string;
   children: ReactNode;
   className?: string;
+  actions?: ReactNode;
 }) {
   return (
     <section className={`rounded-xl border border-slate-200 bg-white shadow-sm ${className}`}>
-      {(title || description) && (
-        <header className="border-b border-slate-200 px-6 py-4">
-          {title && <h2 className="font-display text-lg font-bold text-slate-900">{title}</h2>}
-          {description && <p className="mt-1 text-[13px] text-slate-600">{description}</p>}
+      {(title || description || actions) && (
+        <header className="border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+          <div>
+            {title && <h2 className="font-display text-lg font-bold text-slate-900">{title}</h2>}
+            {description && <p className="mt-1 text-[13px] text-slate-600">{description}</p>}
+          </div>
+          {actions && <div>{actions}</div>}
         </header>
       )}
       <div className="px-6 py-6">{children}</div>
@@ -167,9 +184,11 @@ export function Empty({ title, text }: { title: string; text?: string }) {
 export function Alert({
   tone = "info",
   children,
+  className = "",
 }: {
   tone?: "info" | "error" | "success";
   children: ReactNode;
+  className?: string;
 }) {
   const styles = {
     info: "border-gold bg-gold/10 text-ink-soft",
@@ -178,7 +197,7 @@ export function Alert({
   }[tone];
 
   return (
-    <p className={`border-s-2 px-4 py-3 font-ui text-[13px] ${styles}`} role="status">
+    <p className={`border-s-2 px-4 py-3 font-ui text-[13px] ${styles} ${className}`} role="status">
       {children}
     </p>
   );
