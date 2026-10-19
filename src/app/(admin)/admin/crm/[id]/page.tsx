@@ -6,32 +6,25 @@ import { useEffect, useState } from "react";
 
 import {
   addCrmActivity,
-  addAdOrder,
   getCrmClient,
   listAdOrdersByClient,
   listCrmActivities,
   removeCrmActivity,
-  removeAdOrder,
   saveCrmClient,
-  saveAdOrder,
 } from "@/lib/data/admin";
 import type {
-  AdFormat,
-  AdOrder,
-  AdOrderInput,
   CrmActivity,
   CrmActivityInput,
   CrmActivityType,
   CrmClient,
+  AdOrder,
   DealStage,
-  PaymentStatus,
 } from "@/lib/types";
 import {
-  adFormatLabels,
   crmActivityLabels,
   dealStageLabels,
+  adFormatLabels,
   paymentStatusLabels,
-  materialStatusLabels,
 } from "@/lib/types";
 import { useAuth } from "@/lib/firebase/auth";
 import {
@@ -39,231 +32,238 @@ import {
   Button,
   Field,
   PageHeader,
+  Panel,
   inputClass,
+  Empty,
 } from "@/components/admin/ui";
 
-/* ── rəng köməkçiləri ────────────────────────────────────────────────────── */
-const paymentColors: Record<PaymentStatus, string> = {
-  pending:   "bg-yellow-50 border-yellow-200 text-yellow-700",
-  partial:   "bg-blue-50 border-blue-200 text-blue-700",
-  paid:      "bg-green-50 border-green-200 text-green-700",
-  overdue:   "bg-red-50 border-red-200 text-red-700",
-  cancelled: "bg-gray-100 border-gray-200 text-gray-500",
-};
-
-const activityIcons: Record<CrmActivityType, string> = {
-  call:    "📞",
-  meeting: "🤝",
-  email:   "✉️",
-  note:    "📝",
-  task:    "✅",
+/* ── rəng xəritələri ────────────────────────────────────────────────────── */
+const stageColors: Record<DealStage, string> = {
+  new: "bg-blue-50 border-blue-200 text-blue-700",
+  contacted: "bg-yellow-50 border-yellow-200 text-yellow-700",
+  proposal: "bg-orange-50 border-orange-200 text-orange-700",
+  negotiation: "bg-purple-50 border-purple-200 text-purple-700",
+  won: "bg-green-50 border-green-200 text-green-700",
+  lost: "bg-gray-100 border-gray-200 text-gray-500",
 };
 
 const STAGES: DealStage[] = ["new", "contacted", "proposal", "negotiation", "won", "lost"];
-const AD_FORMATS: AdFormat[] = [
-  "banner", "sponsored_article", "brand_interview",
-  "social_package", "event_sponsorship", "newsletter", "custom",
-];
-const PAYMENT_STATUSES: PaymentStatus[] = ["pending", "partial", "paid", "overdue", "cancelled"];
 const ACTIVITY_TYPES: CrmActivityType[] = ["call", "meeting", "email", "note", "task"];
 
-/* ── Boş reklam sifarişi forması ─────────────────────────────────────────── */
-function emptyOrderForm(clientId: string, clientName: string): Omit<AdOrderInput, "createdBy" | "createdAt"> {
-  return {
-    clientId,
-    clientName,
-    title: "",
-    format: "banner",
-    placement: "",
-    price: 0,
-    paidAmount: 0,
-    paymentStatus: "pending",
-    materialStatus: "waiting",
-    startsAt: "",
-    endsAt: "",
-    materialUrl: "",
-    clicks: 0,
-    impressions: 0,
-    notes: "",
-  };
-}
-
 /* ── Aktivlik kartı ─────────────────────────────────────────────────────── */
-function ActivityItem({
+function ActivityCard({
   activity,
   onDelete,
 }: {
   activity: CrmActivity;
   onDelete: (id: string) => void;
 }) {
+  const date = new Date(activity.createdAt);
   return (
-    <div className="flex gap-3 border-b border-line pb-4">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center border border-line bg-cream-deep text-base">
-        {activityIcons[activity.type]}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <span className="font-ui text-[10px] uppercase tracking-[0.12em] text-muted">
+    <div className="border-l-2 border-bordo/30 pl-4 pb-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="inline-block border border-line bg-paper px-2 py-0.5 font-ui text-[10px] uppercase tracking-[0.12em] text-muted">
               {crmActivityLabels[activity.type]}
             </span>
-            <p className="mt-0.5 font-ui text-[13px] text-ink font-medium">{activity.title}</p>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
             <span className="font-ui text-[11px] text-muted">
-              {activity.createdAt.slice(0, 10)}
+              {date.toLocaleDateString("az-AZ")} · {date.toLocaleTimeString("az-AZ", { hour: "2-digit", minute: "2-digit" })}
             </span>
-            <button
-              type="button"
-              onClick={() => onDelete(activity.id)}
-              className="font-ui text-[11px] text-bordo/60 hover:text-bordo transition-colors"
-            >
-              Sil
-            </button>
           </div>
+          <h4 className="mt-1 font-display text-[15px] text-ink">{activity.title}</h4>
+          {activity.body && (
+            <p className="mt-1 font-ui text-[13px] text-muted whitespace-pre-wrap">{activity.body}</p>
+          )}
+          {activity.dueAt && (
+            <p className="mt-2 font-ui text-[12px] text-muted">
+              ⏰ Tarixi: {new Date(activity.dueAt).toLocaleString("az-AZ")}
+              {activity.completedAt && (
+                <span className="ml-2 text-green-600">✓ Tamamlandı</span>
+              )}
+            </p>
+          )}
         </div>
-        {activity.body && (
-          <p className="mt-1 font-ui text-[12px] text-ink-soft leading-relaxed">{activity.body}</p>
-        )}
-        {activity.dueAt && (
-          <p className="mt-1 font-ui text-[11px] text-muted">Son tarix: {activity.dueAt.slice(0, 10)}</p>
-        )}
+        <button
+          type="button"
+          onClick={() => onDelete(activity.id)}
+          className="text-muted hover:text-bordo text-lg leading-none"
+        >
+          ×
+        </button>
       </div>
     </div>
   );
 }
 
-/* ── Reklam sifarişi sıra ─────────────────────────────────────────────────── */
-function OrderRow({
-  order,
-  onDelete,
-  onStatusChange,
+/* ── Aktivlik modal ─────────────────────────────────────────────────────── */
+function ActivityModal({
+  clientId,
+  onClose,
+  onSaved,
+  userEmail,
 }: {
-  order: AdOrder;
-  onDelete: (id: string) => void;
-  onStatusChange: (id: string, status: PaymentStatus) => void;
+  clientId: string;
+  onClose: () => void;
+  onSaved: () => void;
+  userEmail: string;
 }) {
+  const [type, setType] = useState<CrmActivityType>("note");
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [dueAt, setDueAt] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) {
+      setError("Başlıq mütləqdir.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      await addCrmActivity({
+        clientId,
+        type,
+        title,
+        body,
+        dueAt: dueAt || undefined,
+        createdAt: new Date().toISOString(),
+        createdBy: userEmail,
+      });
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Xəta baş verdi.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <div className="border border-line bg-paper p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="font-display text-[15px] text-ink">{order.title}</p>
-          <p className="mt-0.5 font-ui text-[12px] text-muted">
-            {adFormatLabels[order.format]} · {order.placement || "Yer göstərilməyib"}
-          </p>
-        </div>
-        <span className={`shrink-0 border px-2 py-0.5 font-ui text-[10px] uppercase tracking-[0.1em] ${paymentColors[order.paymentStatus]}`}>
-          {paymentStatusLabels[order.paymentStatus]}
-        </span>
-      </div>
-
-      <div className="mt-3 grid grid-cols-3 gap-3 border-t border-line pt-3">
-        <div>
-          <p className="font-ui text-[10px] uppercase tracking-[0.1em] text-muted">Qiymət</p>
-          <p className="mt-0.5 font-display text-lg text-ink">{order.price} ₼</p>
-        </div>
-        <div>
-          <p className="font-ui text-[10px] uppercase tracking-[0.1em] text-muted">Ödənilib</p>
-          <p className="mt-0.5 font-display text-lg text-green-600">{order.paidAmount} ₼</p>
-        </div>
-        <div>
-          <p className="font-ui text-[10px] uppercase tracking-[0.1em] text-muted">Borc</p>
-          <p className="mt-0.5 font-display text-lg text-bordo">
-            {Math.max(0, order.price - order.paidAmount)} ₼
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-3 flex items-center gap-3 border-t border-line pt-3">
-        <span className="font-ui text-[11px] text-muted">
-          {order.startsAt ? order.startsAt.slice(0, 10) : "—"} → {order.endsAt ? order.endsAt.slice(0, 10) : "—"}
-        </span>
-        <div className="ml-auto flex items-center gap-2">
-          <select
-            className="border border-line bg-paper px-2 py-1 font-ui text-[11px] focus:outline-none"
-            value={order.paymentStatus}
-            onChange={(e) => onStatusChange(order.id, e.target.value as PaymentStatus)}
-          >
-            {PAYMENT_STATUSES.map((s) => (
-              <option key={s} value={s}>{paymentStatusLabels[s]}</option>
-            ))}
-          </select>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-ink/40" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-paper border border-line shadow-xl">
+        <div className="border-b border-line px-6 py-5 flex items-center justify-between">
+          <h2 className="font-display text-xl">Yeni aktivlik</h2>
           <button
             type="button"
-            onClick={() => onDelete(order.id)}
-            className="font-ui text-[11px] text-bordo/60 hover:text-bordo transition-colors"
+            onClick={onClose}
+            className="text-muted hover:text-ink text-xl leading-none"
           >
-            Sil
+            ×
           </button>
         </div>
-      </div>
+        <form onSubmit={(e) => void handleSubmit(e)} className="px-6 py-6 space-y-4">
+          {error && <Alert tone="error">{error}</Alert>}
 
-      {(order.clicks > 0 || order.impressions > 0) && (
-        <div className="mt-2 flex gap-4">
-          <span className="font-ui text-[11px] text-muted">Klik: {order.clicks}</span>
-          <span className="font-ui text-[11px] text-muted">Göstərilmə: {order.impressions}</span>
-        </div>
-      )}
+          <Field label="Növ">
+            <select className={inputClass} value={type} onChange={(e) => setType(e.target.value as CrmActivityType)}>
+              {ACTIVITY_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {crmActivityLabels[t]}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Başlıq *">
+            <input
+              className={inputClass}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Qısa başlıq..."
+              required
+            />
+          </Field>
+
+          <Field label="Təsvir">
+            <textarea
+              className={inputClass}
+              rows={3}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="Ətraflı məlumat..."
+            />
+          </Field>
+
+          {type === "task" && (
+            <Field label="Son tarix">
+              <input
+                className={inputClass}
+                type="datetime-local"
+                value={dueAt}
+                onChange={(e) => setDueAt(e.target.value)}
+              />
+            </Field>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="ghost" onClick={onClose}>
+              Ləğv et
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saxlanılır…" : "Əlavə et"}
+            </Button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
 
 /* ── Əsas səhifə ────────────────────────────────────────────────────────── */
-export default function CrmClientPage() {
-  const { id } = useParams<{ id: string }>();
+export default function ClientDetailPage() {
+  const params = useParams();
   const router = useRouter();
   const { session } = useAuth();
+  const clientId = params.id as string;
 
   const [client, setClient] = useState<CrmClient | null>(null);
   const [activities, setActivities] = useState<CrmActivity[]>([]);
   const [orders, setOrders] = useState<AdOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [activityModal, setActivityModal] = useState(false);
+  const [editing, setEditing] = useState(false);
 
-  /* Redaktə panel */
-  const [editOpen, setEditOpen] = useState(false);
-  const [editStage, setEditStage] = useState<DealStage>("new");
-  const [editNotes, setEditNotes] = useState("");
-  const [editName, setEditName] = useState("");
-  const [editContact, setEditContact] = useState("");
-  const [editEmail, setEditEmail] = useState("");
-  const [editPhone, setEditPhone] = useState("");
-  const [editIndustry, setEditIndustry] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  /* Yeni aktivlik */
-  const [actType, setActType] = useState<CrmActivityType>("note");
-  const [actTitle, setActTitle] = useState("");
-  const [actBody, setActBody] = useState("");
-  const [actDue, setActDue] = useState("");
-  const [actSaving, setActSaving] = useState(false);
-
-  /* Yeni reklam sifarişi */
-  const [orderFormOpen, setOrderFormOpen] = useState(false);
-  const [orderForm, setOrderForm] = useState<Omit<AdOrderInput, "createdBy" | "createdAt">>(
-    emptyOrderForm(id, ""),
-  );
-  const [orderSaving, setOrderSaving] = useState(false);
+  // Form state for editing
+  const [form, setForm] = useState({
+    name: "",
+    contactPerson: "",
+    email: "",
+    phone: "",
+    industry: "",
+    notes: "",
+    stage: "new" as DealStage,
+  });
 
   async function load() {
     setLoading(true);
+    setError("");
     try {
-      const [c, acts, ords] = await Promise.all([
-        getCrmClient(id),
-        listCrmActivities(id),
-        listAdOrdersByClient(id),
+      const [c, a, o] = await Promise.all([
+        getCrmClient(clientId),
+        listCrmActivities(clientId),
+        listAdOrdersByClient(clientId),
       ]);
-      if (!c) { router.push("/admin/crm"); return; }
+      if (!c) {
+        setError("Müştəri tapılmadı.");
+        return;
+      }
       setClient(c);
-      setActivities(acts);
-      setOrders(ords);
-      setEditStage(c.stage);
-      setEditNotes(c.notes);
-      setEditName(c.name);
-      setEditContact(c.contactPerson);
-      setEditEmail(c.email);
-      setEditPhone(c.phone);
-      setEditIndustry(c.industry);
+      setActivities(a);
+      setOrders(o);
+      setForm({
+        name: c.name,
+        contactPerson: c.contactPerson,
+        email: c.email,
+        phone: c.phone,
+        industry: c.industry,
+        notes: c.notes,
+        stage: c.stage,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Yüklənmə xətası");
     } finally {
@@ -271,404 +271,335 @@ export default function CrmClientPage() {
     }
   }
 
-  useEffect(() => { void load(); }, [id]);
+  useEffect(() => {
+    void load();
+  }, [clientId]);
 
-  /* Müştərini yenilə */
-  async function handleSaveClient(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSave() {
     if (!client) return;
-    setSaving(true);
     try {
-      await saveCrmClient(client.id, {
-        name: editName,
-        contactPerson: editContact,
-        email: editEmail,
-        phone: editPhone,
-        industry: editIndustry,
-        stage: editStage,
-        notes: editNotes,
-      });
-      setEditOpen(false);
-      void load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Saxlama xətası");
-    } finally {
-      setSaving(false);
+      await saveCrmClient(client.id, form);
+      setClient({ ...client, ...form });
+      setEditing(false);
+    } catch {
+      alert("Saxlanma xətası");
     }
   }
 
-  /* Aktivlik əlavə et */
-  async function handleAddActivity(e: React.FormEvent) {
-    e.preventDefault();
-    if (!actTitle.trim() || !client) return;
-    setActSaving(true);
-    try {
-      const input: CrmActivityInput = {
-        clientId: client.id,
-        type: actType,
-        title: actTitle,
-        body: actBody,
-        dueAt: actDue || undefined,
-        createdAt: new Date().toISOString(),
-        createdBy: session?.email ?? "",
-      };
-      await addCrmActivity(input);
-      setActTitle("");
-      setActBody("");
-      setActDue("");
-      void load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Aktivlik əlavə edilmədi");
-    } finally {
-      setActSaving(false);
-    }
-  }
-
-  async function handleDeleteActivity(actId: string) {
+  async function handleDeleteActivity(id: string) {
     if (!confirm("Bu aktivliyi silmək istəyirsiniz?")) return;
-    await removeCrmActivity(actId);
-    setActivities((prev) => prev.filter((a) => a.id !== actId));
-  }
-
-  /* Reklam sifarişi əlavə et */
-  async function handleAddOrder(e: React.FormEvent) {
-    e.preventDefault();
-    if (!orderForm.title.trim() || !client) return;
-    setOrderSaving(true);
     try {
-      await addAdOrder({
-        ...orderForm,
-        clientId: client.id,
-        clientName: client.name,
-        createdBy: session?.email ?? "",
-        createdAt: new Date().toISOString(),
-      });
-      setOrderFormOpen(false);
-      setOrderForm(emptyOrderForm(id, client.name));
-      void load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Sifariş əlavə edilmədi");
-    } finally {
-      setOrderSaving(false);
+      await removeCrmActivity(id);
+      setActivities((prev) => prev.filter((a) => a.id !== id));
+    } catch {
+      alert("Silinmə xətası");
     }
   }
 
-  async function handleDeleteOrder(ordId: string) {
-    if (!confirm("Bu sifarişi silmək istəyirsiniz?")) return;
-    await removeAdOrder(ordId);
-    setOrders((prev) => prev.filter((o) => o.id !== ordId));
+  function handleActivitySaved() {
+    setActivityModal(false);
+    void load();
   }
 
-  async function handleOrderStatusChange(ordId: string, status: PaymentStatus) {
-    await saveAdOrder(ordId, { paymentStatus: status });
-    setOrders((prev) => prev.map((o) => o.id === ordId ? { ...o, paymentStatus: status } : o));
+  if (loading) {
+    return (
+      <div className="px-6 py-16 lg:px-10 text-center font-ui text-[13px] text-muted">
+        Yüklənir…
+      </div>
+    );
   }
 
-  /* Ümumi gəlir hesabı */
-  const totalRevenue = orders.reduce((s, o) => s + (o.paidAmount || 0), 0);
-  const totalDebt = orders.reduce((s, o) => s + Math.max(0, o.price - o.paidAmount), 0);
+  if (error || !client) {
+    return (
+      <div className="px-6 py-8 lg:px-10">
+        <Alert tone="error">{error || "Müştəri tapılmadı"}</Alert>
+        <Button onClick={() => router.push("/admin/crm")} className="mt-4">
+          ← CRM-ə qayıt
+        </Button>
+      </div>
+    );
+  }
 
-  if (loading) return (
-    <div className="py-24 text-center font-ui text-[13px] text-muted">Yüklənir…</div>
-  );
-
-  if (!client) return null;
+  const totalRevenue = orders.reduce((sum, o) => sum + o.paidAmount, 0);
+  const totalDebt = orders.reduce((sum, o) => sum + Math.max(0, o.price - o.paidAmount), 0);
 
   return (
     <>
       <PageHeader
         title={client.name}
-        description={client.contactPerson ? `Əlaqə: ${client.contactPerson}` : undefined}
+        description={client.contactPerson || "Müştəri detallı məlumatı"}
+        backHref="/admin/crm"
         actions={
           <div className="flex gap-2">
-            <Link href="/admin/crm">
-              <Button variant="ghost">← Geri</Button>
-            </Link>
-            <Button onClick={() => setEditOpen(!editOpen)}>
-              {editOpen ? "Ləğv et" : "Redaktə et"}
+            <Button variant="ghost" onClick={() => router.push("/admin/ad-orders?client=" + clientId)}>
+              + Yeni sifariş
             </Button>
+            <Button onClick={() => setActivityModal(true)}>+ Aktivlik</Button>
           </div>
         }
       />
 
-      {error && (
-        <div className="px-6 pt-4 lg:px-10">
-          <Alert tone="error">{error}</Alert>
-        </div>
-      )}
-
       <div className="px-6 py-6 lg:px-10 space-y-6">
-
-        {/* Redaktə paneli */}
-        {editOpen && (
-          <div className="border border-bordo/30 bg-paper p-6">
-            <h2 className="font-display text-xl mb-4">Müştəri məlumatlarını redaktə et</h2>
-            <form onSubmit={(e) => void handleSaveClient(e)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Şirkət / Ad">
-                  <input className={inputClass} value={editName} onChange={(e) => setEditName(e.target.value)} required />
-                </Field>
-                <Field label="Əlaqə şəxsi">
-                  <input className={inputClass} value={editContact} onChange={(e) => setEditContact(e.target.value)} />
-                </Field>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="E-poçt">
-                  <input className={inputClass} type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
-                </Field>
-                <Field label="Telefon">
-                  <input className={inputClass} value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
-                </Field>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Fəaliyyət sahəsi">
-                  <input className={inputClass} value={editIndustry} onChange={(e) => setEditIndustry(e.target.value)} />
-                </Field>
-                <Field label="Mərhələ">
-                  <select className={inputClass} value={editStage} onChange={(e) => setEditStage(e.target.value as DealStage)}>
-                    {STAGES.map((s) => (
-                      <option key={s} value={s}>{dealStageLabels[s]}</option>
-                    ))}
-                  </select>
-                </Field>
-              </div>
-              <Field label="Qeydlər">
-                <textarea className={inputClass} rows={3} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
-              </Field>
-              <div className="flex justify-end">
-                <Button type="submit" disabled={saving}>
-                  {saving ? "Saxlanılır…" : "Yadda saxla"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {/* Məlumat kartları */}
+        {/* Statistika */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[
-            { label: "Mərhələ", value: dealStageLabels[client.stage] },
             { label: "Ümumi sifariş", value: orders.length },
-            { label: "Ödənilib", value: `${totalRevenue} ₼` },
+            { label: "Gəlir", value: `${totalRevenue} ₼` },
             { label: "Borc", value: `${totalDebt} ₼` },
+            { label: "Aktivlik", value: activities.length },
           ].map((stat) => (
             <div key={stat.label} className="border border-line bg-paper px-5 py-4">
-              <p className="font-ui text-[10px] uppercase tracking-[0.16em] text-muted">{stat.label}</p>
+              <p className="font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                {stat.label}
+              </p>
               <p className="mt-1 font-display text-2xl text-ink">{stat.value}</p>
             </div>
           ))}
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Sol — Aktivliklər */}
-          <div className="space-y-4">
-            <h2 className="font-display text-xl">Aktivliklər tarixçəsi</h2>
-
-            {/* Yeni aktivlik forması */}
-            <form onSubmit={(e) => void handleAddActivity(e)} className="border border-line bg-paper p-4 space-y-3">
-              <p className="font-ui text-[11px] uppercase tracking-[0.14em] text-muted">Yeni qeyd əlavə et</p>
-              <div className="grid grid-cols-2 gap-3">
-                <select
-                  className={inputClass}
-                  value={actType}
-                  onChange={(e) => setActType(e.target.value as CrmActivityType)}
-                >
-                  {ACTIVITY_TYPES.map((t) => (
-                    <option key={t} value={t}>{crmActivityLabels[t]}</option>
-                  ))}
-                </select>
-                <input
-                  className={inputClass}
-                  type="date"
-                  value={actDue}
-                  onChange={(e) => setActDue(e.target.value)}
-                  placeholder="Son tarix (optional)"
-                />
-              </div>
-              <input
-                className={inputClass}
-                value={actTitle}
-                onChange={(e) => setActTitle(e.target.value)}
-                placeholder="Başlıq *"
-                required
-              />
-              <textarea
-                className={inputClass}
-                rows={2}
-                value={actBody}
-                onChange={(e) => setActBody(e.target.value)}
-                placeholder="Ətraflı qeyd..."
-              />
-              <div className="flex justify-end">
-                <Button type="submit" disabled={actSaving}>
-                  {actSaving ? "Əlavə edilir…" : "Əlavə et"}
-                </Button>
-              </div>
-            </form>
-
-            {/* Aktivliklər siyahısı */}
-            <div className="space-y-4">
-              {activities.length === 0 && (
-                <p className="border border-dashed border-line px-6 py-8 text-center font-ui text-[13px] text-muted">
-                  Hələ heç bir aktivlik yoxdur.
-                </p>
+        <div className="grid gap-6 lg:grid-cols-12">
+          {/* Sol panel - Müştəri məlumatları */}
+          <div className="lg:col-span-5">
+            <Panel
+              title="Müştəri məlumatları"
+              actions={
+                editing ? (
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(false)}
+                      className="font-ui text-[11px] uppercase tracking-[0.12em] text-muted hover:text-ink"
+                    >
+                      Ləğv et
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleSave()}
+                      className="font-ui text-[11px] uppercase tracking-[0.12em] text-bordo hover:underline"
+                    >
+                      Yadda saxla
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setEditing(true)}
+                    className="font-ui text-[11px] uppercase tracking-[0.12em] text-bordo hover:underline"
+                  >
+                    Redaktə et
+                  </button>
+                )
+              }
+            >
+              {editing ? (
+                <div className="space-y-4">
+                  <Field label="Şirkət / Ad">
+                    <input
+                      className={inputClass}
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="Əlaqə şəxsi">
+                    <input
+                      className={inputClass}
+                      value={form.contactPerson}
+                      onChange={(e) => setForm({ ...form, contactPerson: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="E-poçt">
+                    <input
+                      className={inputClass}
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="Telefon">
+                    <input
+                      className={inputClass}
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="Fəaliyyət sahəsi">
+                    <input
+                      className={inputClass}
+                      value={form.industry}
+                      onChange={(e) => setForm({ ...form, industry: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="Mərhələ">
+                    <select
+                      className={inputClass}
+                      value={form.stage}
+                      onChange={(e) => setForm({ ...form, stage: e.target.value as DealStage })}
+                    >
+                      {STAGES.map((s) => (
+                        <option key={s} value={s}>
+                          {dealStageLabels[s]}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Qeydlər">
+                    <textarea
+                      className={inputClass}
+                      rows={3}
+                      value={form.notes}
+                      onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                    />
+                  </Field>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <p className="font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                      Mərhələ
+                    </p>
+                    <span
+                      className={`mt-1 inline-flex items-center gap-1.5 border px-2 py-1 font-ui text-[11px] uppercase tracking-[0.1em] ${stageColors[client.stage]}`}
+                    >
+                      {dealStageLabels[client.stage]}
+                    </span>
+                  </div>
+                  {client.contactPerson && (
+                    <div>
+                      <p className="font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                        Əlaqə şəxsi
+                      </p>
+                      <p className="mt-1 font-ui text-[14px] text-ink">{client.contactPerson}</p>
+                    </div>
+                  )}
+                  {client.email && (
+                    <div>
+                      <p className="font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                        E-poçt
+                      </p>
+                      <p className="mt-1 font-ui text-[14px] text-ink">
+                        <a href={`mailto:${client.email}`} className="hover:text-bordo">
+                          {client.email}
+                        </a>
+                      </p>
+                    </div>
+                  )}
+                  {client.phone && (
+                    <div>
+                      <p className="font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                        Telefon
+                      </p>
+                      <p className="mt-1 font-ui text-[14px] text-ink">
+                        <a href={`tel:${client.phone}`} className="hover:text-bordo">
+                          {client.phone}
+                        </a>
+                      </p>
+                    </div>
+                  )}
+                  {client.industry && (
+                    <div>
+                      <p className="font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                        Fəaliyyət sahəsi
+                      </p>
+                      <p className="mt-1 font-ui text-[14px] text-ink">{client.industry}</p>
+                    </div>
+                  )}
+                  {client.notes && (
+                    <div>
+                      <p className="font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                        Qeydlər
+                      </p>
+                      <p className="mt-1 font-ui text-[14px] text-muted whitespace-pre-wrap">
+                        {client.notes}
+                      </p>
+                    </div>
+                  )}
+                  <div className="pt-2 border-t border-line">
+                    <p className="font-ui text-[11px] text-muted">
+                      Yaradılıb: {new Date(client.createdAt).toLocaleDateString("az-AZ")}
+                    </p>
+                  </div>
+                </div>
               )}
-              {activities.map((act) => (
-                <ActivityItem
-                  key={act.id}
-                  activity={act}
-                  onDelete={(actId) => void handleDeleteActivity(actId)}
-                />
-              ))}
-            </div>
+            </Panel>
           </div>
 
-          {/* Sağ — Reklam sifarişləri */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-xl">Reklam sifarişləri</h2>
-              <Button onClick={() => setOrderFormOpen(!orderFormOpen)}>
-                {orderFormOpen ? "Ləğv et" : "+ Yeni sifariş"}
-              </Button>
-            </div>
-
-            {/* Yeni sifariş forması */}
-            {orderFormOpen && (
-              <form onSubmit={(e) => void handleAddOrder(e)} className="border border-line bg-paper p-4 space-y-3">
-                <p className="font-ui text-[11px] uppercase tracking-[0.14em] text-muted">Yeni reklam sifarişi</p>
-                <input
-                  className={inputClass}
-                  value={orderForm.title}
-                  onChange={(e) => setOrderForm((p) => ({ ...p, title: e.target.value }))}
-                  placeholder="Kampaniya adı *"
-                  required
+          {/* Sağ panel - Aktivliklər və sifarişlər */}
+          <div className="lg:col-span-7 space-y-6">
+            {/* Aktivliklər */}
+            <Panel title="Aktivlik Tarixçəsi" description="Zənglər, görüşlər, qeydlər">
+              {activities.length === 0 ? (
+                <Empty
+                  title="Aktivlik yoxdur"
+                  text="Yeni aktivlik əlavə edin."
                 />
-                <div className="grid grid-cols-2 gap-3">
-                  <select
-                    className={inputClass}
-                    value={orderForm.format}
-                    onChange={(e) => setOrderForm((p) => ({ ...p, format: e.target.value as AdFormat }))}
-                  >
-                    {AD_FORMATS.map((f) => (
-                      <option key={f} value={f}>{adFormatLabels[f]}</option>
-                    ))}
-                  </select>
-                  <input
-                    className={inputClass}
-                    value={orderForm.placement}
-                    onChange={(e) => setOrderForm((p) => ({ ...p, placement: e.target.value }))}
-                    placeholder="Yerləşdirmə bölməsi"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Qiymət (₼)">
-                    <input
-                      className={inputClass}
-                      type="number"
-                      min={0}
-                      value={orderForm.price}
-                      onChange={(e) => setOrderForm((p) => ({ ...p, price: Number(e.target.value) }))}
+              ) : (
+                <div className="space-y-4">
+                  {activities.map((activity) => (
+                    <ActivityCard
+                      key={activity.id}
+                      activity={activity}
+                      onDelete={(id) => void handleDeleteActivity(id)}
                     />
-                  </Field>
-                  <Field label="Ödənilib (₼)">
-                    <input
-                      className={inputClass}
-                      type="number"
-                      min={0}
-                      value={orderForm.paidAmount}
-                      onChange={(e) => setOrderForm((p) => ({ ...p, paidAmount: Number(e.target.value) }))}
-                    />
-                  </Field>
+                  ))}
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Başlama tarixi">
-                    <input
-                      className={inputClass}
-                      type="date"
-                      value={orderForm.startsAt}
-                      onChange={(e) => setOrderForm((p) => ({ ...p, startsAt: e.target.value }))}
-                    />
-                  </Field>
-                  <Field label="Bitmə tarixi">
-                    <input
-                      className={inputClass}
-                      type="date"
-                      value={orderForm.endsAt}
-                      onChange={(e) => setOrderForm((p) => ({ ...p, endsAt: e.target.value }))}
-                    />
-                  </Field>
-                </div>
-                <textarea
-                  className={inputClass}
-                  rows={2}
-                  value={orderForm.notes}
-                  onChange={(e) => setOrderForm((p) => ({ ...p, notes: e.target.value }))}
-                  placeholder="Qeydlər..."
-                />
-                <div className="flex justify-end">
-                  <Button type="submit" disabled={orderSaving}>
-                    {orderSaving ? "Əlavə edilir…" : "Sifarişi əlavə et"}
-                  </Button>
-                </div>
-              </form>
-            )}
-
-            {/* Sifarişlər siyahısı */}
-            <div className="space-y-3">
-              {orders.length === 0 && (
-                <p className="border border-dashed border-line px-6 py-8 text-center font-ui text-[13px] text-muted">
-                  Hələ heç bir reklam sifarişi yoxdur.
-                </p>
               )}
-              {orders.map((order) => (
-                <OrderRow
-                  key={order.id}
-                  order={order}
-                  onDelete={(ordId) => void handleDeleteOrder(ordId)}
-                  onStatusChange={(ordId, status) => void handleOrderStatusChange(ordId, status)}
+            </Panel>
+
+            {/* Reklam sifarişləri */}
+            <Panel title="Reklam Sifarişləri">
+              {orders.length === 0 ? (
+                <Empty
+                  title="Sifariş yoxdur"
+                  text="Bu müştəri üçün hələ reklam sifarişi əlavə edilməyib."
                 />
-              ))}
-            </div>
+              ) : (
+                <div className="space-y-3">
+                  {orders.map((order) => (
+                    <Link
+                      key={order.id}
+                      href={`/admin/ad-orders#${order.id}`}
+                      className="block border border-line bg-paper p-4 hover:border-bordo/40 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-display text-[15px] text-ink line-clamp-1">
+                            {order.title}
+                          </p>
+                          <p className="mt-0.5 font-ui text-[12px] text-muted">
+                            {adFormatLabels[order.format]} · {order.placement}
+                          </p>
+                        </div>
+                        <span className="shrink-0 font-display text-[15px] text-ink">
+                          {order.paidAmount} / {order.price} ₼
+                        </span>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="inline-block border border-line px-2 py-0.5 font-ui text-[10px] uppercase tracking-[0.1em] text-muted">
+                          {paymentStatusLabels[order.paymentStatus]}
+                        </span>
+                        <span className="font-ui text-[11px] text-muted">
+                          {new Date(order.startsAt).toLocaleDateString("az-AZ")} →{" "}
+                          {new Date(order.endsAt).toLocaleDateString("az-AZ")}
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </Panel>
           </div>
         </div>
-
-        {/* Əlaqə məlumatları */}
-        {(client.email || client.phone || client.notes) && (
-          <div className="border border-line bg-paper p-6">
-            <h2 className="font-display text-xl mb-4">Əlaqə məlumatları</h2>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {client.email && (
-                <div>
-                  <p className="font-ui text-[10px] uppercase tracking-[0.14em] text-muted">E-poçt</p>
-                  <a href={`mailto:${client.email}`} className="mt-1 font-ui text-[13px] text-bordo hover:underline block">
-                    {client.email}
-                  </a>
-                </div>
-              )}
-              {client.phone && (
-                <div>
-                  <p className="font-ui text-[10px] uppercase tracking-[0.14em] text-muted">Telefon</p>
-                  <a href={`tel:${client.phone}`} className="mt-1 font-ui text-[13px] text-ink block">
-                    {client.phone}
-                  </a>
-                </div>
-              )}
-              {client.industry && (
-                <div>
-                  <p className="font-ui text-[10px] uppercase tracking-[0.14em] text-muted">Sahə</p>
-                  <p className="mt-1 font-ui text-[13px] text-ink">{client.industry}</p>
-                </div>
-              )}
-            </div>
-            {client.notes && (
-              <div className="mt-4 border-t border-line pt-4">
-                <p className="font-ui text-[10px] uppercase tracking-[0.14em] text-muted mb-2">Qeydlər</p>
-                <p className="font-ui text-[13px] text-ink-soft leading-relaxed whitespace-pre-wrap">{client.notes}</p>
-              </div>
-            )}
-          </div>
-        )}
       </div>
+
+      {/* Aktivlik modal */}
+      {activityModal && (
+        <ActivityModal
+          clientId={clientId}
+          onClose={() => setActivityModal(false)}
+          onSaved={handleActivitySaved}
+          userEmail={session?.email ?? ""}
+        />
+      )}
     </>
   );
 }

@@ -4,17 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import {
-  addContentPlanItem,
   listContentPlan,
-  removeContentPlanItem,
+  addContentPlanItem,
   saveContentPlanItem,
+  removeContentPlanItem,
+  listStaff,
 } from "@/lib/data/admin";
-import { listStaff } from "@/lib/data/admin";
-import type {
-  ContentPlanItem,
-  ContentPlanItemInput,
-  ContentPlanStatus,
-} from "@/lib/types";
+import type { ContentPlanItem, ContentPlanItemInput, ContentPlanStatus, StaffMember } from "@/lib/types";
 import { contentPlanStatusLabels } from "@/lib/types";
 import { categories } from "@/lib/categories";
 import { useAuth } from "@/lib/firebase/auth";
@@ -22,47 +18,31 @@ import {
   Alert,
   Button,
   Empty,
-  Field,
   PageHeader,
+  Field,
   inputClass,
 } from "@/components/admin/ui";
-import type { StaffMember } from "@/lib/types";
 
-/* ── sabit məlumatlar ────────────────────────────────────────────────────── */
-const STATUSES: ContentPlanStatus[] = [
-  "idea", "assigned", "writing", "review", "ready", "published",
-];
-
+/* ── rəng xəritəsi ────────────────────────────────────────────────────── */
 const statusColors: Record<ContentPlanStatus, string> = {
-  idea:      "bg-gray-100 border-gray-200 text-gray-600",
-  assigned:  "bg-blue-50 border-blue-200 text-blue-700",
-  writing:   "bg-yellow-50 border-yellow-200 text-yellow-700",
-  review:    "bg-orange-50 border-orange-200 text-orange-700",
-  ready:     "bg-purple-50 border-purple-200 text-purple-700",
-  published: "bg-green-50 border-green-200 text-green-700",
+  idea: "border-gray-300 bg-gray-50 text-gray-600",
+  assigned: "border-blue-300 bg-blue-50 text-blue-700",
+  writing: "border-yellow-300 bg-yellow-50 text-yellow-700",
+  review: "border-orange-300 bg-orange-50 text-orange-700",
+  ready: "border-green-300 bg-green-50 text-green-700",
+  published: "border-green-500 bg-green-100 text-green-800",
 };
 
-const statusDot: Record<ContentPlanStatus, string> = {
-  idea:      "bg-gray-400",
-  assigned:  "bg-blue-400",
-  writing:   "bg-yellow-400",
-  review:    "bg-orange-400",
-  ready:     "bg-purple-400",
-  published: "bg-green-500",
-};
+const STATUSES: ContentPlanStatus[] = ["idea", "assigned", "writing", "review", "ready", "published"];
 
-/* ── köməkçilər ──────────────────────────────────────────────────────────── */
-function isOverdue(item: ContentPlanItem): boolean {
+/* ── köməkçi: gecikib? ──────────────────────────────────────────────────── */
+function isOverdue(item: ContentPlanItem) {
   if (item.status === "published") return false;
   if (!item.dueDate) return false;
   return new Date(item.dueDate) < new Date();
 }
 
-function daysLeft(dueDate: string): number {
-  const diff = new Date(dueDate).getTime() - new Date().getTime();
-  return Math.ceil(diff / (1000 * 60 * 60 * 24));
-}
-
+/* ── boş forma ──────────────────────────────────────────────────────────── */
 function emptyForm(): Omit<ContentPlanItemInput, "createdBy" | "createdAt"> {
   return {
     title: "",
@@ -74,104 +54,7 @@ function emptyForm(): Omit<ContentPlanItemInput, "createdBy" | "createdAt"> {
   };
 }
 
-/* ── Plan kartı ─────────────────────────────────────────────────────────── */
-function PlanCard({
-  item,
-  staffMap,
-  onStatusChange,
-  onEdit,
-  onDelete,
-}: {
-  item: ContentPlanItem;
-  staffMap: Record<string, string>;
-  onStatusChange: (id: string, status: ContentPlanStatus) => void;
-  onEdit: (item: ContentPlanItem) => void;
-  onDelete: (id: string) => void;
-}) {
-  const overdue = isOverdue(item);
-  const days = item.dueDate ? daysLeft(item.dueDate) : null;
-  const catLabel = categories.find((c) => c.slug === item.category)?.name.az ?? item.category;
-
-  return (
-    <div className={`border bg-paper p-4 transition-colors ${overdue ? "border-red-300 bg-red-50/20" : "border-line hover:border-bordo/30"}`}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="font-display text-[15px] text-ink line-clamp-2">{item.title}</p>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {item.category && (
-              <span className="font-ui text-[10px] uppercase tracking-[0.1em] text-muted bg-cream-deep border border-line px-2 py-0.5">
-                {catLabel}
-              </span>
-            )}
-            {item.assignedTo && (
-              <span className="font-ui text-[11px] text-muted">
-                👤 {staffMap[item.assignedTo] ?? item.assignedTo}
-              </span>
-            )}
-          </div>
-        </div>
-        <span className={`shrink-0 inline-flex items-center gap-1.5 border px-2 py-0.5 font-ui text-[10px] uppercase tracking-[0.1em] ${statusColors[item.status]}`}>
-          <span className={`h-1.5 w-1.5 rounded-full ${statusDot[item.status]}`} />
-          {contentPlanStatusLabels[item.status]}
-        </span>
-      </div>
-
-      {/* Son tarix */}
-      {item.dueDate && (
-        <div className={`mt-2 font-ui text-[11px] ${overdue ? "text-red-600 font-semibold" : days !== null && days <= 3 ? "text-orange-600" : "text-muted"}`}>
-          {overdue
-            ? `⚠ Gecikib (${item.dueDate.slice(0, 10)})`
-            : days !== null && days <= 3
-            ? `⏰ ${days} gün qaldı`
-            : `📅 ${item.dueDate.slice(0, 10)}`}
-        </div>
-      )}
-
-      {item.notes && (
-        <p className="mt-2 font-ui text-[12px] text-ink-soft line-clamp-2">{item.notes}</p>
-      )}
-
-      {/* Əməliyyatlar */}
-      <div className="mt-3 flex items-center gap-3 border-t border-line pt-3">
-        <select
-          className={`border px-2 py-1 font-ui text-[10px] focus:outline-none ${statusColors[item.status]}`}
-          value={item.status}
-          onChange={(e) => onStatusChange(item.id, e.target.value as ContentPlanStatus)}
-        >
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>{contentPlanStatusLabels[s]}</option>
-          ))}
-        </select>
-        {item.articleId && (
-          <Link
-            href={`/admin/articles/${item.articleId}`}
-            className="font-ui text-[11px] text-bordo hover:underline"
-          >
-            Məqaləyə bax
-          </Link>
-        )}
-        <div className="ml-auto flex gap-2">
-          <button
-            type="button"
-            onClick={() => onEdit(item)}
-            className="font-ui text-[11px] text-muted hover:text-ink transition-colors"
-          >
-            Redaktə
-          </button>
-          <button
-            type="button"
-            onClick={() => onDelete(item.id)}
-            className="font-ui text-[11px] text-bordo/60 hover:text-bordo transition-colors"
-          >
-            Sil
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Plan forması modal ──────────────────────────────────────────────────── */
+/* ── Modal ──────────────────────────────────────────────────────────────── */
 function PlanModal({
   editing,
   staff,
@@ -185,37 +68,28 @@ function PlanModal({
   onSaved: () => void;
   userEmail: string;
 }) {
-  const [form, setForm] = useState<Omit<ContentPlanItemInput, "createdBy" | "createdAt">>(
-    editing
-      ? {
-          title: editing.title,
-          category: editing.category,
-          assignedTo: editing.assignedTo,
-          status: editing.status,
-          dueDate: editing.dueDate,
-          notes: editing.notes,
-          articleId: editing.articleId,
-        }
-      : emptyForm(),
-  );
+  const [form, setForm] = useState(editing ? { ...editing } : emptyForm());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  function set<K extends keyof typeof form>(key: K, val: (typeof form)[K]) {
+  function set(key: string, val: string) {
     setForm((prev) => ({ ...prev, [key]: val }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.title.trim()) { setError("Başlıq mütləqdir."); return; }
+    if (!form.title.trim()) {
+      setError("Başlıq mütləqdir.");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
       if (editing) {
-        await saveContentPlanItem(editing.id, form);
+        await saveContentPlanItem(editing.id, form as Partial<ContentPlanItemInput>);
       } else {
         await addContentPlanItem({
-          ...form,
+          ...(form as Omit<ContentPlanItemInput, "createdBy" | "createdAt">),
           createdBy: userEmail,
           createdAt: new Date().toISOString(),
         });
@@ -234,9 +108,11 @@ function PlanModal({
       <div className="relative w-full max-w-lg bg-paper border border-line shadow-xl max-h-[90vh] overflow-y-auto">
         <div className="border-b border-line px-6 py-5 flex items-center justify-between">
           <h2 className="font-display text-xl">
-            {editing ? "Tapşırığı redaktə et" : "Yeni kontent tapşırığı"}
+            {editing ? "Tapşırığı redaktə et" : "Yeni tapşırıq"}
           </h2>
-          <button type="button" onClick={onClose} className="text-muted hover:text-ink text-xl leading-none">×</button>
+          <button type="button" onClick={onClose} className="text-muted hover:text-ink text-xl leading-none">
+            ×
+          </button>
         </div>
         <form onSubmit={(e) => void handleSubmit(e)} className="px-6 py-6 space-y-4">
           {error && <Alert tone="error">{error}</Alert>}
@@ -246,47 +122,41 @@ function PlanModal({
               className={inputClass}
               value={form.title}
               onChange={(e) => set("title", e.target.value)}
-              placeholder="Məqalə başlığı və ya mövzu..."
+              placeholder="Məqalənin mövzusu..."
               required
             />
           </Field>
 
           <div className="grid grid-cols-2 gap-4">
             <Field label="Kateqoriya">
-              <select
-                className={inputClass}
-                value={form.category}
-                onChange={(e) => set("category", e.target.value)}
-              >
-                <option value="">Seçin...</option>
-                {categories.map((c) => (
-                  <option key={c.slug} value={c.slug}>{c.name.az}</option>
+              <select className={inputClass} value={form.category} onChange={(e) => set("category", e.target.value)}>
+                <option value="">Seçin</option>
+                {categories.map((cat) => (
+                  <option key={cat.slug} value={cat.slug}>
+                    {cat.name.az}
+                  </option>
                 ))}
               </select>
             </Field>
             <Field label="Status">
-              <select
-                className={inputClass}
-                value={form.status}
-                onChange={(e) => set("status", e.target.value as ContentPlanStatus)}
-              >
+              <select className={inputClass} value={form.status} onChange={(e) => set("status", e.target.value)}>
                 {STATUSES.map((s) => (
-                  <option key={s} value={s}>{contentPlanStatusLabels[s]}</option>
+                  <option key={s} value={s}>
+                    {contentPlanStatusLabels[s]}
+                  </option>
                 ))}
               </select>
             </Field>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Müəllif">
-              <select
-                className={inputClass}
-                value={form.assignedTo}
-                onChange={(e) => set("assignedTo", e.target.value)}
-              >
-                <option value="">Seçin...</option>
+            <Field label="Məsul şəxs">
+              <select className={inputClass} value={form.assignedTo} onChange={(e) => set("assignedTo", e.target.value)}>
+                <option value="">Təyin edilməyib</option>
                 {staff.map((s) => (
-                  <option key={s.email} value={s.email}>{s.name || s.email}</option>
+                  <option key={s.id} value={s.email}>
+                    {s.name}
+                  </option>
                 ))}
               </select>
             </Field>
@@ -294,7 +164,7 @@ function PlanModal({
               <input
                 className={inputClass}
                 type="date"
-                value={form.dueDate}
+                value={form.dueDate?.slice(0, 10) || ""}
                 onChange={(e) => set("dueDate", e.target.value)}
               />
             </Field>
@@ -306,23 +176,14 @@ function PlanModal({
               rows={3}
               value={form.notes}
               onChange={(e) => set("notes", e.target.value)}
-              placeholder="Mövzu haqqında qeydlər, mənbələr..."
+              placeholder="Açar sözlər, məqsəd, mənbələr..."
             />
           </Field>
 
-          {editing && (
-            <Field label="Məqalə ID (dərc olunandan sonra)">
-              <input
-                className={inputClass}
-                value={form.articleId ?? ""}
-                onChange={(e) => set("articleId", e.target.value || undefined)}
-                placeholder="Firestore məqalə ID-si"
-              />
-            </Field>
-          )}
-
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="ghost" onClick={onClose}>Ləğv et</Button>
+            <Button variant="ghost" onClick={onClose}>
+              Ləğv et
+            </Button>
             <Button type="submit" disabled={saving}>
               {saving ? "Saxlanılır…" : editing ? "Yadda saxla" : "Əlavə et"}
             </Button>
@@ -341,21 +202,17 @@ export default function ContentPlanPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [modal, setModal] = useState(false);
-  const [editing, setEditing] = useState<ContentPlanItem | null>(null);
-  const [filterStatus, setFilterStatus] = useState<ContentPlanStatus | "all">("all");
-  const [filterCategory, setFilterCategory] = useState("");
-  const [filterAssigned, setFilterAssigned] = useState("");
-  const [view, setView] = useState<"board" | "list">("board");
+  const [editingItem, setEditingItem] = useState<ContentPlanItem | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ContentPlanStatus | "all">("all");
+  const [view, setView] = useState<"list" | "calendar">("list");
 
   async function load() {
     setLoading(true);
     try {
-      const [planItems, staffList] = await Promise.all([
-        listContentPlan(),
-        listStaff(),
-      ]);
-      setItems(planItems);
-      setStaff(staffList);
+      const [i, s] = await Promise.all([listContentPlan(), listStaff()]);
+      setItems(i);
+      setStaff(s);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Yüklənmə xətası");
     } finally {
@@ -363,132 +220,118 @@ export default function ContentPlanPage() {
     }
   }
 
-  useEffect(() => { void load(); }, []);
-
-  /* Müəllif adı xəritəsi */
-  const staffMap = Object.fromEntries(
-    staff.map((s) => [s.email, s.name || s.email]),
-  );
-
-  async function handleStatusChange(id: string, status: ContentPlanStatus) {
-    await saveContentPlanItem(id, { status });
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, status } : i)));
-  }
+  useEffect(() => {
+    void load();
+  }, []);
 
   async function handleDelete(id: string) {
     if (!confirm("Bu tapşırığı silmək istəyirsiniz?")) return;
-    await removeContentPlanItem(id);
-    setItems((prev) => prev.filter((i) => i.id !== id));
+    try {
+      await removeContentPlanItem(id);
+      setItems((prev) => prev.filter((i) => i.id !== id));
+    } catch {
+      alert("Silinmə xətası baş verdi.");
+    }
   }
 
   function openEdit(item: ContentPlanItem) {
-    setEditing(item);
+    setEditingItem(item);
     setModal(true);
   }
 
   function openNew() {
-    setEditing(null);
+    setEditingItem(null);
     setModal(true);
   }
 
   function handleSaved() {
     setModal(false);
-    setEditing(null);
+    setEditingItem(null);
     void load();
   }
 
-  /* Filtr */
-  const filtered = items.filter((item) => {
-    const matchStatus = filterStatus === "all" || item.status === filterStatus;
-    const matchCat = !filterCategory || item.category === filterCategory;
-    const matchAssigned = !filterAssigned || item.assignedTo === filterAssigned;
-    return matchStatus && matchCat && matchAssigned;
+  const filtered = items.filter((i) => {
+    const matchSearch =
+      !search ||
+      i.title.toLowerCase().includes(search.toLowerCase()) ||
+      i.assignedTo.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === "all" || i.status === statusFilter;
+    return matchSearch && matchStatus;
   });
 
-  /* Board görünüşü üçün status qruplaşması */
+  // Statuslara görə qrup
   const byStatus = STATUSES.reduce<Record<ContentPlanStatus, ContentPlanItem[]>>(
     (acc, s) => {
       acc[s] = filtered.filter((i) => i.status === s);
       return acc;
     },
-    {} as Record<ContentPlanStatus, ContentPlanItem[]>,
+    {} as Record<ContentPlanStatus, ContentPlanItem[]>
   );
 
-  /* Statistika */
+  // Statistika
   const overdueCount = items.filter(isOverdue).length;
-  const dueSoon = items.filter((i) => {
-    if (i.status === "published" || !i.dueDate) return false;
-    const d = daysLeft(i.dueDate);
-    return d >= 0 && d <= 3;
-  }).length;
+  const readyCount = items.filter((i) => i.status === "ready").length;
 
   return (
     <>
       <PageHeader
         title="Kontent Planı"
-        description="Redaksiya tapşırıqları, dərc cədvəli və müəllif iş axını."
+        description="Redaksiya təqvimi və tapşırıq idarəetməsi."
         actions={<Button onClick={openNew}>+ Yeni tapşırıq</Button>}
       />
 
-      <div className="px-6 py-6 lg:px-10 space-y-6">
-
-        {/* Xülasə kartları */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="px-6 py-6 lg:px-10">
+        {/* Statistika */}
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-6">
           {[
             { label: "Ümumi tapşırıq", value: items.length },
-            { label: "Hazır / Dərc", value: items.filter((i) => i.status === "ready" || i.status === "published").length },
-            { label: "Son gün (3 gün)", value: dueSoon, warn: dueSoon > 0 },
-            { label: "Gecikmiş", value: overdueCount, warn: overdueCount > 0 },
+            { label: "Dərcə hazır", value: readyCount },
+            { label: "Yazılır", value: items.filter((i) => i.status === "writing").length },
+            {
+              label: "Gecikmiş",
+              value: overdueCount,
+              warn: overdueCount > 0,
+            },
           ].map((stat) => (
-            <div key={stat.label} className={`border px-5 py-4 bg-paper ${stat.warn ? "border-red-300 bg-red-50/30" : "border-line"}`}>
-              <p className="font-ui text-[10px] uppercase tracking-[0.16em] text-muted">{stat.label}</p>
-              <p className={`mt-1 font-display text-3xl ${stat.warn ? "text-red-600" : "text-ink"}`}>{stat.value}</p>
+            <div key={stat.label} className="border border-line bg-paper px-5 py-4">
+              <p className="font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                {stat.label}
+              </p>
+              <p className={`mt-1 font-display text-3xl ${stat.warn ? "text-bordo" : "text-ink"}`}>
+                {stat.value}
+              </p>
             </div>
           ))}
         </div>
 
-        {error && <Alert tone="error">{error}</Alert>}
+        {/* Xəbərdarlıq */}
+        {overdueCount > 0 && (
+          <Alert tone="error" className="mb-5">
+            ⚠️ <strong>{overdueCount}</strong> tapşırığın son tarixi keçib.
+          </Alert>
+        )}
 
-        {/* Filtrlər + görünüş */}
-        <div className="flex flex-wrap gap-3 items-center">
+        {/* Axtarış + filter */}
+        <div className="mb-5 flex flex-wrap gap-3 items-center">
+          <input
+            className="border border-line bg-paper px-3.5 py-2 font-ui text-[13px] text-ink placeholder:text-muted/55 focus:border-bordo focus:outline-none flex-1 min-w-[200px]"
+            placeholder="Başlıq, məsul şəxs..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
           <select
-            className="border border-line bg-paper px-3 py-2 font-ui text-[13px] focus:border-bordo focus:outline-none"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as ContentPlanStatus | "all")}
+            className="border border-line bg-paper px-3.5 py-2 font-ui text-[13px] text-ink focus:border-bordo focus:outline-none"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as ContentPlanStatus | "all")}
           >
             <option value="all">Bütün statuslar</option>
             {STATUSES.map((s) => (
-              <option key={s} value={s}>{contentPlanStatusLabels[s]}</option>
+              <option key={s} value={s}>
+                {contentPlanStatusLabels[s]}
+              </option>
             ))}
           </select>
-          <select
-            className="border border-line bg-paper px-3 py-2 font-ui text-[13px] focus:border-bordo focus:outline-none"
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-          >
-            <option value="">Bütün kateqoriyalar</option>
-            {categories.map((c) => (
-              <option key={c.slug} value={c.slug}>{c.name.az}</option>
-            ))}
-          </select>
-          <select
-            className="border border-line bg-paper px-3 py-2 font-ui text-[13px] focus:border-bordo focus:outline-none"
-            value={filterAssigned}
-            onChange={(e) => setFilterAssigned(e.target.value)}
-          >
-            <option value="">Bütün müəlliflər</option>
-            {staff.map((s) => (
-              <option key={s.email} value={s.email}>{s.name || s.email}</option>
-            ))}
-          </select>
-          <div className="ml-auto flex border border-line">
-            <button
-              type="button"
-              onClick={() => setView("board")}
-              className={`px-3 py-2 font-ui text-[11px] uppercase tracking-[0.12em] transition-colors ${view === "board" ? "bg-bordo text-cream" : "bg-paper text-muted hover:text-ink"}`}
-            >
-              Board
-            </button>
+          <div className="flex border border-line">
             <button
               type="button"
               onClick={() => setView("list")}
@@ -496,99 +339,106 @@ export default function ContentPlanPage() {
             >
               Siyahı
             </button>
+            <button
+              type="button"
+              onClick={() => setView("calendar")}
+              className={`px-3 py-2 font-ui text-[11px] uppercase tracking-[0.12em] transition-colors ${view === "calendar" ? "bg-bordo text-cream" : "bg-paper text-muted hover:text-ink"}`}
+            >
+              Kanban
+            </button>
           </div>
         </div>
 
-        {loading && (
-          <div className="py-16 text-center font-ui text-[13px] text-muted">Yüklənir…</div>
-        )}
+        {error && <Alert tone="error">{error}</Alert>}
 
-        {/* Board görünüşü */}
-        {!loading && view === "board" && (
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {STATUSES.map((status) => (
-              <div key={status} className="shrink-0 w-64">
-                <div className={`mb-3 flex items-center gap-2 border px-3 py-2 ${statusColors[status]}`}>
-                  <span className={`h-2 w-2 rounded-full ${statusDot[status]}`} />
-                  <span className="font-ui text-[11px] uppercase tracking-[0.12em] font-semibold flex-1">
-                    {contentPlanStatusLabels[status]}
-                  </span>
-                  <span className="font-ui text-[11px]">{byStatus[status].length}</span>
-                </div>
-                <div className="space-y-3">
-                  {byStatus[status].length === 0 ? (
-                    <p className="border border-dashed border-line px-4 py-6 text-center font-ui text-[12px] text-muted">Boşdur</p>
-                  ) : (
-                    byStatus[status].map((item) => (
-                      <PlanCard
-                        key={item.id}
-                        item={item}
-                        staffMap={staffMap}
-                        onStatusChange={(id, s) => void handleStatusChange(id, s)}
-                        onEdit={openEdit}
-                        onDelete={(id) => void handleDelete(id)}
-                      />
-                    ))
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {loading && <div className="py-16 text-center font-ui text-[13px] text-muted">Yüklənir…</div>}
 
         {/* Siyahı görünüşü */}
         {!loading && view === "list" && (
           <>
             {filtered.length === 0 ? (
-              <Empty title="Tapşırıq tapılmadı" text="Yeni kontent tapşırığı əlavə edin." />
+              <Empty title="Tapşırıq tapılmadı" text="Yeni tapşırıq əlavə edin və ya axtarışı dəyişin." />
             ) : (
-              <div className="border border-line bg-paper overflow-x-auto">
-                <table className="w-full min-w-[700px]">
-                  <thead>
-                    <tr className="border-b border-line bg-cream-deep">
-                      {["Başlıq", "Kateqoriya", "Müəllif", "Status", "Son tarix", "Əməliyyat"].map((h) => (
-                        <th key={h} className="px-4 py-3 text-left font-ui text-[10px] uppercase tracking-[0.14em] text-muted">
-                          {h}
-                        </th>
-                      ))}
+              <div className="overflow-x-auto">
+                <table className="w-full border border-line">
+                  <thead className="bg-paper border-b border-line">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                        Başlıq
+                      </th>
+                      <th className="px-4 py-3 text-left font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                        Kateqoriya
+                      </th>
+                      <th className="px-4 py-3 text-left font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                        Məsul
+                      </th>
+                      <th className="px-4 py-3 text-left font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                        Son tarix
+                      </th>
+                      <th className="px-4 py-3 text-center font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                        Status
+                      </th>
+                      <th className="px-4 py-3"></th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-line">
                     {filtered.map((item) => {
                       const overdue = isOverdue(item);
-                      const days = item.dueDate ? daysLeft(item.dueDate) : null;
+                      const cat = categories.find((c) => c.slug === item.category);
                       return (
-                        <tr key={item.id} className={`border-b border-line hover:bg-cream-deep/40 transition-colors ${overdue ? "bg-red-50/20" : ""}`}>
+                        <tr key={item.id} id={item.id} className="bg-paper hover:bg-cream/30">
                           <td className="px-4 py-3">
-                            <p className="font-ui text-[13px] text-ink font-medium line-clamp-1">{item.title}</p>
-                            {item.notes && <p className="font-ui text-[11px] text-muted line-clamp-1">{item.notes}</p>}
+                            <p className="font-display text-[14px] text-ink">{item.title}</p>
+                            {item.articleId && (
+                              <Link
+                                href={`/admin/articles/${item.articleId}`}
+                                className="font-ui text-[11px] text-bordo hover:underline"
+                              >
+                                → Məqaləyə keç
+                              </Link>
+                            )}
                           </td>
-                          <td className="px-4 py-3 font-ui text-[12px] text-muted">
-                            {categories.find((c) => c.slug === item.category)?.name.az ?? "—"}
+                          <td className="px-4 py-3 font-ui text-[13px] text-muted">
+                            {cat?.name.az || "—"}
                           </td>
-                          <td className="px-4 py-3 font-ui text-[12px] text-muted">
-                            {staffMap[item.assignedTo] ?? item.assignedTo ?? "—"}
+                          <td className="px-4 py-3 font-ui text-[13px] text-muted">
+                            {item.assignedTo || "—"}
                           </td>
                           <td className="px-4 py-3">
-                            <select
-                              className={`border px-2 py-1 font-ui text-[10px] focus:outline-none ${statusColors[item.status]}`}
-                              value={item.status}
-                              onChange={(e) => void handleStatusChange(item.id, e.target.value as ContentPlanStatus)}
+                            {item.dueDate ? (
+                              <p
+                                className={`font-ui text-[13px] ${overdue ? "text-red-600 font-semibold" : "text-muted"}`}
+                              >
+                                {new Date(item.dueDate).toLocaleDateString("az-AZ")}
+                                {overdue && " ⚠️"}
+                              </p>
+                            ) : (
+                              <span className="font-ui text-[13px] text-muted">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span
+                              className={`inline-block border px-2 py-0.5 font-ui text-[10px] uppercase tracking-[0.1em] ${statusColors[item.status]}`}
                             >
-                              {STATUSES.map((s) => (
-                                <option key={s} value={s}>{contentPlanStatusLabels[s]}</option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`font-ui text-[12px] ${overdue ? "text-red-600 font-semibold" : days !== null && days <= 3 ? "text-orange-600" : "text-muted"}`}>
-                              {item.dueDate ? (overdue ? `⚠ ${item.dueDate.slice(0, 10)}` : item.dueDate.slice(0, 10)) : "—"}
+                              {contentPlanStatusLabels[item.status]}
                             </span>
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex gap-2">
-                              <button type="button" onClick={() => openEdit(item)} className="font-ui text-[11px] text-muted hover:text-ink transition-colors">Redaktə</button>
-                              <button type="button" onClick={() => void handleDelete(item.id)} className="font-ui text-[11px] text-bordo/60 hover:text-bordo transition-colors">Sil</button>
+                              <button
+                                type="button"
+                                onClick={() => openEdit(item)}
+                                className="font-ui text-[11px] uppercase tracking-[0.12em] text-muted hover:text-ink"
+                              >
+                                Redaktə
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleDelete(item.id)}
+                                className="font-ui text-[11px] uppercase tracking-[0.12em] text-bordo/60 hover:text-bordo"
+                              >
+                                Sil
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -600,13 +450,77 @@ export default function ContentPlanPage() {
             )}
           </>
         )}
+
+        {/* Kanban görünüşü */}
+        {!loading && view === "calendar" && (
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {STATUSES.map((status) => (
+              <div key={status} className="shrink-0 w-72">
+                <div className={`mb-3 flex items-center gap-2 border px-3 py-2 ${statusColors[status]}`}>
+                  <span className="font-ui text-[11px] uppercase tracking-[0.12em] font-semibold">
+                    {contentPlanStatusLabels[status]}
+                  </span>
+                  <span className="ml-auto font-ui text-[11px]">{byStatus[status].length}</span>
+                </div>
+                <div className="space-y-3">
+                  {byStatus[status].length === 0 && (
+                    <p className="border border-dashed border-line px-4 py-6 text-center font-ui text-[12px] text-muted">
+                      Boşdur
+                    </p>
+                  )}
+                  {byStatus[status].map((item) => {
+                    const overdue = isOverdue(item);
+                    const cat = categories.find((c) => c.slug === item.category);
+                    return (
+                      <div key={item.id} className="border border-line bg-paper p-4 hover:border-bordo/40 transition-colors">
+                        <p className="font-display text-[15px] text-ink line-clamp-2">{item.title}</p>
+                        {cat && (
+                          <p className="mt-1 font-ui text-[11px] text-muted">{cat.name.az}</p>
+                        )}
+                        {item.assignedTo && (
+                          <p className="mt-2 font-ui text-[12px] text-muted">👤 {item.assignedTo}</p>
+                        )}
+                        {item.dueDate && (
+                          <p className={`mt-1 font-ui text-[12px] ${overdue ? "text-red-600 font-semibold" : "text-muted"}`}>
+                            📅 {new Date(item.dueDate).toLocaleDateString("az-AZ")}
+                            {overdue && " ⚠️"}
+                          </p>
+                        )}
+                        <div className="mt-3 flex gap-2 border-t border-line pt-3">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(item)}
+                            className="font-ui text-[11px] uppercase tracking-[0.12em] text-muted hover:text-ink"
+                          >
+                            Redaktə
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleDelete(item.id)}
+                            className="ml-auto font-ui text-[11px] uppercase tracking-[0.12em] text-bordo/60 hover:text-bordo"
+                          >
+                            Sil
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
+      {/* Modal */}
       {modal && (
         <PlanModal
-          editing={editing}
+          editing={editingItem}
           staff={staff}
-          onClose={() => { setModal(false); setEditing(null); }}
+          onClose={() => {
+            setModal(false);
+            setEditingItem(null);
+          }}
           onSaved={handleSaved}
           userEmail={session?.email ?? ""}
         />
