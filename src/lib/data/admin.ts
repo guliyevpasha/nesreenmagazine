@@ -165,6 +165,12 @@ export async function listEjournals(): Promise<Ejournal[]> {
   }));
 }
 
+export async function getEjournal(id: string): Promise<Ejournal | null> {
+  const snapshot = await getDoc(doc(db(), COLLECTIONS.ejournals, id));
+  if (!snapshot.exists()) return null;
+  return { ...(snapshot.data() as Omit<Ejournal, "id">), id: snapshot.id };
+}
+
 export async function addEjournal(input: EjournalInput): Promise<string> {
   const created = await addDoc(collection(db(), COLLECTIONS.ejournals), {
     ...input,
@@ -1638,4 +1644,173 @@ export async function bulkUpdateUserStatus(
   await Promise.all(
     ids.map((id) => updateUserStatus(id, status, moderatorEmail, reason))
   );
+}
+
+
+/* ======================================================================
+   E-Jurnal Satışları və Download Tracking
+   ====================================================================== */
+
+import type {
+  EjournalOrder,
+  EjournalOrderInput,
+  EjournalOrderStatus,
+  EjournalDownload,
+  EjournalDownloadInput,
+  EjournalStats,
+} from "@/lib/types";
+
+/**
+ * Bütün e-jurnal sifarişlərini siyahıla.
+ */
+export async function listEjournalOrders(status?: EjournalOrderStatus): Promise<EjournalOrder[]> {
+  const { limit: fsLimit } = await import("firebase/firestore");
+  let q = query(
+    collection(db(), COLLECTIONS.ejournalOrders),
+    orderBy("createdAt", "desc"),
+    fsLimit(500)
+  );
+
+  if (status) {
+    q = query(
+      collection(db(), COLLECTIONS.ejournalOrders),
+      where("status", "==", status),
+      orderBy("createdAt", "desc"),
+      fsLimit(500)
+    );
+  }
+
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((item) => ({
+    ...(item.data() as Omit<EjournalOrder, "id">),
+    id: item.id,
+  }));
+}
+
+/**
+ * E-jurnala aid sifarişləri götür.
+ */
+export async function listEjournalOrdersByIssue(ejournalId: string): Promise<EjournalOrder[]> {
+  const snapshot = await getDocs(
+    query(
+      collection(db(), COLLECTIONS.ejournalOrders),
+      where("ejournalId", "==", ejournalId),
+      orderBy("createdAt", "desc")
+    )
+  );
+
+  return snapshot.docs.map((item) => ({
+    ...(item.data() as Omit<EjournalOrder, "id">),
+    id: item.id,
+  }));
+}
+
+/**
+ * E-jurnal sifarişi yarat.
+ */
+export async function addEjournalOrder(input: EjournalOrderInput): Promise<string> {
+  const created = await addDoc(collection(db(), COLLECTIONS.ejournalOrders), {
+    ...input,
+    createdAt: new Date().toISOString(),
+  });
+  return created.id;
+}
+
+/**
+ * Sifariş statusunu yenilə.
+ */
+export async function updateEjournalOrderStatus(
+  id: string,
+  status: EjournalOrderStatus
+): Promise<void> {
+  const updates: Record<string, unknown> = { status };
+
+  if (status === "paid") {
+    updates.paidAt = new Date().toISOString();
+  }
+
+  await updateDoc(doc(db(), COLLECTIONS.ejournalOrders, id), updates);
+}
+
+/**
+ * E-jurnal download-u qeyd et.
+ */
+export async function trackEjournalDownload(input: EjournalDownloadInput): Promise<string> {
+  const created = await addDoc(collection(db(), COLLECTIONS.ejournalDownloads), {
+    ...input,
+    downloadedAt: new Date().toISOString(),
+  });
+  return created.id;
+}
+
+/**
+ * E-jurnalın download statistikasını götür.
+ */
+export async function getEjournalDownloadCount(ejournalId: string): Promise<number> {
+  const snapshot = await getDocs(
+    query(
+      collection(db(), COLLECTIONS.ejournalDownloads),
+      where("ejournalId", "==", ejournalId)
+    )
+  );
+  return snapshot.size;
+}
+
+/**
+ * E-jurnal statistikaları — dashboard üçün.
+ */
+export async function getEjournalStats(): Promise<EjournalStats> {
+  const [allIssues, allOrders, allDownloads] = await Promise.all([
+    listEjournals(),
+    listEjournalOrders(),
+    getDocs(collection(db(), COLLECTIONS.ejournalDownloads)),
+  ]);
+
+  // Bu ay üçün satışlar
+  const now = new Date();
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const thisMonthOrders = allOrders.filter(
+    (o) => o.status === "paid" && o.createdAt >= thisMonthStart
+  );
+
+  const paidOrders = allOrders.filter((o) => o.status === "paid");
+  const totalRevenue = paidOrders.reduce((sum, o) => sum + o.price, 0);
+  const thisMonthRevenue = thisMonthOrders.reduce((sum, o) => sum + o.price, 0);
+
+  const stats: EjournalStats = {
+    totalIssues: allIssues.length,
+    publishedIssues: allIssues.filter((i) => i.status === "published").length,
+    draftIssues: allIssues.filter((i) => i.status === "draft").length,
+    totalSales: paidOrders.length,
+    totalRevenue,
+    totalDownloads: allDownloads.size,
+    thisMonthSales: thisMonthOrders.length,
+    thisMonthRevenue,
+    avgPrice: paidOrders.length > 0 ? Math.round(totalRevenue / paidOrders.length) : 0,
+  };
+
+  return stats;
+}
+
+/**
+ * E-jurnalın satış və download statistikası.
+ */
+export async function getEjournalDetailStats(ejournalId: string): Promise<{
+  orders: number;
+  revenue: number;
+  downloads: number;
+}> {
+  const [orders, downloadCount] = await Promise.all([
+    listEjournalOrdersByIssue(ejournalId),
+    getEjournalDownloadCount(ejournalId),
+  ]);
+
+  const paidOrders = orders.filter((o) => o.status === "paid");
+  const revenue = paidOrders.reduce((sum, o) => sum + o.price, 0);
+
+  return {
+    orders: paidOrders.length,
+    revenue,
+    downloads: downloadCount,
+  };
 }

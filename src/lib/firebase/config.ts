@@ -116,6 +116,9 @@ export const COLLECTIONS = {
   frontendUsers: "frontendUsers",
   userReadingHistory: "userReadingHistory",
   userActivities: "userActivities",
+  // E-Jurnal satışları
+  ejournalOrders: "ejournalOrders",
+  ejournalDownloads: "ejournalDownloads",
 } as const;
 
 /** Saytın kanonik ünvanı — metadata və sitemap üçün. */

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 import {
   Alert,
@@ -19,10 +20,12 @@ import {
   removeEjournal,
   saveEjournal,
   uploadFile,
+  getEjournalStats,
+  getEjournalDetailStats,
 } from "@/lib/data/admin";
 import { useAuth } from "@/lib/firebase/auth";
 import { locales, type Locale } from "@/lib/i18n/config";
-import { emptyLocalized, type Ejournal, type EjournalInput } from "@/lib/types";
+import { emptyLocalized, type Ejournal, type EjournalInput, type EjournalStats } from "@/lib/types";
 
 const fileInputClass =
   "w-full font-ui text-[12px] text-ink-soft file:mr-3 file:border file:border-line file:bg-cream file:px-3 file:py-2 file:font-ui file:text-[11px] file:uppercase file:tracking-[0.14em] file:text-ink hover:file:border-bordo";
@@ -42,6 +45,8 @@ function emptyIssue(): EjournalInput {
 export default function EjournalsPage() {
   const { session } = useAuth();
   const [issues, setIssues] = useState<Ejournal[] | null>(null);
+  const [stats, setStats] = useState<EjournalStats | null>(null);
+  const [issueStats, setIssueStats] = useState<Record<string, { orders: number; revenue: number; downloads: number }>>({});
   const [draft, setDraft] = useState<EjournalInput>(emptyIssue);
   const [activeLocale, setActiveLocale] = useState<Locale>("az");
   const [busy, setBusy] = useState(false);
@@ -51,13 +56,27 @@ export default function EjournalsPage() {
 
   async function refresh() {
     try {
-      setIssues(await listEjournals());
+      const [issuesData, statsData] = await Promise.all([
+        listEjournals(),
+        getEjournalStats(),
+      ]);
+      setIssues(issuesData);
+      setStats(statsData);
+
+      // Load stats for each issue
+      const statsPromises = issuesData.map(async (issue) => {
+        const detailStats = await getEjournalDetailStats(issue.id);
+        return [issue.id, detailStats] as const;
+      });
+      const statsEntries = await Promise.all(statsPromises);
+      setIssueStats(Object.fromEntries(statsEntries));
     } catch (caught) {
       setMessage({
         tone: "error",
         text: caught instanceof Error ? caught.message : "Nömrələr oxunmadı.",
       });
       setIssues([]);
+      setStats(null);
     }
   }
 
@@ -126,13 +145,51 @@ export default function EjournalsPage() {
     <>
       <PageHeader
         title="E-jurnal"
-        description="Jurnalın elektron nömrələri. PDF yüklənir, oxucu saytdan açıb oxuya və ya yükləyə bilir."
+        description="Jurnalın elektron nömrələri, satış və download statistikası"
       />
 
       <div className="px-6 py-8 lg:px-10">
         {message && (
           <div className="mb-6">
             <Alert tone={message.tone}>{message.text}</Alert>
+          </div>
+        )}
+
+        {/* Stats Cards */}
+        {stats && (
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4">
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <div className="text-sm text-gray-600">Cəmi nömrə</div>
+              <div className="text-2xl font-bold">{stats.totalIssues}</div>
+            </div>
+            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+              <div className="text-sm text-green-700">Dərc olunub</div>
+              <div className="text-2xl font-bold text-green-800">{stats.publishedIssues}</div>
+            </div>
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <div className="text-sm text-blue-700">Cəmi satış</div>
+              <div className="text-2xl font-bold text-blue-800">{stats.totalSales}</div>
+            </div>
+            <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+              <div className="text-sm text-purple-700">Cəmi gəlir</div>
+              <div className="text-2xl font-bold text-purple-800">{stats.totalRevenue} ₼</div>
+            </div>
+            <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+              <div className="text-sm text-indigo-700">Bu ay satış</div>
+              <div className="text-2xl font-bold text-indigo-800">{stats.thisMonthSales}</div>
+            </div>
+            <div className="bg-pink-50 p-4 rounded-lg border border-pink-200">
+              <div className="text-sm text-pink-700">Bu ay gəlir</div>
+              <div className="text-2xl font-bold text-pink-800">{stats.thisMonthRevenue} ₼</div>
+            </div>
+            <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+              <div className="text-sm text-orange-700">Downloads</div>
+              <div className="text-2xl font-bold text-orange-800">{stats.totalDownloads}</div>
+            </div>
+            <div className="bg-teal-50 p-4 rounded-lg border border-teal-200">
+              <div className="text-sm text-teal-700">Ort. qiymət</div>
+              <div className="text-2xl font-bold text-teal-800">{stats.avgPrice} ₼</div>
+            </div>
           </div>
         )}
 
@@ -258,56 +315,77 @@ export default function EjournalsPage() {
                 />
               ) : (
                 <ul className="divide-y divide-line">
-                  {issues.map((issue) => (
-                    <li key={issue.id} className="flex flex-wrap items-center gap-4 py-4">
-                      <div className="h-20 w-14 shrink-0 border border-line bg-cream-deep">
-                        {issue.coverImage && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={issue.coverImage}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                        )}
-                      </div>
+                  {issues.map((issue) => {
+                    const issueStatData = issueStats[issue.id] || { orders: 0, revenue: 0, downloads: 0 };
+                    return (
+                      <li key={issue.id} className="py-4">
+                        <div className="flex flex-wrap items-start gap-4">
+                          <div className="h-20 w-14 shrink-0 border border-line bg-cream-deep">
+                            {issue.coverImage && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={issue.coverImage}
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
+                            )}
+                          </div>
 
-                      <div className="min-w-0 flex-1">
-                        <p className="font-display text-[1.0625rem]">
-                          {issue.title.az || "—"}
-                        </p>
-                        <p className="mt-1 font-ui text-[11.5px] text-muted">
-                          {issue.publishedAt}
-                          {issue.pages > 0 && ` · ${issue.pages} səhifə`}
-                        </p>
-                        <div className="mt-2">
-                          <StatusPill status={issue.status} />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-display text-[1.0625rem]">
+                              {issue.title.az || "—"}
+                            </p>
+                            <p className="mt-1 font-ui text-[11.5px] text-muted">
+                              {issue.publishedAt}
+                              {issue.pages > 0 && ` · ${issue.pages} səhifə`}
+                            </p>
+                            <div className="mt-2 flex items-center gap-2">
+                              <StatusPill status={issue.status} />
+                              {issue.status === "published" && (
+                                <>
+                                  <span className="text-xs text-blue-600">
+                                    💰 {issueStatData.orders} satış
+                                  </span>
+                                  <span className="text-xs text-green-600">
+                                    {issueStatData.revenue} ₼
+                                  </span>
+                                  <span className="text-xs text-purple-600">
+                                    📥 {issueStatData.downloads} download
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Link href={`/admin/ejournals/${issue.id}`}>
+                              <Button variant="ghost">📊 Statistika</Button>
+                            </Link>
+                            <Button
+                              variant="ghost"
+                              onClick={() =>
+                                void saveEjournal(issue.id, {
+                                  status: issue.status === "published" ? "draft" : "published",
+                                }).then(refresh)
+                              }
+                            >
+                              {issue.status === "published" ? "Gizlət" : "Dərc et"}
+                            </Button>
+                            <Button
+                              variant="danger"
+                              onClick={() => {
+                                if (window.confirm("Nömrə silinsin?")) {
+                                  void removeEjournal(issue.id).then(refresh);
+                                }
+                              }}
+                            >
+                              Sil
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          onClick={() =>
-                            void saveEjournal(issue.id, {
-                              status: issue.status === "published" ? "draft" : "published",
-                            }).then(refresh)
-                          }
-                        >
-                          {issue.status === "published" ? "Gizlət" : "Dərc et"}
-                        </Button>
-                        <Button
-                          variant="danger"
-                          onClick={() => {
-                            if (window.confirm("Nömrə silinsin?")) {
-                              void removeEjournal(issue.id).then(refresh);
-                            }
-                          }}
-                        >
-                          Sil
-                        </Button>
-                      </div>
-                    </li>
-                  ))}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </Panel>

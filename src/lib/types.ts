@@ -967,3 +967,85 @@ export type UserStats = {
   monthlyGrowth: number;
   avgArticlesRead: number;
 };
+
+/* ======================================================================
+   E-Jurnal İdarəetməsi (Enhanced with Sales Tracking)
+   ====================================================================== */
+
+/** E-jurnal sifarişinin statusu. */
+export type EjournalOrderStatus = "pending" | "paid" | "failed" | "refunded";
+
+export const ejournalOrderStatusLabels: Record<EjournalOrderStatus, string> = {
+  pending:  "Gözlənilir",
+  paid:     "Ödənilib",
+  failed:   "Uğursuz",
+  refunded: "Geri qaytarılıb",
+};
+
+/** E-jurnal sifarişi (purchase). */
+export type EjournalOrder = {
+  id: string;
+  ejournalId: string;
+  /** E-jurnal başlığı (cache). */
+  ejournalTitle: string;
+  /** Alıcı (istifadəçi ID və ya email). */
+  buyerUserId?: string;
+  buyerEmail: string;
+  buyerName: string;
+  /** Qiymət (AZN). */
+  price: number;
+  /** Status. */
+  status: EjournalOrderStatus;
+  /** Ödəniş növü. */
+  paymentMethod: "card" | "bank_transfer" | "cash" | "other";
+  /** Ödəniş provider (Stripe, PayPal və s.). */
+  paymentProvider?: string;
+  /** Transaction ID. */
+  transactionId?: string;
+  /** Sifariş tarixi. */
+  createdAt: string;
+  /** Ödəniş tarixi. */
+  paidAt?: string;
+  /** Qeydlər. */
+  notes?: string;
+};
+
+export type EjournalOrderInput = Omit<EjournalOrder, "id">;
+
+/** E-jurnal download log. */
+export type EjournalDownload = {
+  id: string;
+  ejournalId: string;
+  /** İstifadəçi ID (əgər logged-in olarsa). */
+  userId?: string;
+  /** Session ID. */
+  sessionId: string;
+  /** IP hash. */
+  ipHash?: string;
+  /** Download tarixi. */
+  downloadedAt: string;
+};
+
+export type EjournalDownloadInput = Omit<EjournalDownload, "id">;
+
+/** E-jurnal statistikaları. */
+export type EjournalStats = {
+  /** Cəmi nömrə sayı. */
+  totalIssues: number;
+  /** Dərc olunmuş. */
+  publishedIssues: number;
+  /** Draft. */
+  draftIssues: number;
+  /** Cəmi satış. */
+  totalSales: number;
+  /** Cəmi gəlir (AZN). */
+  totalRevenue: number;
+  /** Cəmi download sayı. */
+  totalDownloads: number;
+  /** Bu ay satış. */
+  thisMonthSales: number;
+  /** Bu ay gəlir. */
+  thisMonthRevenue: number;
+  /** Ortalama qiymət. */
+  avgPrice: number;
+};
