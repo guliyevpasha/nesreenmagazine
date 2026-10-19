@@ -859,3 +859,111 @@ export type CommentStats = {
   todayCount: number;
   avgPerDay: number;
 };
+
+/* ======================================================================
+   İstifadəçi İdarəetməsi (Frontend Users)
+   ====================================================================== */
+
+/** Frontend istifadəçisinin statusu. */
+export type UserStatus = "active" | "suspended" | "deleted";
+
+export const userStatusLabels: Record<UserStatus, string> = {
+  active:    "Aktiv",
+  suspended: "Dayandırılıb",
+  deleted:   "Silinib",
+};
+
+/** Frontend istifadəçi (registered user with profile). */
+export type FrontendUser = {
+  id: string;
+  /** Firebase Auth UID. */
+  uid: string;
+  email: string;
+  name: string;
+  /** Profil şəkli URL. */
+  photoUrl?: string;
+  /** Telefon nömrəsi. */
+  phone?: string;
+  /** Doğum tarixi. */
+  birthDate?: string;
+  /** Cins. */
+  gender?: "male" | "female" | "other";
+  /** Ölkə. */
+  country?: string;
+  /** Şəhər. */
+  city?: string;
+  /** İstifadəçinin seçdiyi dil. */
+  locale: Locale;
+  /** Maraq sahələri (kateqoriyalar). */
+  interests: CategorySlug[];
+  /** Newsletter abunəliyi. */
+  subscribedToNewsletter: boolean;
+  /** Status. */
+  status: UserStatus;
+  /** Qeydiyyat tarixi. */
+  createdAt: string;
+  /** Son giriş tarixi. */
+  lastLoginAt?: string;
+  /** İstifadəçinin oxuduğu məqalələrin sayı. */
+  articlesRead: number;
+  /** İstifadəçinin yazdığı şərhlərin sayı. */
+  commentsCount: number;
+  /** Dayandırılma səbəbi (əgər suspended olarsa). */
+  suspendedReason?: string;
+  /** Dayandıran moderator. */
+  suspendedBy?: string;
+  /** Dayandırılma tarixi. */
+  suspendedAt?: string;
+};
+
+export type FrontendUserInput = Omit<FrontendUser, "id">;
+
+/** İstifadəçi oxuma tarixçəsi. */
+export type UserReadingHistory = {
+  id: string;
+  userId: string;
+  articleId: string;
+  /** Məqalə başlığı (cache). */
+  articleTitle: string;
+  /** Məqalə kateqoriyası. */
+  category: CategorySlug;
+  /** Oxuma tarixi. */
+  readAt: string;
+  /** Oxuma müddəti (saniyə). */
+  timeSpent?: number;
+  /** Oxuma tamamlandı (scroll to end). */
+  completed: boolean;
+};
+
+export type UserReadingHistoryInput = Omit<UserReadingHistory, "id">;
+
+/** İstifadəçi aktivliyi. */
+export type UserActivity = {
+  id: string;
+  userId: string;
+  /** Aktivlik tipi. */
+  type: "login" | "logout" | "article_read" | "comment_posted" | "profile_updated" | "password_changed";
+  /** Təsvir. */
+  description: string;
+  /** IP ünvanı (hash). */
+  ipHash?: string;
+  /** User agent. */
+  userAgent?: string;
+  /** Əlaqəli resurs (məqalə ID və s.). */
+  resourceId?: string;
+  /** Tarix. */
+  createdAt: string;
+};
+
+export type UserActivityInput = Omit<UserActivity, "id">;
+
+/** İstifadəçi statistikaları. */
+export type UserStats = {
+  total: number;
+  active: number;
+  suspended: number;
+  deleted: number;
+  todayCount: number;
+  monthlyGrowth: number;
+  avgArticlesRead: number;
+};

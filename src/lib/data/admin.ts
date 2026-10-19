@@ -1413,3 +1413,229 @@ export async function addComment(input: CommentInput): Promise<string> {
   });
   return created.id;
 }
+
+
+/* ======================================================================
+   İstifadəçilər (Frontend Users) — İdarəetmə
+   ====================================================================== */
+
+import type { 
+  FrontendUser, 
+  FrontendUserInput, 
+  UserStatus, 
+  UserReadingHistory,
+  UserReadingHistoryInput,
+  UserActivity,
+  UserActivityInput,
+  UserStats 
+} from "@/lib/types";
+
+/**
+ * Bütün frontend istifadəçiləri siyahıla.
+ */
+export async function listFrontendUsers(status?: UserStatus): Promise<FrontendUser[]> {
+  const { limit: fsLimit } = await import("firebase/firestore");
+  let q = query(
+    collection(db(), COLLECTIONS.frontendUsers),
+    orderBy("createdAt", "desc"),
+    fsLimit(500)
+  );
+
+  if (status) {
+    q = query(
+      collection(db(), COLLECTIONS.frontendUsers),
+      where("status", "==", status),
+      orderBy("createdAt", "desc"),
+      fsLimit(500)
+    );
+  }
+
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((item) => ({
+    ...(item.data() as Omit<FrontendUser, "id">),
+    id: item.id,
+  }));
+}
+
+/**
+ * İstifadəçini ID ilə götür.
+ */
+export async function getFrontendUser(id: string): Promise<FrontendUser | null> {
+  const snapshot = await getDoc(doc(db(), COLLECTIONS.frontendUsers, id));
+  if (!snapshot.exists()) return null;
+  return { ...(snapshot.data() as Omit<FrontendUser, "id">), id: snapshot.id };
+}
+
+/**
+ * İstifadəçini email ilə götür.
+ */
+export async function getFrontendUserByEmail(email: string): Promise<FrontendUser | null> {
+  const snapshot = await getDocs(
+    query(
+      collection(db(), COLLECTIONS.frontendUsers),
+      where("email", "==", email.toLowerCase()),
+      fsLimit(1)
+    )
+  );
+  
+  if (snapshot.empty) return null;
+  return {
+    ...(snapshot.docs[0].data() as Omit<FrontendUser, "id">),
+    id: snapshot.docs[0].id,
+  };
+}
+
+/**
+ * İstifadəçini yarat (registration zamanı çağırılır).
+ */
+export async function createFrontendUser(input: FrontendUserInput): Promise<string> {
+  const created = await addDoc(collection(db(), COLLECTIONS.frontendUsers), {
+    ...input,
+    email: input.email.toLowerCase(),
+    status: "active",
+    articlesRead: 0,
+    commentsCount: 0,
+    subscribedToNewsletter: false,
+    createdAt: new Date().toISOString(),
+  });
+  return created.id;
+}
+
+/**
+ * İstifadəçi profilini yenilə.
+ */
+export async function updateFrontendUser(
+  id: string,
+  updates: Partial<FrontendUserInput>
+): Promise<void> {
+  await updateDoc(doc(db(), COLLECTIONS.frontendUsers, id), updates);
+}
+
+/**
+ * İstifadəçinin statusunu dəyişdir (suspend/activate/delete).
+ */
+export async function updateUserStatus(
+  id: string,
+  status: UserStatus,
+  moderatorEmail: string,
+  reason?: string
+): Promise<void> {
+  const updates: Record<string, unknown> = { status };
+
+  if (status === "suspended") {
+    updates.suspendedReason = reason || "Moderator tərəfindən dayandırıldı";
+    updates.suspendedBy = moderatorEmail;
+    updates.suspendedAt = new Date().toISOString();
+  }
+
+  await updateDoc(doc(db(), COLLECTIONS.frontendUsers, id), updates);
+}
+
+/**
+ * İstifadəçini sil (soft delete).
+ */
+export async function deleteFrontendUser(id: string, moderatorEmail: string): Promise<void> {
+  await updateUserStatus(id, "deleted", moderatorEmail, "Hesab silindi");
+}
+
+/**
+ * İstifadəçi oxuma tarixçəsini əlavə et.
+ */
+export async function addUserReadingHistory(input: UserReadingHistoryInput): Promise<string> {
+  const created = await addDoc(collection(db(), COLLECTIONS.userReadingHistory), {
+    ...input,
+    readAt: new Date().toISOString(),
+  });
+  return created.id;
+}
+
+/**
+ * İstifadəçinin oxuma tarixçəsini götür.
+ */
+export async function getUserReadingHistory(userId: string, limitCount = 50): Promise<UserReadingHistory[]> {
+  const snapshot = await getDocs(
+    query(
+      collection(db(), COLLECTIONS.userReadingHistory),
+      where("userId", "==", userId),
+      orderBy("readAt", "desc"),
+      fsLimit(limitCount)
+    )
+  );
+
+  return snapshot.docs.map((item) => ({
+    ...(item.data() as Omit<UserReadingHistory, "id">),
+    id: item.id,
+  }));
+}
+
+/**
+ * İstifadəçi aktivliyini qeyd et.
+ */
+export async function addUserActivity(input: UserActivityInput): Promise<string> {
+  const created = await addDoc(collection(db(), COLLECTIONS.userActivities), {
+    ...input,
+    createdAt: new Date().toISOString(),
+  });
+  return created.id;
+}
+
+/**
+ * İstifadəçinin aktivlik tarixçəsini götür.
+ */
+export async function getUserActivities(userId: string, limitCount = 100): Promise<UserActivity[]> {
+  const snapshot = await getDocs(
+    query(
+      collection(db(), COLLECTIONS.userActivities),
+      where("userId", "==", userId),
+      orderBy("createdAt", "desc"),
+      fsLimit(limitCount)
+    )
+  );
+
+  return snapshot.docs.map((item) => ({
+    ...(item.data() as Omit<UserActivity, "id">),
+    id: item.id,
+  }));
+}
+
+/**
+ * İstifadəçi statistikaları — dashboard üçün.
+ */
+export async function getUserStats(): Promise<UserStats> {
+  const all = await listFrontendUsers();
+  const today = new Date().toISOString().split("T")[0];
+
+  // Son ay üçün artım
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const lastMonthUsers = all.filter((u) => new Date(u.createdAt) >= thirtyDaysAgo);
+
+  // Ortalama məqalə oxuma sayı
+  const totalArticlesRead = all.reduce((sum, u) => sum + (u.articlesRead || 0), 0);
+
+  const stats: UserStats = {
+    total: all.length,
+    active: all.filter((u) => u.status === "active").length,
+    suspended: all.filter((u) => u.status === "suspended").length,
+    deleted: all.filter((u) => u.status === "deleted").length,
+    todayCount: all.filter((u) => u.createdAt.startsWith(today)).length,
+    monthlyGrowth: lastMonthUsers.length,
+    avgArticlesRead: all.length > 0 ? Math.round(totalArticlesRead / all.length) : 0,
+  };
+
+  return stats;
+}
+
+/**
+ * Bulk user status update.
+ */
+export async function bulkUpdateUserStatus(
+  ids: string[],
+  status: UserStatus,
+  moderatorEmail: string,
+  reason?: string
+): Promise<void> {
+  await Promise.all(
+    ids.map((id) => updateUserStatus(id, status, moderatorEmail, reason))
+  );
+}

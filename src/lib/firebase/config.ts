@@ -112,6 +112,10 @@ export const COLLECTIONS = {
   revenueAnalytics: "revenueAnalytics",
   // Şərhlər
   comments: "comments",
+  // İstifadəçilər
+  frontendUsers: "frontendUsers",
+  userReadingHistory: "userReadingHistory",
+  userActivities: "userActivities",
 } as const;
 
 /** Saytın kanonik ünvanı — metadata və sitemap üçün. */
