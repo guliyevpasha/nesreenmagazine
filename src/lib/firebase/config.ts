@@ -134,6 +134,8 @@ export const COLLECTIONS = {
   // Kateqoriyalar
   enhancedCategories: "enhancedCategories",
   categoryStats: "categoryStats",
+  // Tag-lar
+  tags: "tags",
 } as const;
 
 /** Saytın kanonik ünvanı — metadata və sitemap üçün. */

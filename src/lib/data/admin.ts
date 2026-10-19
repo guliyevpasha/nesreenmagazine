@@ -2764,7 +2764,6 @@ import type {
   TranslationStatus,
   AutoTranslateRequest,
   AutoTranslateResponse,
-  Locale,
 } from "@/lib/types";
 
 /* ======================================================================
@@ -2938,4 +2937,275 @@ import type {
   EnhancedCategoryInput,
   CategoryStats,
   CategoryStatsInput,
+} from "@/lib/types";
+
+/* ======================================================================
+   Tags Manager
+   ====================================================================== */
+
+/**
+ * Bütün tag-ları siyahıla.
+ */
+export async function listTags(): Promise<Tag[]> {
+  const snap = await getDocs(
+    query(collection(db(), COLLECTIONS.tags), orderBy("usageCount", "desc"))
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Tag);
+}
+
+/**
+ * ID-yə görə tag oxu.
+ */
+export async function getTag(id: string): Promise<Tag | null> {
+  const docRef = doc(db(), COLLECTIONS.tags, id);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as Tag;
+}
+
+/**
+ * Slug-a görə tag oxu.
+ */
+export async function getTagBySlug(slug: string): Promise<Tag | null> {
+  const snap = await getDocs(collection(db(), COLLECTIONS.tags));
+  const tag = snap.docs.find((d) => d.data().slug === slug);
+  if (!tag) return null;
+  return { id: tag.id, ...tag.data() } as Tag;
+}
+
+/**
+ * Yeni tag yarat.
+ */
+export async function createTag(data: TagInput): Promise<Tag> {
+  const docRef = await addDoc(collection(db(), COLLECTIONS.tags), {
+    ...data,
+    createdAt: new Date().toISOString(),
+    usageCount: 0,
+  });
+
+  const created = await getDoc(docRef);
+  return { id: created.id, ...created.data() } as Tag;
+}
+
+/**
+ * Tag yenilə.
+ */
+export async function updateTag(
+  id: string,
+  updates: Partial<TagInput>
+): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.tags, id);
+  await updateDoc(docRef, {
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Tag sil.
+ */
+export async function deleteTag(id: string): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.tags, id);
+  await deleteDoc(docRef);
+}
+
+/**
+ * Bulk tag silmə.
+ */
+export async function bulkDeleteTags(tagIds: string[]): Promise<void> {
+  const batch = tagIds.map((id) => deleteTag(id));
+  await Promise.all(batch);
+}
+
+/**
+ * Tag-ları birləşdir (merge).
+ * Source tag-ları target tag-a birləşdirir və source-ları silir.
+ */
+export async function mergeTags(request: TagMergeRequest): Promise<void> {
+  const { sourceTagIds, targetTagId } = request;
+
+  // Get target tag
+  const targetTag = await getTag(targetTagId);
+  if (!targetTag) {
+    throw new Error("Target tag not found");
+  }
+
+  // Get all articles
+  const articles = await listArticles();
+
+  // Update articles: replace source tags with target tag
+  for (const article of articles) {
+    let updated = false;
+    const newTags: LocalizedTags = { ...article.tags };
+
+    for (const locale of ["az", "en", "ru", "tr", "ar"] as Locale[]) {
+      const articleTags = article.tags[locale] || [];
+      const sourceTags = await Promise.all(sourceTagIds.map((id) => getTag(id)));
+      const sourceTagNames = sourceTags
+        .filter((t) => t !== null)
+        .map((t) => t!.name[locale]);
+
+      // Check if article has any source tags
+      const hasSourceTag = articleTags.some((tag) => sourceTagNames.includes(tag));
+
+      if (hasSourceTag) {
+        // Remove source tags
+        const filteredTags = articleTags.filter((tag) => !sourceTagNames.includes(tag));
+        
+        // Add target tag if not already present
+        if (!filteredTags.includes(targetTag.name[locale])) {
+          filteredTags.push(targetTag.name[locale]);
+        }
+
+        newTags[locale] = filteredTags;
+        updated = true;
+      }
+    }
+
+    // Update article if changed
+    if (updated) {
+      const articleRef = doc(db(), COLLECTIONS.articles, article.id);
+      await updateDoc(articleRef, { tags: newTags });
+    }
+  }
+
+  // Update target tag usage count
+  const newUsageCount = targetTag.usageCount + sourceTagIds.length;
+  await updateTag(targetTagId, { usageCount: newUsageCount });
+
+  // Delete source tags
+  await bulkDeleteTags(sourceTagIds);
+}
+
+/**
+ * Tag istifadə sayını yenilə.
+ */
+export async function updateTagUsageCount(tagSlug: string): Promise<void> {
+  const tag = await getTagBySlug(tagSlug);
+  if (!tag) return;
+
+  const articles = await listArticles();
+  let count = 0;
+
+  for (const article of articles) {
+    for (const locale of ["az", "en", "ru", "tr", "ar"] as Locale[]) {
+      const articleTags = article.tags[locale] || [];
+      if (articleTags.includes(tag.name[locale])) {
+        count++;
+        break; // Count each article only once
+      }
+    }
+  }
+
+  await updateTag(tag.id, { 
+    usageCount: count,
+    lastUsedAt: count > 0 ? new Date().toISOString() : tag.lastUsedAt,
+  });
+}
+
+/**
+ * Bütün tag-ların istifadə sayını yenilə.
+ */
+export async function updateAllTagUsageCounts(): Promise<void> {
+  const tags = await listTags();
+  const batch = tags.map((tag) => updateTagUsageCount(tag.slug));
+  await Promise.all(batch);
+}
+
+/**
+ * İstifadə edilməyən tag-ları tap.
+ */
+export async function findUnusedTags(): Promise<Tag[]> {
+  const tags = await listTags();
+  return tags.filter((tag) => tag.usageCount === 0);
+}
+
+/**
+ * Duplicate tag-ları tap (eyni adlı).
+ */
+export async function findDuplicateTags(): Promise<{ name: string; tags: Tag[] }[]> {
+  const tags = await listTags();
+  const duplicates: { name: string; tags: Tag[] }[] = [];
+
+  // Group by name (Azerbaijani)
+  const grouped = new Map<string, Tag[]>();
+  for (const tag of tags) {
+    const name = tag.name.az.toLowerCase().trim();
+    if (!grouped.has(name)) {
+      grouped.set(name, []);
+    }
+    grouped.get(name)!.push(tag);
+  }
+
+  // Find groups with more than 1 tag
+  for (const [name, tagList] of grouped.entries()) {
+    if (tagList.length > 1) {
+      duplicates.push({ name, tags: tagList });
+    }
+  }
+
+  return duplicates;
+}
+
+/**
+ * Tag statistikaları.
+ */
+export async function getTagStats(): Promise<TagStats> {
+  const tags = await listTags();
+
+  const now = new Date();
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+  const topTags = tags
+    .filter((t) => t.usageCount > 0)
+    .sort((a, b) => b.usageCount - a.usageCount)
+    .slice(0, 10)
+    .map((t) => ({
+      tagId: t.id,
+      tagName: t.name.az,
+      usageCount: t.usageCount,
+    }));
+
+  const stats: TagStats = {
+    totalTags: tags.length,
+    activeTags: tags.filter((t) => t.active).length,
+    unusedTags: tags.filter((t) => t.usageCount === 0).length,
+    topTags,
+    tagsCreatedThisMonth: tags.filter((t) => t.createdAt >= thisMonthStart).length,
+  };
+
+  return stats;
+}
+
+/**
+ * Tag auto-suggestion (search).
+ */
+export async function searchTags(query: string, locale: Locale = "az"): Promise<Tag[]> {
+  const tags = await listTags();
+  const lowerQuery = query.toLowerCase().trim();
+
+  return tags.filter((tag) => 
+    tag.name[locale]?.toLowerCase().includes(lowerQuery)
+  ).slice(0, 10); // Limit to 10 results
+}
+
+/**
+ * Bulk tag rename.
+ */
+export async function bulkRenameTags(
+  tagIds: string[],
+  newNames: LocalizedText
+): Promise<void> {
+  const batch = tagIds.map((id) => updateTag(id, { name: newNames }));
+  await Promise.all(batch);
+}
+
+// Import əlavə tipləri
+import type {
+  Tag,
+  TagInput,
+  TagStats,
+  TagMergeRequest,
+  Locale,
+  LocalizedTags,
 } from "@/lib/types";

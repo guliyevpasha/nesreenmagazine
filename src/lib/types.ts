@@ -1497,6 +1497,56 @@ export type AutoTranslateResponse = {
 };
 
 /* ======================================================================
+   Tags Manager
+   ====================================================================== */
+
+/** Tag (etiket). */
+export type Tag = {
+  id: string;
+  /** Tag slug (URL-friendly). */
+  slug: string;
+  /** Tag adı (5 dil). */
+  name: LocalizedText;
+  /** Təsvir (5 dil, opsional). */
+  description?: LocalizedText;
+  /** Rəng (hex code, opsional). */
+  color?: string;
+  /** Aktiv? */
+  active: boolean;
+  /** İstifadə sayı (məqalələrdə). */
+  usageCount: number;
+  /** Son istifadə tarixi. */
+  lastUsedAt?: string;
+  createdAt: string;
+  createdBy: string;
+  updatedAt?: string;
+};
+
+export type TagInput = Omit<Tag, "id">;
+
+/** Tag statistikası. */
+export type TagStats = {
+  /** Cəmi tag sayı. */
+  totalTags: number;
+  /** Aktiv tag-lar. */
+  activeTags: number;
+  /** İstifadə edilməyən tag-lar (usage count = 0). */
+  unusedTags: number;
+  /** Ən populyar tag-lar (top 10). */
+  topTags: { tagId: string; tagName: string; usageCount: number }[];
+  /** Bu ay yaradılan tag-lar. */
+  tagsCreatedThisMonth: number;
+};
+
+/** Tag merge tələbi. */
+export type TagMergeRequest = {
+  /** Birləşdiriləcək tag ID-ləri. */
+  sourceTagIds: string[];
+  /** Hədəf tag ID (hansına birləşdiriləcək). */
+  targetTagId: string;
+};
+
+/* ======================================================================
    Category Manager Enhancement
    ====================================================================== */
 
