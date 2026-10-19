@@ -399,6 +399,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           active={pathname.startsWith("/admin/ejournals")}
         />
         <NavLink
+          href="/admin/subscriptions"
+          label="Üzvlük Planları"
+          icon={ICONS.crm}
+          active={pathname.startsWith("/admin/subscriptions")}
+        />
+        <NavLink
           href="/admin/subscribers"
           label="Abunəçilər"
           icon={ICONS.subscribers}

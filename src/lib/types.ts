@@ -1007,6 +1007,171 @@ export type MediaBlock = {
 };
 
 /* ======================================================================
+   Subscription Plans Manager
+   ====================================================================== */
+
+/** Üzvlük plan tipi. */
+export type SubscriptionPlanType = "free" | "premium" | "vip";
+
+export const subscriptionPlanTypeLabels: Record<SubscriptionPlanType, string> = {
+  free:    "Pulsuz",
+  premium: "Premium",
+  vip:     "VIP",
+};
+
+/** Üzvlük müddəti (billing cycle). */
+export type BillingCycle = "monthly" | "yearly";
+
+export const billingCycleLabels: Record<BillingCycle, string> = {
+  monthly: "Aylıq",
+  yearly:  "İllik",
+};
+
+/** Üzvlük planı. */
+export type SubscriptionPlan = {
+  id: string;
+  type: SubscriptionPlanType;
+  /** Plan adı (5 dildə). */
+  name: LocalizedText;
+  /** Təsvir (5 dildə). */
+  description: LocalizedText;
+  /** Xüsusiyyətlər (5 dildə array). */
+  features: Record<Locale, string[]>;
+  /** Aylıq qiymət (AZN). 0 = pulsuz. */
+  priceMonthly: number;
+  /** İllik qiymət (AZN). 0 = pulsuz. */
+  priceYearly: number;
+  /** Stripe Product ID (ödəniş inteqrasiyası üçün). */
+  stripeProductId?: string;
+  /** Stripe Price ID - monthly. */
+  stripePriceIdMonthly?: string;
+  /** Stripe Price ID - yearly. */
+  stripePriceIdYearly?: string;
+  /** PayPal Plan ID (opsional). */
+  paypalPlanId?: string;
+  /** Plan aktiv? */
+  active: boolean;
+  /** Populyar (badge göstərilir). */
+  popular: boolean;
+  /** Sıralama. */
+  order: number;
+  /** CTA button mətni (5 dildə). */
+  ctaText: LocalizedText;
+  /** Badge mətni (məs. "Ən populyar", "Ən yaxşı dəyər"). */
+  badgeText?: LocalizedText;
+  /** Plan limitleri. */
+  limits: {
+    /** Aylıq oxuya biləcəyi məqalə sayı (0 = unlimited). */
+    monthlyArticleLimit: number;
+    /** E-jurnal endirim faizi. */
+    ejournalDiscount: number;
+    /** Premium kontent? */
+    premiumContent: boolean;
+    /** Reklamlar göstərilir? */
+    showAds: boolean;
+    /** Erkən giriş? */
+    earlyAccess: boolean;
+    /** Xüsusi newsletter? */
+    exclusiveNewsletter: boolean;
+  };
+  createdAt: string;
+  updatedAt?: string;
+  createdBy: string;
+};
+
+export type SubscriptionPlanInput = Omit<SubscriptionPlan, "id">;
+
+/** İstifadəçi üzvlüyü (subscription). */
+export type UserSubscription = {
+  id: string;
+  userId: string;
+  planId: string;
+  /** Plan tipi (cache). */
+  planType: SubscriptionPlanType;
+  /** Billing cycle. */
+  billingCycle: BillingCycle;
+  /** Status. */
+  status: "active" | "cancelled" | "expired" | "pending";
+  /** Başlama tarixi. */
+  startedAt: string;
+  /** Bitmə tarixi. */
+  expiresAt: string;
+  /** Avtomatik yenilənir? */
+  autoRenew: boolean;
+  /** Ödəniş metodu. */
+  paymentMethod: "stripe" | "paypal" | "manual";
+  /** Stripe Subscription ID. */
+  stripeSubscriptionId?: string;
+  /** PayPal Subscription ID. */
+  paypalSubscriptionId?: string;
+  /** Aylıq ödəmə məbləği. */
+  amount: number;
+  /** Valyuta. */
+  currency: string;
+  /** Ləğv edilmə tarixi. */
+  cancelledAt?: string;
+  /** Ləğv səbəbi. */
+  cancellationReason?: string;
+  createdAt: string;
+  updatedAt?: string;
+};
+
+export type UserSubscriptionInput = Omit<UserSubscription, "id">;
+
+/** Üzvlük ödəniş tarixçəsi. */
+export type SubscriptionPayment = {
+  id: string;
+  subscriptionId: string;
+  userId: string;
+  planId: string;
+  /** Məbləğ. */
+  amount: number;
+  /** Valyuta. */
+  currency: string;
+  /** Status. */
+  status: "pending" | "completed" | "failed" | "refunded";
+  /** Ödəniş provider. */
+  provider: "stripe" | "paypal" | "manual";
+  /** Transaction ID. */
+  transactionId?: string;
+  /** Invoice URL. */
+  invoiceUrl?: string;
+  /** Ödəniş tarixi. */
+  paidAt?: string;
+  /** Failed səbəbi. */
+  failureReason?: string;
+  createdAt: string;
+};
+
+export type SubscriptionPaymentInput = Omit<SubscriptionPayment, "id">;
+
+/** Üzvlük statistikaları. */
+export type SubscriptionStats = {
+  /** Cəmi aktiv üzvlük. */
+  totalActive: number;
+  /** Free plan. */
+  freeUsers: number;
+  /** Premium plan. */
+  premiumUsers: number;
+  /** VIP plan. */
+  vipUsers: number;
+  /** Bu ay yeni üzvlüklər. */
+  newThisMonth: number;
+  /** Bu ay ləğv edilmə. */
+  cancelledThisMonth: number;
+  /** Churn rate (%). */
+  churnRate: number;
+  /** Aylıq recurring gəlir (MRR). */
+  monthlyRecurringRevenue: number;
+  /** İllik recurring gəlir (ARR). */
+  annualRecurringRevenue: number;
+  /** Ortalama üzvlük dəyəri. */
+  avgSubscriptionValue: number;
+  /** Conversion rate (free → paid, %). */
+  conversionRate: number;
+};
+
+/* ======================================================================
    E-Jurnal İdarəetməsi (Enhanced with Sales Tracking)
    ====================================================================== */
 

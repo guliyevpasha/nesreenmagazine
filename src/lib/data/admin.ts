@@ -1913,3 +1913,262 @@ export async function getEjournalDetailStats(ejournalId: string): Promise<{
     downloads: downloadCount,
   };
 }
+
+/* ======================================================================
+   Subscription Plans Manager
+   ====================================================================== */
+
+/**
+ * Bütün üzvlük planlarını siyahıla.
+ */
+export async function listSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+  const snap = await getDocs(
+    query(collection(db(), COLLECTIONS.subscriptionPlans), orderBy("order", "asc"))
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SubscriptionPlan);
+}
+
+/**
+ * ID-yə görə üzvlük planı oxu.
+ */
+export async function getSubscriptionPlan(id: string): Promise<SubscriptionPlan | null> {
+  const docRef = doc(db(), COLLECTIONS.subscriptionPlans, id);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as SubscriptionPlan;
+}
+
+/**
+ * Yeni üzvlük planı yarat.
+ */
+export async function createSubscriptionPlan(
+  data: SubscriptionPlanInput
+): Promise<SubscriptionPlan> {
+  const docRef = await addDoc(collection(db(), COLLECTIONS.subscriptionPlans), {
+    ...data,
+    createdAt: new Date().toISOString(),
+  });
+
+  const created = await getDoc(docRef);
+  return { id: created.id, ...created.data() } as SubscriptionPlan;
+}
+
+/**
+ * Üzvlük planını yenilə.
+ */
+export async function updateSubscriptionPlan(
+  id: string,
+  updates: Partial<SubscriptionPlanInput>
+): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.subscriptionPlans, id);
+  await updateDoc(docRef, {
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Üzvlük planını sil.
+ */
+export async function deleteSubscriptionPlan(id: string): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.subscriptionPlans, id);
+  await deleteDoc(docRef);
+}
+
+/**
+ * Aktiv planları siyahıla (public site üçün).
+ */
+export async function listActiveSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+  const allPlans = await listSubscriptionPlans();
+  return allPlans.filter((p) => p.active);
+}
+
+/**
+ * İstifadəçi üzvlüklərini siyahıla.
+ */
+export async function listUserSubscriptions(): Promise<UserSubscription[]> {
+  const snap = await getDocs(
+    query(collection(db(), COLLECTIONS.userSubscriptions), orderBy("createdAt", "desc"))
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as UserSubscription);
+}
+
+/**
+ * İstifadəçinin aktiv üzvlüyü.
+ */
+export async function getUserActiveSubscription(
+  userId: string
+): Promise<UserSubscription | null> {
+  const snap = await getDocs(collection(db(), COLLECTIONS.userSubscriptions));
+  const subs = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as UserSubscription);
+  
+  const activeSub = subs.find(
+    (s) => s.userId === userId && s.status === "active" && new Date(s.expiresAt) > new Date()
+  );
+  
+  return activeSub || null;
+}
+
+/**
+ * Yeni üzvlük yarat.
+ */
+export async function createUserSubscription(
+  data: UserSubscriptionInput
+): Promise<UserSubscription> {
+  const docRef = await addDoc(collection(db(), COLLECTIONS.userSubscriptions), {
+    ...data,
+    createdAt: new Date().toISOString(),
+  });
+
+  const created = await getDoc(docRef);
+  return { id: created.id, ...created.data() } as UserSubscription;
+}
+
+/**
+ * Üzvlüyü yenilə.
+ */
+export async function updateUserSubscription(
+  id: string,
+  updates: Partial<UserSubscriptionInput>
+): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.userSubscriptions, id);
+  await updateDoc(docRef, {
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Üzvlüyü ləğv et.
+ */
+export async function cancelUserSubscription(
+  id: string,
+  reason: string
+): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.userSubscriptions, id);
+  await updateDoc(docRef, {
+    status: "cancelled",
+    autoRenew: false,
+    cancelledAt: new Date().toISOString(),
+    cancellationReason: reason,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Üzvlük ödənişlərini siyahıla.
+ */
+export async function listSubscriptionPayments(): Promise<SubscriptionPayment[]> {
+  const snap = await getDocs(
+    query(collection(db(), COLLECTIONS.subscriptionPayments), orderBy("createdAt", "desc"))
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SubscriptionPayment);
+}
+
+/**
+ * Üzvlük ödənişi yarat.
+ */
+export async function createSubscriptionPayment(
+  data: SubscriptionPaymentInput
+): Promise<SubscriptionPayment> {
+  const docRef = await addDoc(collection(db(), COLLECTIONS.subscriptionPayments), {
+    ...data,
+    createdAt: new Date().toISOString(),
+  });
+
+  const created = await getDoc(docRef);
+  return { id: created.id, ...created.data() } as SubscriptionPayment;
+}
+
+/**
+ * Üzvlük ödənişini yenilə.
+ */
+export async function updateSubscriptionPayment(
+  id: string,
+  updates: Partial<SubscriptionPaymentInput>
+): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.subscriptionPayments, id);
+  await updateDoc(docRef, updates);
+}
+
+/**
+ * Üzvlük statistikaları.
+ */
+export async function getSubscriptionStats(): Promise<SubscriptionStats> {
+  const [allSubs, allPayments, allPlans] = await Promise.all([
+    listUserSubscriptions(),
+    listSubscriptionPayments(),
+    listSubscriptionPlans(),
+  ]);
+
+  // Aktiv üzvlüklər
+  const now = new Date();
+  const activeSubs = allSubs.filter(
+    (s) => s.status === "active" && new Date(s.expiresAt) > now
+  );
+
+  // Plan üzrə bölgü
+  const freeUsers = activeSubs.filter((s) => s.planType === "free").length;
+  const premiumUsers = activeSubs.filter((s) => s.planType === "premium").length;
+  const vipUsers = activeSubs.filter((s) => s.planType === "vip").length;
+
+  // Bu ay
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const newThisMonth = allSubs.filter((s) => s.createdAt >= thisMonthStart).length;
+  const cancelledThisMonth = allSubs.filter(
+    (s) => s.status === "cancelled" && s.cancelledAt && s.cancelledAt >= thisMonthStart
+  ).length;
+
+  // Churn rate
+  const totalActive = activeSubs.length;
+  const churnRate = totalActive > 0 ? (cancelledThisMonth / totalActive) * 100 : 0;
+
+  // MRR və ARR
+  const monthlyRecurringRevenue = activeSubs
+    .filter((s) => s.billingCycle === "monthly")
+    .reduce((sum, s) => sum + s.amount, 0);
+  
+  const yearlyRecurringRevenue = activeSubs
+    .filter((s) => s.billingCycle === "yearly")
+    .reduce((sum, s) => sum + s.amount, 0);
+  
+  const annualRecurringRevenue = monthlyRecurringRevenue * 12 + yearlyRecurringRevenue;
+
+  // Ortalama dəyər
+  const avgSubscriptionValue =
+    activeSubs.length > 0
+      ? activeSubs.reduce((sum, s) => sum + s.amount, 0) / activeSubs.length
+      : 0;
+
+  // Conversion rate (free → paid)
+  const paidUsers = premiumUsers + vipUsers;
+  const totalUsers = freeUsers + paidUsers;
+  const conversionRate = totalUsers > 0 ? (paidUsers / totalUsers) * 100 : 0;
+
+  const stats: SubscriptionStats = {
+    totalActive: activeSubs.length,
+    freeUsers,
+    premiumUsers,
+    vipUsers,
+    newThisMonth,
+    cancelledThisMonth,
+    churnRate: Math.round(churnRate * 100) / 100,
+    monthlyRecurringRevenue: Math.round(monthlyRecurringRevenue),
+    annualRecurringRevenue: Math.round(annualRecurringRevenue),
+    avgSubscriptionValue: Math.round(avgSubscriptionValue),
+    conversionRate: Math.round(conversionRate * 100) / 100,
+  };
+
+  return stats;
+}
+
+// Import əlavə tipləri
+import type {
+  SubscriptionPlan,
+  SubscriptionPlanInput,
+  UserSubscription,
+  UserSubscriptionInput,
+  SubscriptionPayment,
+  SubscriptionPaymentInput,
+  SubscriptionStats,
+} from "@/lib/types";
