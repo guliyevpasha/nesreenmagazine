@@ -136,6 +136,9 @@ export const COLLECTIONS = {
   categoryStats: "categoryStats",
   // Tag-lar
   tags: "tags",
+  // Media idarəetmə
+  mediaFolders: "mediaFolders",
+  mediaFiles: "mediaFiles",
 } as const;
 
 /** Saytın kanonik ünvanı — metadata və sitemap üçün. */

@@ -388,10 +388,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           active={pathname.startsWith("/admin/tags")}
         />
         <NavLink
-          href="/admin/media"
-          label="Media Kitabxanası"
+          href="/admin/files"
+          label="Fayl İdarəetməsi"
           icon={ICONS.media}
-          active={pathname.startsWith("/admin/media")}
+          active={pathname.startsWith("/admin/files")}
         />
         <NavLink
           href="/admin/content-plan"

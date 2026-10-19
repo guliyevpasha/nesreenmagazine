@@ -1547,6 +1547,123 @@ export type TagMergeRequest = {
 };
 
 /* ======================================================================
+   File Manager Enhancement
+   ====================================================================== */
+
+/** File type. */
+export type FileType = "image" | "video" | "audio" | "document" | "other";
+
+/** Media folder. */
+export type MediaFolder = {
+  id: string;
+  /** Folder adı. */
+  name: string;
+  /** Folder slug (URL-friendly). */
+  slug: string;
+  /** Parent folder ID (null = root). */
+  parentId: string | null;
+  /** Firebase Storage path. */
+  storagePath: string;
+  /** İkon. */
+  icon?: string;
+  /** Rəngi. */
+  color?: string;
+  /** Yaradılma tarixi. */
+  createdAt: string;
+  /** Yeniləmə tarixi. */
+  updatedAt?: string;
+};
+
+export type MediaFolderInput = Omit<MediaFolder, "id">;
+
+/** Media file metadata. */
+export type MediaFile = {
+  id: string;
+  /** Folder ID. */
+  folderId: string | null;
+  /** Fayl adı. */
+  name: string;
+  /** Fayl növü. */
+  type: FileType;
+  /** Mime type. */
+  mimeType: string;
+  /** Firebase Storage path. */
+  storagePath: string;
+  /** Public URL. */
+  url: string;
+  /** Fayl ölçüsü (bytes). */
+  size: number;
+  /** Şəkil ölçüləri (width x height). */
+  dimensions?: {
+    width: number;
+    height: number;
+  };
+  /** Alt text (accessibility). */
+  alt?: string;
+  /** Təsvir. */
+  description?: string;
+  /** Tags. */
+  tags: string[];
+  /** Upload edən istifadəçi. */
+  uploadedBy: string;
+  /** Upload tarixi. */
+  uploadedAt: string;
+  /** İstifadə sayı (neçə məqalədə istifadə olunur). */
+  usageCount: number;
+  /** Son istifadə tarixi. */
+  lastUsedAt?: string;
+};
+
+export type MediaFileInput = Omit<MediaFile, "id">;
+
+/** File editing operations. */
+export type FileEditOperation = {
+  type: "crop" | "resize" | "rotate" | "filter";
+  /** Crop: { x, y, width, height } */
+  cropArea?: { x: number; y: number; width: number; height: number };
+  /** Resize: { width, height } */
+  resizeDimensions?: { width: number; height: number };
+  /** Rotate: angle in degrees (90, 180, 270). */
+  rotateAngle?: number;
+  /** Filter: brightness, contrast, saturation, blur, grayscale, sepia. */
+  filter?: {
+    name: string;
+    value: number;
+  };
+};
+
+/** Batch upload progress. */
+export type BatchUploadProgress = {
+  total: number;
+  completed: number;
+  failed: number;
+  inProgress: number;
+  files: {
+    name: string;
+    status: "pending" | "uploading" | "completed" | "failed";
+    progress: number;
+    url?: string;
+    error?: string;
+  }[];
+};
+
+/** Storage statistics. */
+export type StorageStats = {
+  /** Ümumi istifadə olunan yaddaş (bytes). */
+  totalUsed: number;
+  /** Limit (bytes). */
+  totalLimit: number;
+  /** İstifadə faizi. */
+  usagePercentage: number;
+  /** Fayl növünə görə statistika. */
+  byType: Record<FileType, { count: number; size: number }>;
+  /** Folder-ə görə statistika. */
+  byFolder: { folderId: string; folderName: string; count: number; size: number }[];
+  /** Ən böyük fayllar. */
+  largestFiles: { id: string; name: string; size: number; url: string }[];
+};
+
+/* ======================================================================
    Category Manager Enhancement
    ====================================================================== */
 

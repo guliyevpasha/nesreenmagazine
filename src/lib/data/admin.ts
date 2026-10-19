@@ -3209,3 +3209,350 @@ import type {
   Locale,
   LocalizedTags,
 } from "@/lib/types";
+
+
+/* ======================================================================
+   File Manager Enhancement
+   ====================================================================== */
+
+import type {
+  MediaFolder,
+  MediaFolderInput,
+  MediaFile,
+  MediaFileInput,
+  FileType,
+  StorageStats,
+} from "@/lib/types";
+
+/**
+ * Bütün media folder-ləri siyahıla.
+ */
+export async function listMediaFolders(): Promise<MediaFolder[]> {
+  const snap = await getDocs(
+    query(collection(db(), COLLECTIONS.mediaFolders), orderBy("name", "asc"))
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as MediaFolder);
+}
+
+/**
+ * ID-yə görə folder oxu.
+ */
+export async function getMediaFolder(id: string): Promise<MediaFolder | null> {
+  const docRef = doc(db(), COLLECTIONS.mediaFolders, id);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as MediaFolder;
+}
+
+/**
+ * Yeni folder yarat.
+ */
+export async function createMediaFolder(input: MediaFolderInput): Promise<string> {
+  const docRef = await addDoc(collection(db(), COLLECTIONS.mediaFolders), {
+    ...input,
+    createdAt: new Date().toISOString(),
+  });
+  return docRef.id;
+}
+
+/**
+ * Folder yenilə.
+ */
+export async function updateMediaFolder(
+  id: string,
+  updates: Partial<MediaFolderInput>
+): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.mediaFolders, id);
+  await updateDoc(docRef, {
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Folder sil.
+ */
+export async function deleteMediaFolder(id: string): Promise<void> {
+  // Check if folder has files
+  const files = await listMediaFilesByFolder(id);
+  if (files.length > 0) {
+    throw new Error("Cannot delete folder with files. Move or delete files first.");
+  }
+
+  // Check if folder has subfolders
+  const subfolders = await listMediaFoldersByParent(id);
+  if (subfolders.length > 0) {
+    throw new Error("Cannot delete folder with subfolders. Delete subfolders first.");
+  }
+
+  const docRef = doc(db(), COLLECTIONS.mediaFolders, id);
+  await deleteDoc(docRef);
+}
+
+/**
+ * Parent ID-yə görə subfolder-ləri siyahıla.
+ */
+export async function listMediaFoldersByParent(parentId: string | null): Promise<MediaFolder[]> {
+  const snap = await getDocs(
+    query(
+      collection(db(), COLLECTIONS.mediaFolders),
+      orderBy("name", "asc")
+    )
+  );
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }) as MediaFolder)
+    .filter((f) => f.parentId === parentId);
+}
+
+/**
+ * Folder tree (hierarchical structure) qur.
+ */
+export async function getMediaFolderTree(): Promise<(MediaFolder & { children: MediaFolder[] })[]> {
+  const allFolders = await listMediaFolders();
+  const rootFolders = allFolders.filter((f) => f.parentId === null);
+
+  const buildTree = (parentId: string | null): (MediaFolder & { children: MediaFolder[] })[] => {
+    return allFolders
+      .filter((f) => f.parentId === parentId)
+      .map((folder) => ({
+        ...folder,
+        children: buildTree(folder.id),
+      }));
+  };
+
+  return buildTree(null);
+}
+
+/**
+ * Bütün media faylları siyahıla.
+ */
+export async function listMediaFiles(): Promise<MediaFile[]> {
+  const snap = await getDocs(
+    query(collection(db(), COLLECTIONS.mediaFiles), orderBy("uploadedAt", "desc"))
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as MediaFile);
+}
+
+/**
+ * ID-yə görə file oxu.
+ */
+export async function getMediaFile(id: string): Promise<MediaFile | null> {
+  const docRef = doc(db(), COLLECTIONS.mediaFiles, id);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as MediaFile;
+}
+
+/**
+ * Folder-ə görə faylları siyahıla.
+ */
+export async function listMediaFilesByFolder(folderId: string | null): Promise<MediaFile[]> {
+  const snap = await getDocs(
+    query(collection(db(), COLLECTIONS.mediaFiles), orderBy("uploadedAt", "desc"))
+  );
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }) as MediaFile)
+    .filter((f) => f.folderId === folderId);
+}
+
+/**
+ * Yeni file metadata yarat.
+ */
+export async function createMediaFile(input: MediaFileInput): Promise<string> {
+  const docRef = await addDoc(collection(db(), COLLECTIONS.mediaFiles), {
+    ...input,
+    uploadedAt: new Date().toISOString(),
+    usageCount: 0,
+  });
+  return docRef.id;
+}
+
+/**
+ * File metadata yenilə.
+ */
+export async function updateMediaFile(
+  id: string,
+  updates: Partial<MediaFileInput>
+): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.mediaFiles, id);
+  await updateDoc(docRef, updates);
+}
+
+/**
+ * File-ı sil (metadata).
+ */
+export async function deleteMediaFile(id: string): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.mediaFiles, id);
+  await deleteDoc(docRef);
+}
+
+/**
+ * Bulk file silmə.
+ */
+export async function bulkDeleteMediaFiles(ids: string[]): Promise<void> {
+  const batch = ids.map((id) => deleteMediaFile(id));
+  await Promise.all(batch);
+}
+
+/**
+ * File-ları folder-dən folder-ə köçür.
+ */
+export async function moveFilesToFolder(fileIds: string[], targetFolderId: string | null): Promise<void> {
+  const batch = fileIds.map((id) =>
+    updateMediaFile(id, { folderId: targetFolderId })
+  );
+  await Promise.all(batch);
+}
+
+/**
+ * File növünə görə faylları filtrələ.
+ */
+export async function listMediaFilesByType(type: FileType): Promise<MediaFile[]> {
+  const allFiles = await listMediaFiles();
+  return allFiles.filter((f) => f.type === type);
+}
+
+/**
+ * Fayl axtarışı (name və description-da).
+ */
+export async function searchMediaFiles(query: string): Promise<MediaFile[]> {
+  const allFiles = await listMediaFiles();
+  const lowerQuery = query.toLowerCase();
+  
+  return allFiles.filter(
+    (f) =>
+      f.name.toLowerCase().includes(lowerQuery) ||
+      f.description?.toLowerCase().includes(lowerQuery) ||
+      f.tags.some((tag) => tag.toLowerCase().includes(lowerQuery))
+  );
+}
+
+/**
+ * İstifadə olunmayan faylları tap (usageCount = 0).
+ */
+export async function findUnusedMediaFiles(): Promise<MediaFile[]> {
+  const allFiles = await listMediaFiles();
+  return allFiles.filter((f) => f.usageCount === 0);
+}
+
+/**
+ * Ən böyük faylları tap.
+ */
+export async function findLargestMediaFiles(limit: number = 10): Promise<MediaFile[]> {
+  const allFiles = await listMediaFiles();
+  return allFiles.sort((a, b) => b.size - a.size).slice(0, limit);
+}
+
+/**
+ * Storage statistikası hesabla.
+ */
+export async function getStorageStats(): Promise<StorageStats> {
+  const allFiles = await listMediaFiles();
+  const allFolders = await listMediaFolders();
+
+  let totalUsed = 0;
+  const byType: Record<FileType, { count: number; size: number }> = {
+    image: { count: 0, size: 0 },
+    video: { count: 0, size: 0 },
+    audio: { count: 0, size: 0 },
+    document: { count: 0, size: 0 },
+    other: { count: 0, size: 0 },
+  };
+
+  for (const file of allFiles) {
+    totalUsed += file.size;
+    byType[file.type].count += 1;
+    byType[file.type].size += file.size;
+  }
+
+  // Folder-ə görə statistika
+  const byFolder: { folderId: string; folderName: string; count: number; size: number }[] = [];
+  
+  for (const folder of allFolders) {
+    const folderFiles = allFiles.filter((f) => f.folderId === folder.id);
+    const folderSize = folderFiles.reduce((sum, f) => sum + f.size, 0);
+    
+    byFolder.push({
+      folderId: folder.id,
+      folderName: folder.name,
+      count: folderFiles.length,
+      size: folderSize,
+    });
+  }
+
+  // Root files (no folder)
+  const rootFiles = allFiles.filter((f) => f.folderId === null);
+  const rootSize = rootFiles.reduce((sum, f) => sum + f.size, 0);
+  byFolder.push({
+    folderId: "root",
+    folderName: "Root / Qovluqsuz",
+    count: rootFiles.length,
+    size: rootSize,
+  });
+
+  // Ən böyük fayllar
+  const largestFiles = await findLargestMediaFiles(10);
+
+  // Storage limit (1 GB = 1073741824 bytes)
+  const totalLimit = 1073741824;
+  const usagePercentage = (totalUsed / totalLimit) * 100;
+
+  return {
+    totalUsed,
+    totalLimit,
+    usagePercentage,
+    byType,
+    byFolder: byFolder.sort((a, b) => b.size - a.size),
+    largestFiles: largestFiles.map((f) => ({
+      id: f.id,
+      name: f.name,
+      size: f.size,
+      url: f.url,
+    })),
+  };
+}
+
+/**
+ * File istifadə sayını yenilə.
+ */
+export async function updateMediaFileUsageCount(fileId: string): Promise<void> {
+  const file = await getMediaFile(fileId);
+  if (!file) return;
+
+  // Check usage in articles
+  const articles = await listArticles();
+  let count = 0;
+
+  for (const article of articles) {
+    // Check coverImage
+    if (article.coverImage === file.url) {
+      count++;
+    }
+
+    // Check mediaBlocks
+    if (article.mediaBlocks) {
+      for (const block of article.mediaBlocks) {
+        if (block.type === "video" && block.videoUrl === file.url) {
+          count++;
+        }
+        if (block.type === "gallery" && block.images && block.images.some((img) => img.url === file.url)) {
+          count++;
+        }
+      }
+    }
+  }
+
+  await updateMediaFile(fileId, {
+    usageCount: count,
+    lastUsedAt: count > 0 ? new Date().toISOString() : file.lastUsedAt,
+  });
+}
+
+/**
+ * Bütün file-ların istifadə sayını yenilə.
+ */
+export async function updateAllMediaFileUsageCounts(): Promise<void> {
+  const files = await listMediaFiles();
+  const batch = files.map((file) => updateMediaFileUsageCount(file.id));
+  await Promise.all(batch);
+}
