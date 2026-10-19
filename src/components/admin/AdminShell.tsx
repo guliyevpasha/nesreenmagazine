@@ -405,6 +405,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           active={pathname.startsWith("/admin/subscriptions")}
         />
         <NavLink
+          href="/admin/push-notifications"
+          label="Push Bildirişlər"
+          icon={ICONS.mail}
+          active={pathname.startsWith("/admin/push-notifications")}
+        />
+        <NavLink
           href="/admin/subscribers"
           label="Abunəçilər"
           icon={ICONS.subscribers}

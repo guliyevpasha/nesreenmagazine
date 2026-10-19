@@ -123,6 +123,11 @@ export const COLLECTIONS = {
   subscriptionPlans: "subscriptionPlans",
   userSubscriptions: "userSubscriptions",
   subscriptionPayments: "subscriptionPayments",
+  // Push bildirişlər
+  pushCampaigns: "pushCampaigns",
+  pushTemplates: "pushTemplates",
+  userFcmTokens: "userFcmTokens",
+  pushDeliveryLogs: "pushDeliveryLogs",
 } as const;
 
 /** Saytın kanonik ünvanı — metadata və sitemap üçün. */

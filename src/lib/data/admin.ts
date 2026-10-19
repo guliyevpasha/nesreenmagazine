@@ -2172,3 +2172,324 @@ import type {
   SubscriptionPaymentInput,
   SubscriptionStats,
 } from "@/lib/types";
+
+/* ======================================================================
+   Push Notifications Manager
+   ====================================================================== */
+
+/**
+ * Bütün push kampaniyalarını siyahıla.
+ */
+export async function listPushCampaigns(): Promise<PushNotificationCampaign[]> {
+  const snap = await getDocs(
+    query(collection(db(), COLLECTIONS.pushCampaigns), orderBy("createdAt", "desc"))
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as PushNotificationCampaign);
+}
+
+/**
+ * ID-yə görə kampaniya oxu.
+ */
+export async function getPushCampaign(id: string): Promise<PushNotificationCampaign | null> {
+  const docRef = doc(db(), COLLECTIONS.pushCampaigns, id);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as PushNotificationCampaign;
+}
+
+/**
+ * Yeni push kampaniya yarat.
+ */
+export async function createPushCampaign(
+  data: PushNotificationCampaignInput
+): Promise<PushNotificationCampaign> {
+  const docRef = await addDoc(collection(db(), COLLECTIONS.pushCampaigns), {
+    ...data,
+    createdAt: new Date().toISOString(),
+    stats: {
+      totalRecipients: 0,
+      sent: 0,
+      opened: 0,
+      clicked: 0,
+      failed: 0,
+    },
+  });
+
+  const created = await getDoc(docRef);
+  return { id: created.id, ...created.data() } as PushNotificationCampaign;
+}
+
+/**
+ * Push kampaniya yenilə.
+ */
+export async function updatePushCampaign(
+  id: string,
+  updates: Partial<PushNotificationCampaignInput>
+): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.pushCampaigns, id);
+  await updateDoc(docRef, {
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Push kampaniya sil.
+ */
+export async function deletePushCampaign(id: string): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.pushCampaigns, id);
+  await deleteDoc(docRef);
+}
+
+/**
+ * Kampaniyanı göndər (status = "sending" qoy).
+ * Real göndərmə backend job-da edilməlidir.
+ */
+export async function sendPushCampaign(id: string): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.pushCampaigns, id);
+  await updateDoc(docRef, {
+    status: "sending",
+    sentAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+  
+  // TODO: Backend job trigger (Firebase Functions, Cloud Run, etc.)
+  // Bu placeholder-dir, real inteqrasiya lazımdır.
+}
+
+/**
+ * Kampaniya statistikasını yenilə.
+ */
+export async function updateCampaignStats(
+  id: string,
+  stats: Partial<PushNotificationCampaign["stats"]>
+): Promise<void> {
+  const campaign = await getPushCampaign(id);
+  if (!campaign) return;
+
+  const docRef = doc(db(), COLLECTIONS.pushCampaigns, id);
+  await updateDoc(docRef, {
+    stats: { ...campaign.stats, ...stats },
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Push şablonlarını siyahıla.
+ */
+export async function listPushTemplates(): Promise<PushNotificationTemplate[]> {
+  const snap = await getDocs(
+    query(collection(db(), COLLECTIONS.pushTemplates), orderBy("createdAt", "desc"))
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as PushNotificationTemplate);
+}
+
+/**
+ * Push şablon yarat.
+ */
+export async function createPushTemplate(
+  data: PushNotificationTemplateInput
+): Promise<PushNotificationTemplate> {
+  const docRef = await addDoc(collection(db(), COLLECTIONS.pushTemplates), {
+    ...data,
+    createdAt: new Date().toISOString(),
+  });
+
+  const created = await getDoc(docRef);
+  return { id: created.id, ...created.data() } as PushNotificationTemplate;
+}
+
+/**
+ * Push şablon yenilə.
+ */
+export async function updatePushTemplate(
+  id: string,
+  updates: Partial<PushNotificationTemplateInput>
+): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.pushTemplates, id);
+  await updateDoc(docRef, updates);
+}
+
+/**
+ * Push şablon sil.
+ */
+export async function deletePushTemplate(id: string): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.pushTemplates, id);
+  await deleteDoc(docRef);
+}
+
+/**
+ * FCM tokenləri siyahıla (aktiv cihazlar).
+ */
+export async function listFcmTokens(): Promise<UserFcmToken[]> {
+  const snap = await getDocs(
+    query(collection(db(), COLLECTIONS.userFcmTokens), orderBy("lastActiveAt", "desc"))
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as UserFcmToken);
+}
+
+/**
+ * FCM token əlavə et və ya yenilə.
+ */
+export async function upsertFcmToken(data: UserFcmTokenInput): Promise<void> {
+  // Check if token already exists
+  const snap = await getDocs(collection(db(), COLLECTIONS.userFcmTokens));
+  const existing = snap.docs.find((d) => d.data().token === data.token);
+
+  if (existing) {
+    // Update existing
+    const docRef = doc(db(), COLLECTIONS.userFcmTokens, existing.id);
+    await updateDoc(docRef, {
+      ...data,
+      lastActiveAt: new Date().toISOString(),
+    });
+  } else {
+    // Create new
+    await addDoc(collection(db(), COLLECTIONS.userFcmTokens), {
+      ...data,
+      createdAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString(),
+    });
+  }
+}
+
+/**
+ * FCM token sil.
+ */
+export async function deleteFcmToken(token: string): Promise<void> {
+  const snap = await getDocs(collection(db(), COLLECTIONS.userFcmTokens));
+  const existing = snap.docs.find((d) => d.data().token === token);
+  
+  if (existing) {
+    await deleteDoc(doc(db(), COLLECTIONS.userFcmTokens, existing.id));
+  }
+}
+
+/**
+ * Auditoriyaya görə FCM token sayı.
+ */
+export async function getAudienceSize(
+  audience: PushAudience,
+  categorySlug?: CategorySlug,
+  subscriptionPlan?: SubscriptionPlanType
+): Promise<number> {
+  const allTokens = await listFcmTokens();
+  
+  switch (audience) {
+    case "all":
+      return allTokens.length;
+    
+    case "subscribers":
+      // Newsletter subscribers (frontend users with subscribedToNewsletter = true)
+      const users = await listFrontendUsers();
+      const subscriberIds = users
+        .filter((u) => u.subscribedToNewsletter)
+        .map((u) => u.id);
+      return allTokens.filter((t) => t.userId && subscriberIds.includes(t.userId)).length;
+    
+    case "premium":
+      return allTokens.filter((t) => 
+        t.subscriptionPlan && t.subscriptionPlan !== "free"
+      ).length;
+    
+    case "category":
+      if (!categorySlug) return 0;
+      return allTokens.filter((t) => 
+        t.interests && t.interests.includes(categorySlug)
+      ).length;
+    
+    default:
+      return allTokens.length;
+  }
+}
+
+/**
+ * Push delivery log yarat.
+ */
+export async function createPushDeliveryLog(
+  data: PushDeliveryLogInput
+): Promise<void> {
+  await addDoc(collection(db(), COLLECTIONS.pushDeliveryLogs), data);
+}
+
+/**
+ * Kampaniya üçün delivery logs.
+ */
+export async function getCampaignDeliveryLogs(
+  campaignId: string
+): Promise<PushDeliveryLog[]> {
+  const snap = await getDocs(collection(db(), COLLECTIONS.pushDeliveryLogs));
+  const logs = snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }) as PushDeliveryLog)
+    .filter((log) => log.campaignId === campaignId);
+  
+  return logs;
+}
+
+/**
+ * Push bildiriş statistikaları.
+ */
+export async function getPushNotificationStats(): Promise<PushNotificationStats> {
+  const [campaigns, logs, tokens] = await Promise.all([
+    listPushCampaigns(),
+    getDocs(collection(db(), COLLECTIONS.pushDeliveryLogs)),
+    listFcmTokens(),
+  ]);
+
+  const allLogs = logs.docs.map((d) => ({ id: d.id, ...d.data() }) as PushDeliveryLog);
+
+  const sentCampaigns = campaigns.filter((c) => c.status === "sent").length;
+  const scheduledCampaigns = campaigns.filter((c) => c.status === "scheduled").length;
+
+  const totalSent = allLogs.filter((l) => l.status === "sent" || l.status === "opened" || l.status === "clicked").length;
+  const totalOpened = allLogs.filter((l) => l.status === "opened" || l.status === "clicked").length;
+  const totalClicked = allLogs.filter((l) => l.status === "clicked").length;
+
+  const openRate = totalSent > 0 ? (totalOpened / totalSent) * 100 : 0;
+  const clickRate = totalOpened > 0 ? (totalClicked / totalOpened) * 100 : 0;
+
+  // Bu həftə və bu ay
+  const now = new Date();
+  const thisWeekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const thisWeekSent = allLogs.filter((l) => 
+    new Date(l.sentAt) >= thisWeekStart
+  ).length;
+
+  const thisMonthSent = allLogs.filter((l) => 
+    new Date(l.sentAt) >= thisMonthStart
+  ).length;
+
+  const stats: PushNotificationStats = {
+    totalCampaigns: campaigns.length,
+    sentCampaigns,
+    scheduledCampaigns,
+    totalSent,
+    totalOpened,
+    totalClicked,
+    openRate: Math.round(openRate * 100) / 100,
+    clickRate: Math.round(clickRate * 100) / 100,
+    activeFcmTokens: tokens.length,
+    thisWeekSent,
+    thisMonthSent,
+  };
+
+  return stats;
+}
+
+// Import əlavə tipləri
+import type {
+  PushNotificationCampaign,
+  PushNotificationCampaignInput,
+  PushNotificationTemplate,
+  PushNotificationTemplateInput,
+  UserFcmToken,
+  UserFcmTokenInput,
+  PushDeliveryLog,
+  PushDeliveryLogInput,
+  PushNotificationStats,
+  PushAudience,
+  SubscriptionPlanType,
+} from "@/lib/types";
+import type { CategorySlug } from "@/lib/categories";

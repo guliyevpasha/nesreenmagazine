@@ -1172,6 +1172,208 @@ export type SubscriptionStats = {
 };
 
 /* ======================================================================
+   Push Notifications Manager
+   ====================================================================== */
+
+/** Push bildiriş tipi. */
+export type PushNotificationType = 
+  | "new_article"      // Yeni məqalə
+  | "breaking_news"    // Təcili xəbər
+  | "ebook_promotion"  // E-kitab promosyonu
+  | "subscription"     // Üzvlük xatırlatması
+  | "custom";          // Xüsusi mesaj
+
+export const pushNotificationTypeLabels: Record<PushNotificationType, string> = {
+  new_article:     "Yeni məqalə",
+  breaking_news:   "Təcili xəbər",
+  ebook_promotion: "E-kitab promosyonu",
+  subscription:    "Üzvlük xatırlatması",
+  custom:          "Xüsusi mesaj",
+};
+
+/** Push bildiriş auditoriyası. */
+export type PushAudience = 
+  | "all"              // Bütün istifadəçilər
+  | "subscribers"      // Newsletter abunəçiləri
+  | "premium"          // Premium üzvlər
+  | "category"         // Kateqoriya marağı olanlar
+  | "segment";         // Custom segment
+
+export const pushAudienceLabels: Record<PushAudience, string> = {
+  all:         "Bütün istifadəçilər",
+  subscribers: "Newsletter abunəçiləri",
+  premium:     "Premium üzvlər",
+  category:    "Kateqoriya marağı",
+  segment:     "Xüsusi segment",
+};
+
+/** Push bildiriş statusu. */
+export type PushNotificationStatus = 
+  | "draft"      // Layihə
+  | "scheduled"  // Planlaşdırılıb
+  | "sending"    // Göndərilir
+  | "sent"       // Göndərilib
+  | "failed";    // Uğursuz
+
+export const pushNotificationStatusLabels: Record<PushNotificationStatus, string> = {
+  draft:     "Layihə",
+  scheduled: "Planlaşdırılıb",
+  sending:   "Göndərilir",
+  sent:      "Göndərilib",
+  failed:    "Uğursuz",
+};
+
+/** Push bildiriş kampaniyası. */
+export type PushNotificationCampaign = {
+  id: string;
+  /** Kampaniya adı (daxili). */
+  name: string;
+  /** Bildiriş tipi. */
+  type: PushNotificationType;
+  /** Status. */
+  status: PushNotificationStatus;
+  /** Başlıq (5 dildə). */
+  title: LocalizedText;
+  /** Mətn (5 dildə). */
+  body: LocalizedText;
+  /** Şəkil URL (opsional). */
+  imageUrl?: string;
+  /** Click URL. */
+  clickUrl?: string;
+  /** Auditoriya. */
+  audience: PushAudience;
+  /** Kateqoriya (əgər audience = "category"). */
+  categorySlug?: CategorySlug;
+  /** Üzvlük planı (əgər audience = "premium"). */
+  subscriptionPlan?: SubscriptionPlanType;
+  /** Custom segment filter (JSON). */
+  segmentFilter?: string;
+  /** Göndərmə tarixi (dərhal və ya planlaşdırılmış). */
+  scheduledAt?: string;
+  /** Göndərilmə tarixi. */
+  sentAt?: string;
+  /** Statistika. */
+  stats: {
+    /** Ümumi recipient sayı. */
+    totalRecipients: number;
+    /** Uğurla göndərilən. */
+    sent: number;
+    /** Açılan (opened). */
+    opened: number;
+    /** Klik edilən. */
+    clicked: number;
+    /** Uğursuz (failed). */
+    failed: number;
+  };
+  /** Firebase Cloud Messaging token IDs (hədəf cihazlar). */
+  fcmTokens?: string[];
+  /** Xəta mesajı (əgər failed olarsa). */
+  errorMessage?: string;
+  createdAt: string;
+  createdBy: string;
+  updatedAt?: string;
+};
+
+export type PushNotificationCampaignInput = Omit<PushNotificationCampaign, "id">;
+
+/** Push bildiriş şablonu. */
+export type PushNotificationTemplate = {
+  id: string;
+  /** Şablon adı. */
+  name: string;
+  /** Şablon tipi. */
+  type: PushNotificationType;
+  /** Başlıq (5 dildə, variables dəstəyi: {{title}}, {{author}}). */
+  title: LocalizedText;
+  /** Mətn (5 dildə, variables dəstəyi). */
+  body: LocalizedText;
+  /** Default şəkil. */
+  imageUrl?: string;
+  /** Default click URL (variables: {{articleId}}, {{category}}). */
+  clickUrl?: string;
+  /** Aktiv. */
+  active: boolean;
+  createdAt: string;
+  createdBy: string;
+};
+
+export type PushNotificationTemplateInput = Omit<PushNotificationTemplate, "id">;
+
+/** İstifadəçi FCM token (Firebase Cloud Messaging). */
+export type UserFcmToken = {
+  id: string;
+  /** İstifadəçi ID (əgər logged-in olarsa). */
+  userId?: string;
+  /** FCM token. */
+  token: string;
+  /** Device type. */
+  deviceType: "web" | "android" | "ios";
+  /** Browser. */
+  browser?: string;
+  /** OS. */
+  os?: string;
+  /** Dil. */
+  locale: Locale;
+  /** Maraq sahələri. */
+  interests?: CategorySlug[];
+  /** Üzvlük planı. */
+  subscriptionPlan?: SubscriptionPlanType;
+  /** Son aktiv. */
+  lastActiveAt: string;
+  createdAt: string;
+};
+
+export type UserFcmTokenInput = Omit<UserFcmToken, "id">;
+
+/** Push bildiriş delivery log. */
+export type PushDeliveryLog = {
+  id: string;
+  campaignId: string;
+  /** FCM token. */
+  fcmToken: string;
+  /** İstifadəçi ID. */
+  userId?: string;
+  /** Status. */
+  status: "sent" | "opened" | "clicked" | "failed";
+  /** Göndərilmə tarixi. */
+  sentAt: string;
+  /** Açılma tarixi. */
+  openedAt?: string;
+  /** Klik tarixi. */
+  clickedAt?: string;
+  /** Xəta (əgər failed olarsa). */
+  error?: string;
+};
+
+export type PushDeliveryLogInput = Omit<PushDeliveryLog, "id">;
+
+/** Push bildiriş statistikası. */
+export type PushNotificationStats = {
+  /** Cəmi kampaniya sayı. */
+  totalCampaigns: number;
+  /** Göndərilmiş kampaniyalar. */
+  sentCampaigns: number;
+  /** Planlaşdırılmış kampaniyalar. */
+  scheduledCampaigns: number;
+  /** Cəmi göndərilən bildiriş sayı. */
+  totalSent: number;
+  /** Açılma sayı. */
+  totalOpened: number;
+  /** Klik sayı. */
+  totalClicked: number;
+  /** Açılma dərəcəsi (%). */
+  openRate: number;
+  /** Klik dərəcəsi (%). */
+  clickRate: number;
+  /** Aktiv FCM token sayı. */
+  activeFcmTokens: number;
+  /** Bu həftə göndərilən. */
+  thisWeekSent: number;
+  /** Bu ay göndərilən. */
+  thisMonthSent: number;
+};
+
+/* ======================================================================
    E-Jurnal İdarəetməsi (Enhanced with Sales Tracking)
    ====================================================================== */
 
