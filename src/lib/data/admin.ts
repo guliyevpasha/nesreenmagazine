@@ -1253,3 +1253,163 @@ export async function incrementArticleView(articleId: string, sessionId: string)
     console.error("[analytics] incrementArticleView failed:", error);
   }
 }
+
+
+/* ======================================================================
+   Şərhlər (Comments) — İdarəetmə
+   ====================================================================== */
+
+import type { Comment, CommentInput, CommentStats, CommentStatus } from "@/lib/types";
+
+/**
+ * Bütün şərhləri siyahıla (son əlavə edilənlər əvvəl).
+ */
+export async function listComments(status?: CommentStatus): Promise<Comment[]> {
+  const { limit: fsLimit } = await import("firebase/firestore");
+  let q = query(
+    collection(db(), COLLECTIONS.comments),
+    orderBy("createdAt", "desc"),
+    fsLimit(500)
+  );
+
+  if (status) {
+    q = query(
+      collection(db(), COLLECTIONS.comments),
+      where("status", "==", status),
+      orderBy("createdAt", "desc"),
+      fsLimit(500)
+    );
+  }
+
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((item) => ({
+    ...(item.data() as Omit<Comment, "id">),
+    id: item.id,
+  }));
+}
+
+/**
+ * Məqaləyə aid şərhləri götür.
+ */
+export async function listCommentsByArticle(articleId: string, status?: CommentStatus): Promise<Comment[]> {
+  let q = query(
+    collection(db(), COLLECTIONS.comments),
+    where("articleId", "==", articleId),
+    orderBy("createdAt", "desc")
+  );
+
+  if (status) {
+    q = query(
+      collection(db(), COLLECTIONS.comments),
+      where("articleId", "==", articleId),
+      where("status", "==", status),
+      orderBy("createdAt", "desc")
+    );
+  }
+
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((item) => ({
+    ...(item.data() as Omit<Comment, "id">),
+    id: item.id,
+  }));
+}
+
+/**
+ * Şərhin statusunu dəyişdir (approve, spam, delete).
+ */
+export async function updateCommentStatus(
+  id: string,
+  status: CommentStatus,
+  moderatorEmail: string
+): Promise<void> {
+  const updates: Record<string, unknown> = { status };
+
+  if (status === "approved") {
+    updates.approvedAt = new Date().toISOString();
+    updates.approvedBy = moderatorEmail;
+  }
+
+  await updateDoc(doc(db(), COLLECTIONS.comments, id), updates);
+}
+
+/**
+ * Moderator cavabı əlavə et.
+ */
+export async function replyToComment(
+  id: string,
+  reply: string,
+  moderatorEmail: string
+): Promise<void> {
+  await updateDoc(doc(db(), COLLECTIONS.comments, id), {
+    moderatorReply: reply,
+    repliedBy: moderatorEmail,
+    repliedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Şərhi sil (hard delete).
+ */
+export async function deleteComment(id: string): Promise<void> {
+  await deleteDoc(doc(db(), COLLECTIONS.comments, id));
+}
+
+/**
+ * Bulk status update — bir neçə şərhin statusunu dəyişdir.
+ */
+export async function bulkUpdateCommentStatus(
+  ids: string[],
+  status: CommentStatus,
+  moderatorEmail: string
+): Promise<void> {
+  const updates: Record<string, unknown> = { status };
+
+  if (status === "approved") {
+    updates.approvedAt = new Date().toISOString();
+    updates.approvedBy = moderatorEmail;
+  }
+
+  await Promise.all(
+    ids.map((id) => updateDoc(doc(db(), COLLECTIONS.comments, id), updates))
+  );
+}
+
+/**
+ * Şərh statistikaları — dashboard üçün.
+ */
+export async function getCommentStats(): Promise<CommentStats> {
+  const all = await listComments();
+  const today = new Date().toISOString().split("T")[0];
+
+  const stats: CommentStats = {
+    total: all.length,
+    pending: all.filter((c) => c.status === "pending").length,
+    approved: all.filter((c) => c.status === "approved").length,
+    spam: all.filter((c) => c.status === "spam").length,
+    deleted: all.filter((c) => c.status === "deleted").length,
+    todayCount: all.filter((c) => c.createdAt.startsWith(today)).length,
+    avgPerDay: 0,
+  };
+
+  // Son 30 günün ortalama şərh sayı
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const recentComments = all.filter((c) => new Date(c.createdAt) >= thirtyDaysAgo);
+  stats.avgPerDay = Math.round(recentComments.length / 30);
+
+  return stats;
+}
+
+/**
+ * Şərh yazmaq (frontend-dən çağırılır).
+ */
+export async function addComment(input: CommentInput): Promise<string> {
+  const created = await addDoc(collection(db(), COLLECTIONS.comments), {
+    ...input,
+    status: "pending", // default pending
+    likes: 0,
+    reports: 0,
+    createdAt: new Date().toISOString(),
+  });
+  return created.id;
+}

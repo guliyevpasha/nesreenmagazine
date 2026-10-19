@@ -793,3 +793,69 @@ export type AnalyticsSummary = {
     currentPageViews: { path: string; count: number }[];
   };
 };
+
+/* ======================================================================
+   Şərh İdarəetməsi (Comments)
+   ====================================================================== */
+
+/** Şərhin statusu. */
+export type CommentStatus = "pending" | "approved" | "spam" | "deleted";
+
+export const commentStatusLabels: Record<CommentStatus, string> = {
+  pending:  "Gözləmədə",
+  approved: "Təsdiqlənib",
+  spam:     "Spam",
+  deleted:  "Silinib",
+};
+
+/** İstifadəçi şərhi. */
+export type Comment = {
+  id: string;
+  /** Şərhin aid olduğu məqalə. */
+  articleId: string;
+  /** Məqalə başlığı (cache). */
+  articleTitle: string;
+  /** Parent comment ID (əgər cavabdırsa). */
+  parentId?: string;
+  /** Şərh yazan şəxsin adı. */
+  authorName: string;
+  /** E-poçt ünvanı. */
+  authorEmail: string;
+  /** Website (opsional). */
+  authorWebsite?: string;
+  /** IP ünvanı (hash-lənmiş). */
+  ipHash?: string;
+  /** Şərh mətni. */
+  body: string;
+  /** Status — pending, approved, spam. */
+  status: CommentStatus;
+  /** Moderator cavabı. */
+  moderatorReply?: string;
+  /** Moderator tərəfindən cavablandırıldı. */
+  repliedBy?: string;
+  /** Cavablandırma tarixi. */
+  repliedAt?: string;
+  /** Yaradılma tarixi. */
+  createdAt: string;
+  /** Təsdiqlənmə tarixi. */
+  approvedAt?: string;
+  /** Təsdiq edən moderator. */
+  approvedBy?: string;
+  /** Like sayı (opsional feature). */
+  likes: number;
+  /** Report sayı (spam report). */
+  reports: number;
+};
+
+export type CommentInput = Omit<Comment, "id">;
+
+/** Şərh statistikaları. */
+export type CommentStats = {
+  total: number;
+  pending: number;
+  approved: number;
+  spam: number;
+  deleted: number;
+  todayCount: number;
+  avgPerDay: number;
+};

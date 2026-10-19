@@ -110,6 +110,8 @@ export const COLLECTIONS = {
   dailyAnalytics: "dailyAnalytics",
   crmAnalytics: "crmAnalytics",
   revenueAnalytics: "revenueAnalytics",
+  // Şərhlər
+  comments: "comments",
 } as const;
 
 /** Saytın kanonik ünvanı — metadata və sitemap üçün. */
