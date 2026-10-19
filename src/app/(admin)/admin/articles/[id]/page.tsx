@@ -76,16 +76,24 @@ export default function EditArticlePage({
         title={article.title.az || article.title.en || "Məqalə"}
         description={`${getCategory(article.category)?.name.az} · /${article.slug}`}
         actions={
-          article.status === "published" ? (
-            <a
-              href={publicHref}
-              target="_blank"
-              rel="noopener noreferrer"
+          <div className="flex gap-2">
+            <Link
+              href={`/admin/articles/${id}/versions`}
               className="btn-ghost !py-2.5 !text-[11px]"
             >
-              Saytda bax
-            </a>
-          ) : undefined
+              📚 Versiya tarixçəsi
+            </Link>
+            {article.status === "published" && (
+              <a
+                href={publicHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-ghost !py-2.5 !text-[11px]"
+              >
+                Saytda bax
+              </a>
+            )}
+          </div>
         }
       />
       <ArticleEditor article={article} />

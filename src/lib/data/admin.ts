@@ -770,6 +770,105 @@ export async function snapshotArticleVersion(params: {
   }
 }
 
+/**
+ * Versiya snapshot-unu oxu və parse et.
+ */
+export async function getArticleVersion(versionId: string): Promise<ArticleVersion | null> {
+  const snapshot = await getDoc(doc(db(), COLLECTIONS.articleVersions, versionId));
+  if (!snapshot.exists()) return null;
+  return { ...(snapshot.data() as Omit<ArticleVersion, "id">), id: snapshot.id };
+}
+
+/**
+ * Məqaləni əvvəlki versiyaya restore et.
+ */
+export async function restoreArticleVersion(
+  articleId: string,
+  versionId: string,
+  userEmail: string
+): Promise<void> {
+  const version = await getArticleVersion(versionId);
+  if (!version) throw new Error("Versiya tapılmadı");
+
+  // Parse snapshot
+  const articleData = JSON.parse(version.snapshot) as ArticleInput;
+
+  // Current version-u snapshot-a al
+  const currentArticle = await getArticle(articleId);
+  if (currentArticle) {
+    await snapshotArticleVersion({
+      articleId,
+      article: currentArticle,
+      summary: `Restore öncəsi backup (v${version.version} restore edildi)`,
+      userEmail,
+    });
+  }
+
+  // Restore et
+  await saveArticle(articleId, {
+    ...articleData,
+    updatedAt: new Date().toISOString(),
+  });
+
+  // Restore haqqında yeni versiya yarat
+  await snapshotArticleVersion({
+    articleId,
+    article: articleData,
+    summary: `v${version.version} versiyasına restore edildi: ${version.summary}`,
+    userEmail,
+  });
+}
+
+/**
+ * İki versiyanı müqayisə et (diff).
+ */
+export async function compareArticleVersions(
+  versionId1: string,
+  versionId2: string
+): Promise<{
+  version1: ArticleVersion;
+  version2: ArticleVersion;
+  changes: {
+    field: string;
+    oldValue: string;
+    newValue: string;
+  }[];
+}> {
+  const [v1, v2] = await Promise.all([
+    getArticleVersion(versionId1),
+    getArticleVersion(versionId2),
+  ]);
+
+  if (!v1 || !v2) throw new Error("Versiyalar tapılmadı");
+
+  const data1 = JSON.parse(v1.snapshot) as Record<string, any>;
+  const data2 = JSON.parse(v2.snapshot) as Record<string, any>;
+
+  const changes: { field: string; oldValue: string; newValue: string }[] = [];
+
+  // Compare main fields
+  const fieldsToCompare = ["title", "excerpt", "body", "tags", "category", "featured", "trending"];
+
+  for (const field of fieldsToCompare) {
+    const val1 = JSON.stringify(data1[field]);
+    const val2 = JSON.stringify(data2[field]);
+
+    if (val1 !== val2) {
+      changes.push({
+        field,
+        oldValue: val1,
+        newValue: val2,
+      });
+    }
+  }
+
+  return {
+    version1: v1,
+    version2: v2,
+    changes,
+  };
+}
+
 /* ======================================================================
    Smart Dashboard Alerts — Avtomatik bildirişlər
    ====================================================================== */
