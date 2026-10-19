@@ -3556,3 +3556,336 @@ export async function updateAllMediaFileUsageCounts(): Promise<void> {
   const batch = files.map((file) => updateMediaFileUsageCount(file.id));
   await Promise.all(batch);
 }
+
+
+/* ======================================================================
+   Site Performance Monitor
+   ====================================================================== */
+
+import type {
+  PagePerformance,
+  PagePerformanceInput,
+  PerformanceSummary,
+  OptimizationTip,
+  OptimizationTipInput,
+  PerformanceRating,
+} from "@/lib/types";
+
+/**
+ * Bütün performance testlərini siyahıla.
+ */
+export async function listPagePerformance(limit: number = 50): Promise<PagePerformance[]> {
+  const snap = await getDocs(
+    query(
+      collection(db(), COLLECTIONS.pagePerformance),
+      orderBy("testedAt", "desc")
+    )
+  );
+  return snap.docs.slice(0, limit).map((d) => ({ id: d.id, ...d.data() }) as PagePerformance);
+}
+
+/**
+ * ID-yə görə performance test oxu.
+ */
+export async function getPagePerformance(id: string): Promise<PagePerformance | null> {
+  const docRef = doc(db(), COLLECTIONS.pagePerformance, id);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as PagePerformance;
+}
+
+/**
+ * Yeni performance test yarat.
+ */
+export async function createPagePerformance(input: PagePerformanceInput): Promise<string> {
+  const docRef = await addDoc(collection(db(), COLLECTIONS.pagePerformance), {
+    ...input,
+    testedAt: new Date().toISOString(),
+  });
+  return docRef.id;
+}
+
+/**
+ * URL-ə görə performance testləri.
+ */
+export async function getPagePerformanceByUrl(pageUrl: string): Promise<PagePerformance[]> {
+  const allTests = await listPagePerformance(100);
+  return allTests.filter((t) => t.pageUrl === pageUrl);
+}
+
+/**
+ * Performance summary hesabla.
+ */
+export async function getPerformanceSummary(): Promise<PerformanceSummary> {
+  const allTests = await listPagePerformance(200);
+
+  if (allTests.length === 0) {
+    return {
+      lastTestedAt: new Date().toISOString(),
+      averageScore: 0,
+      byDevice: {
+        desktop: { averageScore: 0, testCount: 0 },
+        mobile: { averageScore: 0, testCount: 0 },
+      },
+      averageWebVitals: {
+        lcp: 0,
+        fid: 0,
+        cls: 0,
+        fcp: 0,
+        ttfb: 0,
+      },
+      slowestPages: [],
+      fastestPages: [],
+      trend: [],
+    };
+  }
+
+  // Calculate averages
+  const totalScore = allTests.reduce((sum, t) => sum + t.performanceScore, 0);
+  const averageScore = totalScore / allTests.length;
+
+  // By device
+  const desktopTests = allTests.filter((t) => t.device === "desktop");
+  const mobileTests = allTests.filter((t) => t.device === "mobile");
+
+  const desktopScore = desktopTests.length
+    ? desktopTests.reduce((sum, t) => sum + t.performanceScore, 0) / desktopTests.length
+    : 0;
+  const mobileScore = mobileTests.length
+    ? mobileTests.reduce((sum, t) => sum + t.performanceScore, 0) / mobileTests.length
+    : 0;
+
+  // Average Web Vitals
+  const avgLcp = allTests.reduce((sum, t) => sum + t.webVitals.lcp, 0) / allTests.length;
+  const avgFid = allTests.reduce((sum, t) => sum + t.webVitals.fid, 0) / allTests.length;
+  const avgCls = allTests.reduce((sum, t) => sum + t.webVitals.cls, 0) / allTests.length;
+  const avgFcp = allTests.reduce((sum, t) => sum + t.webVitals.fcp, 0) / allTests.length;
+  const avgTtfb = allTests.reduce((sum, t) => sum + t.webVitals.ttfb, 0) / allTests.length;
+
+  // Slowest & Fastest pages (by latest test per page)
+  const latestByPage = new Map<string, PagePerformance>();
+  for (const test of allTests) {
+    const existing = latestByPage.get(test.pageUrl);
+    if (!existing || test.testedAt > existing.testedAt) {
+      latestByPage.set(test.pageUrl, test);
+    }
+  }
+
+  const pageTests = Array.from(latestByPage.values());
+  const sortedByScore = [...pageTests].sort((a, b) => a.performanceScore - b.performanceScore);
+
+  const slowestPages = sortedByScore.slice(0, 5).map((t) => ({
+    url: t.pageUrl,
+    title: t.pageTitle,
+    score: t.performanceScore,
+  }));
+
+  const fastestPages = sortedByScore.slice(-5).reverse().map((t) => ({
+    url: t.pageUrl,
+    title: t.pageTitle,
+    score: t.performanceScore,
+  }));
+
+  // Trend (last 7 days)
+  const now = new Date();
+  const trend: { date: string; averageScore: number }[] = [];
+
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(now);
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split("T")[0];
+
+    const dayTests = allTests.filter((t) => t.testedAt.startsWith(dateStr));
+    const dayScore = dayTests.length
+      ? dayTests.reduce((sum, t) => sum + t.performanceScore, 0) / dayTests.length
+      : 0;
+
+    trend.push({ date: dateStr, averageScore: dayScore });
+  }
+
+  return {
+    lastTestedAt: allTests[0].testedAt,
+    averageScore,
+    byDevice: {
+      desktop: { averageScore: desktopScore, testCount: desktopTests.length },
+      mobile: { averageScore: mobileScore, testCount: mobileTests.length },
+    },
+    averageWebVitals: {
+      lcp: avgLcp,
+      fid: avgFid,
+      cls: avgCls,
+      fcp: avgFcp,
+      ttfb: avgTtfb,
+    },
+    slowestPages,
+    fastestPages,
+    trend,
+  };
+}
+
+/**
+ * Bütün optimization tips siyahıla.
+ */
+export async function listOptimizationTips(): Promise<OptimizationTip[]> {
+  const snap = await getDocs(
+    query(collection(db(), COLLECTIONS.optimizationTips), orderBy("impact", "desc"))
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as OptimizationTip);
+}
+
+/**
+ * Yeni optimization tip yarat.
+ */
+export async function createOptimizationTip(input: OptimizationTipInput): Promise<string> {
+  const docRef = await addDoc(collection(db(), COLLECTIONS.optimizationTips), {
+    ...input,
+    implemented: false,
+  });
+  return docRef.id;
+}
+
+/**
+ * Optimization tip yenilə.
+ */
+export async function updateOptimizationTip(
+  id: string,
+  updates: Partial<OptimizationTipInput>
+): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.optimizationTips, id);
+  await updateDoc(docRef, updates);
+}
+
+/**
+ * Optimization tip-i implemented olaraq işarələ.
+ */
+export async function markOptimizationTipImplemented(
+  id: string,
+  userId: string
+): Promise<void> {
+  await updateOptimizationTip(id, {
+    implemented: true,
+    implementedAt: new Date().toISOString(),
+    implementedBy: userId,
+  });
+}
+
+/**
+ * Optimization tip sil.
+ */
+export async function deleteOptimizationTip(id: string): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.optimizationTips, id);
+  await deleteDoc(docRef);
+}
+
+/**
+ * Performance rating helper - Web Vitals üçün rating hesabla.
+ */
+export function calculatePerformanceRating(
+  metric: "lcp" | "fid" | "cls" | "fcp" | "ttfb" | "inp",
+  value: number
+): PerformanceRating {
+  const thresholds = {
+    lcp: { good: 2500, poor: 4000 },
+    fid: { good: 100, poor: 300 },
+    cls: { good: 0.1, poor: 0.25 },
+    fcp: { good: 1800, poor: 3000 },
+    ttfb: { good: 800, poor: 1800 },
+    inp: { good: 200, poor: 500 },
+  };
+
+  const threshold = thresholds[metric];
+  if (value <= threshold.good) return "good";
+  if (value <= threshold.poor) return "needs-improvement";
+  return "poor";
+}
+
+/**
+ * Səhifə performansını test et (mock - real implementation Google Lighthouse API istifadə edər).
+ */
+export async function testPagePerformance(
+  pageUrl: string,
+  pageTitle: string,
+  device: "desktop" | "mobile"
+): Promise<string> {
+  // Mock data - real implementation would use Lighthouse API or PageSpeed Insights API
+  const mockPerformance: PagePerformanceInput = {
+    pageUrl,
+    pageTitle,
+    testedAt: new Date().toISOString(),
+    device,
+    performanceScore: Math.floor(Math.random() * 40) + 60, // 60-100
+    webVitals: {
+      lcp: Math.floor(Math.random() * 2000) + 1500, // 1500-3500ms
+      lcpRating: "good",
+      fid: Math.floor(Math.random() * 150) + 50, // 50-200ms
+      fidRating: "good",
+      cls: Math.random() * 0.15, // 0-0.15
+      clsRating: "good",
+      fcp: Math.floor(Math.random() * 1000) + 1000, // 1000-2000ms
+      fcpRating: "good",
+      ttfb: Math.floor(Math.random() * 500) + 300, // 300-800ms
+      ttfbRating: "good",
+      inp: Math.floor(Math.random() * 150) + 100, // 100-250ms
+      inpRating: "good",
+    },
+    resources: {
+      totalCount: Math.floor(Math.random() * 50) + 30,
+      totalSize: Math.floor(Math.random() * 2000000) + 1000000, // 1-3MB
+      javascript: { count: 10, size: 500000 },
+      css: { count: 5, size: 200000 },
+      images: { count: 15, size: 800000 },
+      fonts: { count: 3, size: 150000 },
+    },
+    opportunities: [
+      {
+        id: "optimize-images",
+        title: "Şəkilləri optimallaşdır",
+        description: "WebP və ya AVIF formatına keçin",
+        savings: 500,
+        savingsUnit: "bytes",
+        priority: "high",
+      },
+      {
+        id: "minify-js",
+        title: "JavaScript faylları minify edin",
+        description: "Terser və ya UglifyJS istifadə edin",
+        savings: 200,
+        savingsUnit: "ms",
+        priority: "medium",
+      },
+    ],
+    serverResponseTime: Math.floor(Math.random() * 200) + 100,
+    domContentLoaded: Math.floor(Math.random() * 1000) + 1000,
+    fullPageLoad: Math.floor(Math.random() * 2000) + 2000,
+  };
+
+  // Calculate ratings
+  mockPerformance.webVitals.lcpRating = calculatePerformanceRating(
+    "lcp",
+    mockPerformance.webVitals.lcp
+  );
+  mockPerformance.webVitals.fidRating = calculatePerformanceRating(
+    "fid",
+    mockPerformance.webVitals.fid
+  );
+  mockPerformance.webVitals.clsRating = calculatePerformanceRating(
+    "cls",
+    mockPerformance.webVitals.cls
+  );
+  mockPerformance.webVitals.fcpRating = calculatePerformanceRating(
+    "fcp",
+    mockPerformance.webVitals.fcp
+  );
+  mockPerformance.webVitals.ttfbRating = calculatePerformanceRating(
+    "ttfb",
+    mockPerformance.webVitals.ttfb
+  );
+  if (mockPerformance.webVitals.inp) {
+    mockPerformance.webVitals.inpRating = calculatePerformanceRating(
+      "inp",
+      mockPerformance.webVitals.inp
+    );
+  }
+
+  return await createPagePerformance(mockPerformance);
+}

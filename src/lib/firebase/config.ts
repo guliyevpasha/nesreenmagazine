@@ -139,6 +139,9 @@ export const COLLECTIONS = {
   // Media idarəetmə
   mediaFolders: "mediaFolders",
   mediaFiles: "mediaFiles",
+  // Performans monitoring
+  pagePerformance: "pagePerformance",
+  optimizationTips: "optimizationTips",
 } as const;
 
 /** Saytın kanonik ünvanı — metadata və sitemap üçün. */

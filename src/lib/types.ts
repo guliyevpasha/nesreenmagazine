@@ -1664,6 +1664,133 @@ export type StorageStats = {
 };
 
 /* ======================================================================
+   Site Performance Monitor
+   ====================================================================== */
+
+/** Core Web Vitals metric. */
+export type WebVitalMetric = "LCP" | "FID" | "CLS" | "FCP" | "TTFB" | "INP";
+
+/** Performance rating. */
+export type PerformanceRating = "good" | "needs-improvement" | "poor";
+
+/** Page performance snapshot. */
+export type PagePerformance = {
+  id: string;
+  /** Səhifə URL (relative path). */
+  pageUrl: string;
+  /** Səhifə başlığı. */
+  pageTitle: string;
+  /** Test tarixi. */
+  testedAt: string;
+  /** Test cihazı (desktop, mobile). */
+  device: "desktop" | "mobile";
+  /** Ümumi performans balı (0-100). */
+  performanceScore: number;
+  /** Core Web Vitals. */
+  webVitals: {
+    /** Largest Contentful Paint (milliseconds). */
+    lcp: number;
+    lcpRating: PerformanceRating;
+    /** First Input Delay (milliseconds). */
+    fid: number;
+    fidRating: PerformanceRating;
+    /** Cumulative Layout Shift (score). */
+    cls: number;
+    clsRating: PerformanceRating;
+    /** First Contentful Paint (milliseconds). */
+    fcp: number;
+    fcpRating: PerformanceRating;
+    /** Time to First Byte (milliseconds). */
+    ttfb: number;
+    ttfbRating: PerformanceRating;
+    /** Interaction to Next Paint (milliseconds). */
+    inp?: number;
+    inpRating?: PerformanceRating;
+  };
+  /** Resource timing. */
+  resources: {
+    /** Ümumi resurs sayı. */
+    totalCount: number;
+    /** Ümumi resurs ölçüsü (bytes). */
+    totalSize: number;
+    /** JS fayllar. */
+    javascript: { count: number; size: number };
+    /** CSS fayllar. */
+    css: { count: number; size: number };
+    /** Şəkillər. */
+    images: { count: number; size: number };
+    /** Fontlar. */
+    fonts: { count: number; size: number };
+  };
+  /** Opportunities (təkmilləşdirmə imkanları). */
+  opportunities: {
+    id: string;
+    title: string;
+    description: string;
+    /** Qənaət (milliseconds və ya bytes). */
+    savings: number;
+    savingsUnit: "ms" | "bytes";
+    priority: "high" | "medium" | "low";
+  }[];
+  /** Server response time (milliseconds). */
+  serverResponseTime: number;
+  /** DOM content loaded (milliseconds). */
+  domContentLoaded: number;
+  /** Full page load (milliseconds). */
+  fullPageLoad: number;
+};
+
+export type PagePerformanceInput = Omit<PagePerformance, "id">;
+
+/** Performance summary (aggregated). */
+export type PerformanceSummary = {
+  /** Son test tarixi. */
+  lastTestedAt: string;
+  /** Orta performans balı. */
+  averageScore: number;
+  /** Desktop vs Mobile. */
+  byDevice: {
+    desktop: { averageScore: number; testCount: number };
+    mobile: { averageScore: number; testCount: number };
+  };
+  /** Core Web Vitals ortalaması. */
+  averageWebVitals: {
+    lcp: number;
+    fid: number;
+    cls: number;
+    fcp: number;
+    ttfb: number;
+  };
+  /** Ən yavaş səhifələr. */
+  slowestPages: { url: string; title: string; score: number }[];
+  /** Ən sürətli səhifələr. */
+  fastestPages: { url: string; title: string; score: number }[];
+  /** Trend (son 7 gün). */
+  trend: {
+    date: string;
+    averageScore: number;
+  }[];
+};
+
+/** Optimization recommendation. */
+export type OptimizationTip = {
+  id: string;
+  category: "images" | "scripts" | "css" | "fonts" | "caching" | "server" | "other";
+  title: string;
+  description: string;
+  impact: "high" | "medium" | "low";
+  effort: "easy" | "moderate" | "hard";
+  /** Təsir olunan səhifə sayı. */
+  affectedPages: number;
+  /** Tətbiq olunubmu? */
+  implemented: boolean;
+  implementedAt?: string;
+  implementedBy?: string;
+};
+
+export type OptimizationTipInput = Omit<OptimizationTip, "id">;
+
+/* ======================================================================
    Category Manager Enhancement
    ====================================================================== */
 
