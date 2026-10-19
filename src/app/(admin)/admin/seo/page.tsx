@@ -1,419 +1,477 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
 import {
-  addSeoRedirect,
-  getSeoSettings,
-  listSeoRedirects,
-  removeSeoRedirect,
-  saveSeoRedirect,
-  saveSeoSettings,
-} from "@/lib/data/admin";
-import type { SeoRedirect, SeoRedirectInput, SeoSettings } from "@/lib/types";
-import { emptyLocalized } from "@/lib/types";
-import { useAuth } from "@/lib/firebase/auth";
-import {
-  Alert,
-  Button,
-  Empty,
-  Field,
   PageHeader,
   Panel,
+  Alert,
+  Empty,
+  Button,
+  Field,
   inputClass,
 } from "@/components/admin/ui";
+import { useAuth } from "@/lib/firebase/auth";
+import {
+  listSeoRedirects,
+  addSeoRedirect,
+  saveSeoRedirect,
+  removeSeoRedirect,
+  listArticles,
+} from "@/lib/data/admin";
+import type { SeoRedirect, SeoRedirectInput } from "@/lib/types";
 
-/* ── tab tipləri ─────────────────────────────────────────────────────────── */
-type Tab = "redirects" | "settings";
-
-/* ── boş redirect forması ────────────────────────────────────────────────── */
-function emptyRedirect(): Omit<SeoRedirectInput, "createdBy" | "createdAt"> {
-  return { from: "", to: "", type: 301, active: true, note: "" };
-}
-
-/* ── default SEO parametrləri ────────────────────────────────────────────── */
-function defaultSeoSettings(): Omit<SeoSettings, "updatedAt" | "updatedBy"> {
-  return {
-    titleTemplate: "%s · Nesreen Magazine",
-    defaultDescription: emptyLocalized(),
-    defaultOgImage: "",
-    robotsTxt: "User-agent: *\nAllow: /\nSitemap: https://nesreenmagazine.com/sitemap.xml",
-    gscVerification: "",
-    gaId: "",
-  };
-}
-
-/* ── Redirect sıra ───────────────────────────────────────────────────────── */
-function RedirectRow({
-  redirect,
-  onToggle,
-  onDelete,
+/* ── redirect modal ─────────────────────────────────────────────────────── */
+function RedirectModal({
+  editing,
+  onClose,
+  onSaved,
+  userEmail,
 }: {
-  redirect: SeoRedirect;
-  onToggle: (id: string, active: boolean) => void;
-  onDelete: (id: string) => void;
+  editing: SeoRedirect | null;
+  onClose: () => void;
+  onSaved: () => void;
+  userEmail: string;
 }) {
-  return (
-    <tr className={`border-b border-line transition-colors hover:bg-cream-deep/40 ${!redirect.active ? "opacity-50" : ""}`}>
-      <td className="px-4 py-3">
-        <span className={`inline-block border px-2 py-0.5 font-ui text-[10px] font-bold ${redirect.type === 301 ? "border-green-300 bg-green-50 text-green-700" : "border-blue-300 bg-blue-50 text-blue-700"}`}>
-          {redirect.type}
-        </span>
-      </td>
-      <td className="px-4 py-3 font-ui text-[13px] text-bordo font-mono">{redirect.from}</td>
-      <td className="px-4 py-3 font-ui text-[13px] text-ink font-mono">→ {redirect.to}</td>
-      <td className="px-4 py-3 font-ui text-[12px] text-muted">{redirect.note}</td>
-      <td className="px-4 py-3">
-        <span className={`inline-block border px-2 py-0.5 font-ui text-[10px] ${redirect.active ? "border-green-300 bg-green-50 text-green-700" : "border-gray-200 bg-gray-100 text-gray-500"}`}>
-          {redirect.active ? "Aktiv" : "Deaktiv"}
-        </span>
-      </td>
-      <td className="px-4 py-3">
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => onToggle(redirect.id, !redirect.active)}
-            className="font-ui text-[11px] text-muted hover:text-ink transition-colors"
-          >
-            {redirect.active ? "Deaktiv" : "Aktiv"}
-          </button>
-          <button
-            type="button"
-            onClick={() => onDelete(redirect.id)}
-            className="font-ui text-[11px] text-bordo/60 hover:text-bordo transition-colors"
-          >
-            Sil
-          </button>
-        </div>
-      </td>
-    </tr>
+  const [form, setForm] = useState<Omit<SeoRedirectInput, "createdBy" | "createdAt">>(
+    editing
+      ? { ...editing }
+      : {
+          from: "",
+          to: "",
+          type: 301,
+          active: true,
+          note: "",
+        }
   );
-}
-
-/* ── Əsas səhifə ─────────────────────────────────────────────────────────── */
-export default function SeoPage() {
-  const { session } = useAuth();
-  const [tab, setTab] = useState<Tab>("redirects");
-
-  /* Redirects state */
-  const [redirects, setRedirects] = useState<SeoRedirect[]>([]);
-  const [redirectsLoading, setRedirectsLoading] = useState(true);
-  const [redirectForm, setRedirectForm] = useState(emptyRedirect());
-  const [redirectSaving, setRedirectSaving] = useState(false);
-
-  /* SEO Settings state */
-  const [seoSettings, setSeoSettings] = useState<Omit<SeoSettings, "updatedAt" | "updatedBy">>(defaultSeoSettings());
-  const [settingsLoading, setSettingsLoading] = useState(true);
-  const [settingsSaving, setSettingsSaving] = useState(false);
-
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
-  /* Redirects yüklə */
-  async function loadRedirects() {
-    setRedirectsLoading(true);
-    try {
-      setRedirects(await listSeoRedirects());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Yüklənmə xətası");
-    } finally {
-      setRedirectsLoading(false);
-    }
+  function set(key: string, val: string | number | boolean) {
+    setForm((prev) => ({ ...prev, [key]: val }));
   }
 
-  /* SEO settings yüklə */
-  async function loadSettings() {
-    setSettingsLoading(true);
-    try {
-      const s = await getSeoSettings();
-      if (s) setSeoSettings(s);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Yüklənmə xətası");
-    } finally {
-      setSettingsLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    void loadRedirects();
-    void loadSettings();
-  }, []);
-
-  /* Redirect əlavə et */
-  async function handleAddRedirect(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!redirectForm.from.trim() || !redirectForm.to.trim()) {
+    if (!form.from || !form.to) {
       setError("From və To sahələri mütləqdir.");
       return;
     }
-    setRedirectSaving(true);
+    setSaving(true);
     setError("");
     try {
-      await addSeoRedirect({
-        ...redirectForm,
-        createdBy: session?.email ?? "",
-        createdAt: new Date().toISOString(),
-      });
-      setRedirectForm(emptyRedirect());
-      setSuccess("Yönləndirmə əlavə edildi.");
-      void loadRedirects();
+      if (editing) {
+        await saveSeoRedirect(editing.id, form as Partial<SeoRedirectInput>);
+      } else {
+        await addSeoRedirect({
+          ...form,
+          createdBy: userEmail,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xəta baş verdi.");
     } finally {
-      setRedirectSaving(false);
+      setSaving(false);
     }
   }
 
-  async function handleToggleRedirect(id: string, active: boolean) {
-    await saveSeoRedirect(id, { active });
-    setRedirects((prev) => prev.map((r) => (r.id === id ? { ...r, active } : r)));
-  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-ink/40" onClick={onClose} />
+      <div className="relative w-full max-w-lg bg-paper border border-line shadow-xl">
+        <div className="border-b border-line px-6 py-5 flex items-center justify-between">
+          <h2 className="font-display text-xl">
+            {editing ? "Redirect redaktə et" : "Yeni redirect"}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-muted hover:text-ink text-xl leading-none"
+          >
+            ×
+          </button>
+        </div>
+        <form onSubmit={(e) => void handleSubmit(e)} className="px-6 py-6 space-y-4">
+          {error && <Alert tone="error">{error}</Alert>}
 
-  async function handleDeleteRedirect(id: string) {
-    if (!confirm("Bu yönləndirməni silmək istəyirsiniz?")) return;
-    await removeSeoRedirect(id);
-    setRedirects((prev) => prev.filter((r) => r.id !== id));
-  }
+          <Field label="From (köhnə URL) *">
+            <input
+              className={inputClass}
+              value={form.from}
+              onChange={(e) => set("from", e.target.value)}
+              placeholder="/az/kohnə-məqalə"
+              required
+            />
+            <p className="mt-1 font-ui text-[11px] text-muted">
+              Yalnız path (domain olmadan): /az/category/slug
+            </p>
+          </Field>
 
-  /* SEO settings saxla */
-  async function handleSaveSettings(e: React.FormEvent) {
-    e.preventDefault();
-    setSettingsSaving(true);
-    setError("");
-    setSuccess("");
-    try {
-      await saveSeoSettings({
-        ...seoSettings,
-        updatedBy: session?.email ?? "",
-        updatedAt: new Date().toISOString(),
+          <Field label="To (yeni URL) *">
+            <input
+              className={inputClass}
+              value={form.to}
+              onChange={(e) => set("to", e.target.value)}
+              placeholder="/az/yeni-məqalə"
+              required
+            />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Redirect tipi">
+              <select
+                className={inputClass}
+                value={form.type}
+                onChange={(e) => set("type", parseInt(e.target.value))}
+              >
+                <option value={301}>301 (Daimi)</option>
+                <option value={302}>302 (Müvəqqəti)</option>
+              </select>
+            </Field>
+            <Field label="Status">
+              <label className="flex items-center gap-2 h-full border border-line bg-paper px-3.5">
+                <input
+                  type="checkbox"
+                  checked={form.active}
+                  onChange={(e) => set("active", e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <span className="font-ui text-[13px] text-ink">Aktiv</span>
+              </label>
+            </Field>
+          </div>
+
+          <Field label="Qeyd">
+            <textarea
+              className={inputClass}
+              rows={2}
+              value={form.note}
+              onChange={(e) => set("note", e.target.value)}
+              placeholder="Niyə əlavə edildi..."
+            />
+          </Field>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="ghost" onClick={onClose}>
+              Ləğv et
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saxlanılır…" : editing ? "Yadda saxla" : "Əlavə et"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ── sitemap generator ──────────────────────────────────────────────────── */
+function generateSitemap(articles: any[]): string {
+  const baseUrl = "https://nesreenmagazine.com";
+  const locales = ["az", "en", "ru", "tr", "ar"];
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>${baseUrl}/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+`;
+
+  // Add article pages
+  articles
+    .filter((a) => a.status === "published")
+    .forEach((article) => {
+      locales.forEach((locale) => {
+        xml += `  <url>
+    <loc>${baseUrl}/${locale}/${article.category}/${article.slug}</loc>
+    <lastmod>${article.updatedAt || article.publishedAt}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+`;
       });
-      setSuccess("SEO parametrləri yadda saxlandı.");
+    });
+
+  xml += `</urlset>`;
+  return xml;
+}
+
+/* ── main page ──────────────────────────────────────────────────────────── */
+export default function SEOToolsPage() {
+  const { session } = useAuth();
+  const [redirects, setRedirects] = useState<SeoRedirect[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [modal, setModal] = useState(false);
+  const [editingRedirect, setEditingRedirect] = useState<SeoRedirect | null>(null);
+  const [robotsTxt, setRobotsTxt] = useState(
+    `User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+Sitemap: https://nesreenmagazine.com/sitemap.xml`
+  );
+  const [sitemapGenerated, setSitemapGenerated] = useState(false);
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const r = await listSeoRedirects();
+      setRedirects(r);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Saxlama xətası.");
+      setError(err instanceof Error ? err.message : "Yüklənmə xətası");
     } finally {
-      setSettingsSaving(false);
+      setLoading(false);
     }
   }
 
-  /* Aktiv redirect sayı */
-  const activeCount = redirects.filter((r) => r.active).length;
+  async function handleDelete(id: string) {
+    if (!confirm("Bu redirect-i silmək istəyirsiniz?")) return;
+    try {
+      await removeSeoRedirect(id);
+      setRedirects((prev) => prev.filter((r) => r.id !== id));
+    } catch {
+      alert("Silinmə xətası baş verdi.");
+    }
+  }
+
+  function openEdit(redirect: SeoRedirect) {
+    setEditingRedirect(redirect);
+    setModal(true);
+  }
+
+  function openNew() {
+    setEditingRedirect(null);
+    setModal(true);
+  }
+
+  function handleSaved() {
+    setModal(false);
+    setEditingRedirect(null);
+    void load();
+  }
+
+  async function handleGenerateSitemap() {
+    try {
+      const articles = await listArticles();
+      const xml = generateSitemap(articles);
+      
+      // Download
+      const blob = new Blob([xml], { type: "application/xml" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "sitemap.xml";
+      a.click();
+      
+      setSitemapGenerated(true);
+      setTimeout(() => setSitemapGenerated(false), 3000);
+    } catch {
+      alert("Sitemap yaradılma xətası");
+    }
+  }
+
+  function downloadRobotsTxt() {
+    const blob = new Blob([robotsTxt], { type: "text/plain" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "robots.txt";
+    a.click();
+  }
+
+  const activeRedirects = redirects.filter((r) => r.active).length;
 
   return (
     <>
       <PageHeader
-        title="SEO İdarəetməsi"
-        description="301/302 yönləndirmələr, meta parametrləri, robots.txt və Google inteqrasiyası."
+        title="SEO Alətləri"
+        description="Sitemap, robots.txt, URL redirects və meta tag idarəetməsi."
       />
 
       <div className="px-6 py-6 lg:px-10 space-y-6">
-
-        {/* Statistika */}
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            { label: "Ümumi redirect", value: redirects.length },
-            { label: "Aktiv", value: activeCount },
-            { label: "Deaktiv", value: redirects.length - activeCount },
-          ].map((s) => (
-            <div key={s.label} className="border border-line bg-paper px-5 py-4">
-              <p className="font-ui text-[10px] uppercase tracking-[0.16em] text-muted">{s.label}</p>
-              <p className="mt-1 font-display text-3xl text-ink">{s.value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Mesajlar */}
         {error && <Alert tone="error">{error}</Alert>}
-        {success && <Alert tone="success">{success}</Alert>}
+        {sitemapGenerated && <Alert tone="success">✓ Sitemap uğurla yaradıldı və yükləndi!</Alert>}
 
-        {/* Tab keçidləri */}
-        <div className="flex border-b border-line">
-          {(["redirects", "settings"] as Tab[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(t)}
-              className={`px-5 py-3 font-ui text-[12px] uppercase tracking-[0.14em] transition-colors border-b-2 -mb-px ${
-                tab === t
-                  ? "border-bordo text-bordo"
-                  : "border-transparent text-muted hover:text-ink"
-              }`}
-            >
-              {t === "redirects" ? "Yönləndirmələr" : "SEO Parametrləri"}
-            </button>
+        {/* Stats */}
+        <div className="grid gap-6 sm:grid-cols-3">
+          {[
+            { label: "Aktiv redirectlər", value: activeRedirects },
+            { label: "Ümumi redirect", value: redirects.length },
+            { label: "Sitemap status", value: "Hazır" },
+          ].map((stat) => (
+            <div key={stat.label} className="border border-line bg-paper px-5 py-4">
+              <p className="font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                {stat.label}
+              </p>
+              <p className="mt-2 font-display text-2xl text-ink">{stat.value}</p>
+            </div>
           ))}
         </div>
 
-        {/* ── Tab 1: Redirects ── */}
-        {tab === "redirects" && (
-          <div className="space-y-6">
-            {/* Yeni redirect forması */}
-            <Panel title="Yeni yönləndirmə əlavə et">
-              <form onSubmit={(e) => void handleAddRedirect(e)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <Field label="Tip">
-                    <select
-                      className={inputClass}
-                      value={redirectForm.type}
-                      onChange={(e) => setRedirectForm((p) => ({ ...p, type: Number(e.target.value) as 301 | 302 }))}
-                    >
-                      <option value={301}>301 — Daimi</option>
-                      <option value={302}>302 — Müvəqqəti</option>
-                    </select>
-                  </Field>
-                  <Field label="Köhnə URL (from) *">
-                    <input
-                      className={inputClass}
-                      value={redirectForm.from}
-                      onChange={(e) => setRedirectForm((p) => ({ ...p, from: e.target.value }))}
-                      placeholder="/kohnə-yol"
-                      required
-                    />
-                  </Field>
-                  <Field label="Yeni URL (to) *">
-                    <input
-                      className={inputClass}
-                      value={redirectForm.to}
-                      onChange={(e) => setRedirectForm((p) => ({ ...p, to: e.target.value }))}
-                      placeholder="/yeni-yol"
-                      required
-                    />
-                  </Field>
-                  <Field label="Qeyd">
-                    <input
-                      className={inputClass}
-                      value={redirectForm.note}
-                      onChange={(e) => setRedirectForm((p) => ({ ...p, note: e.target.value }))}
-                      placeholder="Niyə əlavə edildi..."
-                    />
-                  </Field>
-                </div>
-                <div className="flex justify-end">
-                  <Button type="submit" disabled={redirectSaving}>
-                    {redirectSaving ? "Əlavə edilir…" : "Əlavə et"}
-                  </Button>
-                </div>
-              </form>
-            </Panel>
-
-            {/* Redirects cədvəli */}
-            {redirectsLoading ? (
-              <div className="py-12 text-center font-ui text-[13px] text-muted">Yüklənir…</div>
-            ) : redirects.length === 0 ? (
-              <Empty title="Yönləndirmə yoxdur" text="Yuxarıdan yeni yönləndirmə əlavə edin." />
-            ) : (
-              <div className="border border-line bg-paper overflow-x-auto">
-                <table className="w-full min-w-[700px]">
-                  <thead>
-                    <tr className="border-b border-line bg-cream-deep">
-                      {["Tip", "Köhnə URL", "Yeni URL", "Qeyd", "Status", "Əməliyyat"].map((h) => (
-                        <th key={h} className="px-4 py-3 text-left font-ui text-[10px] uppercase tracking-[0.14em] text-muted">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {redirects.map((r) => (
-                      <RedirectRow
-                        key={r.id}
-                        redirect={r}
-                        onToggle={(id, active) => void handleToggleRedirect(id, active)}
-                        onDelete={(id) => void handleDeleteRedirect(id)}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Tab 2: SEO Parametrləri ── */}
-        {tab === "settings" && (
-          <form onSubmit={(e) => void handleSaveSettings(e)} className="space-y-6">
-
-            <Panel title="Əsas parametrlər">
-              <div className="space-y-4">
-                <Field label="Başlıq şablonu" hint="Məs: %s · Nesreen Magazine — %s yerinə səhifə adı yazılır">
-                  <input
-                    className={inputClass}
-                    value={seoSettings.titleTemplate}
-                    onChange={(e) => setSeoSettings((p) => ({ ...p, titleTemplate: e.target.value }))}
-                    placeholder="%s · Nesreen Magazine"
-                  />
-                </Field>
-                <Field label="Default OG şəkli (URL)">
-                  <input
-                    className={inputClass}
-                    value={seoSettings.defaultOgImage}
-                    onChange={(e) => setSeoSettings((p) => ({ ...p, defaultOgImage: e.target.value }))}
-                    placeholder="https://nesreenmagazine.com/og-default.jpg"
-                  />
-                </Field>
-                <div className="grid grid-cols-2 gap-4">
-                  <Field label="Google Analytics ID" hint="Məs: G-XXXXXXXXXX">
-                    <input
-                      className={inputClass}
-                      value={seoSettings.gaId}
-                      onChange={(e) => setSeoSettings((p) => ({ ...p, gaId: e.target.value }))}
-                      placeholder="G-XXXXXXXXXX"
-                    />
-                  </Field>
-                  <Field label="Google Search Console verifikasiya kodu">
-                    <input
-                      className={inputClass}
-                      value={seoSettings.gscVerification}
-                      onChange={(e) => setSeoSettings((p) => ({ ...p, gscVerification: e.target.value }))}
-                      placeholder="Verifikasiya kodu"
-                    />
-                  </Field>
-                </div>
-              </div>
-            </Panel>
-
-            <Panel title="Default meta açıqlamaları" description="Hər dil üçün ayrıca meta açıqlama yazın.">
-              <div className="space-y-3">
-                {(["az", "en", "ru", "tr", "ar"] as const).map((locale) => (
-                  <Field key={locale} label={`Meta açıqlama (${locale.toUpperCase()})`}>
-                    <textarea
-                      className={inputClass}
-                      rows={2}
-                      value={seoSettings.defaultDescription[locale]}
-                      onChange={(e) =>
-                        setSeoSettings((p) => ({
-                          ...p,
-                          defaultDescription: { ...p.defaultDescription, [locale]: e.target.value },
-                        }))
-                      }
-                      placeholder={`${locale.toUpperCase()} dilində meta açıqlama (max 160 simvol)`}
-                      maxLength={160}
-                    />
-                    <p className="mt-1 font-ui text-[11px] text-muted">
-                      {seoSettings.defaultDescription[locale]?.length ?? 0}/160
-                    </p>
-                  </Field>
-                ))}
-              </div>
-            </Panel>
-
-            <Panel title="robots.txt" description="Axtarış motorlarına göstəriş faylı.">
-              <textarea
-                className={`${inputClass} font-mono text-[12px]`}
-                rows={8}
-                value={seoSettings.robotsTxt}
-                onChange={(e) => setSeoSettings((p) => ({ ...p, robotsTxt: e.target.value }))}
-              />
-              <p className="mt-2 font-ui text-[11px] text-muted">
-                ⚠ Bu faylı yanlış konfiqurasiya etmək saytın Google-da indekslənməsini dayandıra bilər.
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Sitemap Generator */}
+          <Panel title="Sitemap Generator">
+            <div className="space-y-4">
+              <p className="font-ui text-[13px] text-muted">
+                Sitemap.xml faylı bütün dərc olunmuş məqalələri və səhifələri ehtiva edir.
+                Google və digər axtarış motorları üçün avtomatik yaradılır.
               </p>
-            </Panel>
-
-            <div className="flex justify-end">
-              <Button type="submit" disabled={settingsSaving || settingsLoading}>
-                {settingsSaving ? "Saxlanılır…" : "Parametrləri yadda saxla"}
+              <div className="border border-line bg-cream/30 p-4">
+                <p className="font-ui text-[12px] text-muted mb-2">Sitemap strukturu:</p>
+                <ul className="space-y-1 font-ui text-[12px] text-ink">
+                  <li>✓ Ana səhifə (5 dildə)</li>
+                  <li>✓ Bütün dərc olunmuş məqalələr</li>
+                  <li>✓ Kateqoriya səhifələri</li>
+                  <li>✓ Hər dil üçün alternate linkləri</li>
+                </ul>
+              </div>
+              <Button onClick={() => void handleGenerateSitemap()} className="w-full">
+                🗺️ Sitemap.xml yarat və yüklə
               </Button>
+              <p className="font-ui text-[11px] text-muted">
+                💡 Yaradılan faylı <code>/public</code> qovluğuna köçürün və ya 
+                Google Search Console-a yükləyin.
+              </p>
             </div>
-          </form>
-        )}
+          </Panel>
+
+          {/* Robots.txt Editor */}
+          <Panel title="Robots.txt">
+            <div className="space-y-4">
+              <Field label="robots.txt məzmunu">
+                <textarea
+                  className={inputClass}
+                  rows={8}
+                  value={robotsTxt}
+                  onChange={(e) => setRobotsTxt(e.target.value)}
+                />
+              </Field>
+              <Button onClick={downloadRobotsTxt} className="w-full" variant="ghost">
+                ↓ robots.txt yüklə
+              </Button>
+              <p className="font-ui text-[11px] text-muted">
+                💡 Yaradılan faylı <code>/public/robots.txt</code> olaraq saxlayın.
+              </p>
+            </div>
+          </Panel>
+        </div>
+
+        {/* URL Redirects */}
+        <Panel
+          title="URL Redirectlər (301/302)"
+          description="Köhnə URL-ləri yenilərə yönləndirin."
+          actions={<Button onClick={openNew}>+ Yeni redirect</Button>}
+        >
+          {loading && (
+            <div className="py-8 text-center font-ui text-[13px] text-muted">Yüklənir…</div>
+          )}
+
+          {!loading && redirects.length === 0 ? (
+            <Empty
+              title="Redirect yoxdur"
+              text="URL dəyişdikdə redirect əlavə edin ki, SEO itməsin."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-line">
+                    <th className="px-4 py-3 text-left font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                      From
+                    </th>
+                    <th className="px-4 py-3 text-left font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                      To
+                    </th>
+                    <th className="px-4 py-3 text-center font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                      Tip
+                    </th>
+                    <th className="px-4 py-3 text-center font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                      Status
+                    </th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {redirects.map((redirect) => (
+                    <tr key={redirect.id} className="hover:bg-cream/30">
+                      <td className="px-4 py-3 font-ui text-[13px] text-ink">
+                        {redirect.from}
+                      </td>
+                      <td className="px-4 py-3 font-ui text-[13px] text-muted">
+                        {redirect.to}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="inline-block border border-line px-2 py-0.5 font-ui text-[10px] uppercase tracking-[0.1em] text-muted">
+                          {redirect.type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span
+                          className={`inline-block h-2 w-2 rounded-full ${
+                            redirect.active ? "bg-green-500" : "bg-gray-300"
+                          }`}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(redirect)}
+                            className="font-ui text-[11px] uppercase tracking-[0.12em] text-muted hover:text-ink"
+                          >
+                            Redaktə
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleDelete(redirect.id)}
+                            className="font-ui text-[11px] uppercase tracking-[0.12em] text-bordo/60 hover:text-bordo"
+                          >
+                            Sil
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+
+        {/* SEO Tips */}
+        <Alert tone="info">
+          <strong>💡 SEO Məsləhətləri:</strong>
+          <ul className="mt-2 space-y-1 ml-4 list-disc">
+            <li>Sitemap-i hər yeni məqalədən sonra yeniləyin</li>
+            <li>301 redirect-ləri köhnə URL-lər üçün istifadə edin</li>
+            <li>Robots.txt-də admin paneli bloklayın</li>
+            <li>Google Search Console-da sitemap submit edin</li>
+          </ul>
+        </Alert>
       </div>
+
+      {/* Modal */}
+      {modal && (
+        <RedirectModal
+          editing={editingRedirect}
+          onClose={() => {
+            setModal(false);
+            setEditingRedirect(null);
+          }}
+          onSaved={handleSaved}
+          userEmail={session?.email ?? ""}
+        />
+      )}
     </>
   );
 }
