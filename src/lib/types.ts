@@ -1497,6 +1497,76 @@ export type AutoTranslateResponse = {
 };
 
 /* ======================================================================
+   Category Manager Enhancement
+   ====================================================================== */
+
+/** Category SEO metadata. */
+export type CategorySeo = {
+  /** Meta title. */
+  title: LocalizedText;
+  /** Meta description. */
+  description: LocalizedText;
+  /** Meta keywords. */
+  keywords: Record<Locale, string[]>;
+  /** OG image URL. */
+  ogImage?: string;
+};
+
+/** Enhanced category with SEO, icons, stats. */
+export type EnhancedCategory = {
+  id: string;
+  slug: string;
+  /** Parent category ID (null = top level). */
+  parentId?: string;
+  /** Category adı (5 dil). */
+  name: LocalizedText;
+  /** Təsvir (5 dil). */
+  description: LocalizedText;
+  /** Tagline (5 dil). */
+  tagline: LocalizedText;
+  /** Icon (emoji və ya URL). */
+  icon?: string;
+  /** Rəng (hex code). */
+  color?: string;
+  /** SEO metadata. */
+  seo: CategorySeo;
+  /** Aktiv? */
+  active: boolean;
+  /** Sıralama. */
+  order: number;
+  /** Məqalə sayı (cache). */
+  articleCount: number;
+  createdAt: string;
+  createdBy: string;
+  updatedAt?: string;
+};
+
+export type EnhancedCategoryInput = Omit<EnhancedCategory, "id">;
+
+/** Category statistikası. */
+export type CategoryStats = {
+  id?: string;
+  categoryId: string;
+  categorySlug: string;
+  /** Ümumi məqalə sayı. */
+  totalArticles: number;
+  /** Dərc olunmuş məqalə sayı. */
+  publishedArticles: number;
+  /** Draft məqalələr. */
+  draftArticles: number;
+  /** Son 30 gündə dərc edilən. */
+  articlesLast30Days: number;
+  /** Ümumi baxış sayı. */
+  totalViews: number;
+  /** Ortalama məqalə baxışı. */
+  avgViewsPerArticle: number;
+  /** Son yeniləmə. */
+  updatedAt: string;
+};
+
+export type CategoryStatsInput = Omit<CategoryStats, "id">;
+
+/* ======================================================================
    E-Jurnal İdarəetməsi (Enhanced with Sales Tracking)
    ====================================================================== */
 

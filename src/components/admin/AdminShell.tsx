@@ -376,6 +376,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           active={pathname.startsWith("/admin/translations")}
         />
         <NavLink
+          href="/admin/categories"
+          label="Kateqoriyalar"
+          icon={ICONS.site}
+          active={pathname.startsWith("/admin/categories")}
+        />
+        <NavLink
           href="/admin/media"
           label="Media Kitabxanası"
           icon={ICONS.media}

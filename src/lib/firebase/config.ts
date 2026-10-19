@@ -131,6 +131,9 @@ export const COLLECTIONS = {
   // Tərcümə
   articleTranslations: "articleTranslations",
   translationJobs: "translationJobs",
+  // Kateqoriyalar
+  enhancedCategories: "enhancedCategories",
+  categoryStats: "categoryStats",
 } as const;
 
 /** Saytın kanonik ünvanı — metadata və sitemap üçün. */

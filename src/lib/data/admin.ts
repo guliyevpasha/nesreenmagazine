@@ -2766,3 +2766,176 @@ import type {
   AutoTranslateResponse,
   Locale,
 } from "@/lib/types";
+
+/* ======================================================================
+   Category Manager Enhancement
+   ====================================================================== */
+
+/**
+ * Bütün enhanced kateqoriyaları siyahıla.
+ */
+export async function listEnhancedCategories(): Promise<EnhancedCategory[]> {
+  const snap = await getDocs(
+    query(collection(db(), COLLECTIONS.enhancedCategories), orderBy("order", "asc"))
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as EnhancedCategory);
+}
+
+/**
+ * ID-yə görə category oxu.
+ */
+export async function getEnhancedCategory(id: string): Promise<EnhancedCategory | null> {
+  const docRef = doc(db(), COLLECTIONS.enhancedCategories, id);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as EnhancedCategory;
+}
+
+/**
+ * Slug-a görə category oxu.
+ */
+export async function getEnhancedCategoryBySlug(slug: string): Promise<EnhancedCategory | null> {
+  const snap = await getDocs(collection(db(), COLLECTIONS.enhancedCategories));
+  const category = snap.docs.find((d) => d.data().slug === slug);
+  if (!category) return null;
+  return { id: category.id, ...category.data() } as EnhancedCategory;
+}
+
+/**
+ * Yeni category yarat.
+ */
+export async function createEnhancedCategory(
+  data: EnhancedCategoryInput
+): Promise<EnhancedCategory> {
+  const docRef = await addDoc(collection(db(), COLLECTIONS.enhancedCategories), {
+    ...data,
+    createdAt: new Date().toISOString(),
+    articleCount: 0,
+  });
+
+  const created = await getDoc(docRef);
+  return { id: created.id, ...created.data() } as EnhancedCategory;
+}
+
+/**
+ * Category yenilə.
+ */
+export async function updateEnhancedCategory(
+  id: string,
+  updates: Partial<EnhancedCategoryInput>
+): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.enhancedCategories, id);
+  await updateDoc(docRef, {
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Category sil.
+ */
+export async function deleteEnhancedCategory(id: string): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.enhancedCategories, id);
+  await deleteDoc(docRef);
+}
+
+/**
+ * Parent kateqoriyaları siyahıla (top-level).
+ */
+export async function listParentCategories(): Promise<EnhancedCategory[]> {
+  const all = await listEnhancedCategories();
+  return all.filter((cat) => !cat.parentId);
+}
+
+/**
+ * Child kateqoriyaları siyahıla (specific parent).
+ */
+export async function listChildCategories(parentId: string): Promise<EnhancedCategory[]> {
+  const all = await listEnhancedCategories();
+  return all.filter((cat) => cat.parentId === parentId);
+}
+
+/**
+ * Category üçün məqalə sayını yenilə.
+ */
+export async function updateCategoryArticleCount(categorySlug: string): Promise<void> {
+  const category = await getEnhancedCategoryBySlug(categorySlug);
+  if (!category) return;
+
+  const articles = await listArticles();
+  const count = articles.filter((a) => a.category === categorySlug).length;
+
+  await updateEnhancedCategory(category.id, { articleCount: count });
+}
+
+/**
+ * Kateqoriya statistikalarını hesabla.
+ */
+export async function calculateCategoryStats(categorySlug: string): Promise<CategoryStats> {
+  const articles = await listArticles();
+  const categoryArticles = articles.filter((a) => a.category === categorySlug);
+
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const articlesLast30Days = categoryArticles.filter(
+    (a) => new Date(a.publishedAt) >= thirtyDaysAgo
+  ).length;
+
+  const stats: CategoryStats = {
+    categoryId: "",
+    categorySlug,
+    totalArticles: categoryArticles.length,
+    publishedArticles: categoryArticles.filter((a) => a.status === "published").length,
+    draftArticles: categoryArticles.filter((a) => a.status === "draft").length,
+    articlesLast30Days,
+    totalViews: 0, // TODO: Analytics inteqrasiyası
+    avgViewsPerArticle: 0,
+    updatedAt: new Date().toISOString(),
+  };
+
+  return stats;
+}
+
+/**
+ * Category stats yarat və ya yenilə.
+ */
+export async function upsertCategoryStats(categorySlug: string): Promise<void> {
+  const stats = await calculateCategoryStats(categorySlug);
+
+  // Check if exists
+  const snap = await getDocs(collection(db(), COLLECTIONS.categoryStats));
+  const existing = snap.docs.find((d) => d.data().categorySlug === categorySlug);
+
+  if (existing) {
+    await updateDoc(doc(db(), COLLECTIONS.categoryStats, existing.id), stats);
+  } else {
+    await addDoc(collection(db(), COLLECTIONS.categoryStats), stats);
+  }
+}
+
+/**
+ * Bütün category stats-ları siyahıla.
+ */
+export async function listCategoryStats(): Promise<CategoryStats[]> {
+  const snap = await getDocs(collection(db(), COLLECTIONS.categoryStats));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as CategoryStats);
+}
+
+/**
+ * Kateqoriya sıralamalarını toplu yenilə.
+ */
+export async function reorderCategories(orderedIds: string[]): Promise<void> {
+  const batch = orderedIds.map((id, index) =>
+    updateEnhancedCategory(id, { order: index })
+  );
+  await Promise.all(batch);
+}
+
+// Import əlavə tipləri
+import type {
+  EnhancedCategory,
+  EnhancedCategoryInput,
+  CategoryStats,
+  CategoryStatsInput,
+} from "@/lib/types";
