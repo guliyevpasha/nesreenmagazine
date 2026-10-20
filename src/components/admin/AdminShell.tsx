@@ -352,6 +352,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           icon={ICONS.settings}
           active={pathname.startsWith("/admin/api-docs")}
         />
+        <NavLink
+          href="/admin/system-health"
+          label="System Health"
+          icon={ICONS.analytics}
+          active={pathname.startsWith("/admin/system-health")}
+        />
 
         {/* Kontent */}
         <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
