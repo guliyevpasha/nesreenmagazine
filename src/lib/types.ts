@@ -543,6 +543,40 @@ export type AuditLog = {
 
 export type AuditLogInput = Omit<AuditLog, "id">;
 
+/** Activity log filter options. */
+export type AuditLogFilter = {
+  /** İstifadəçi email filtri. */
+  userEmail?: string;
+  /** Action növü filtri. */
+  action?: AuditAction;
+  /** Resource (collection) filtri. */
+  resource?: string;
+  /** Tarix aralığı (başlanğıc). */
+  dateFrom?: string;
+  /** Tarix aralığı (son). */
+  dateTo?: string;
+  /** Axtarış sorğusu (description). */
+  searchQuery?: string;
+};
+
+/** Activity log statistics. */
+export type AuditLogStats = {
+  /** Ümumi log sayı. */
+  totalLogs: number;
+  /** Action növünə görə. */
+  byAction: Record<AuditAction, number>;
+  /** Resource-a görə top 10. */
+  byResource: { resource: string; count: number }[];
+  /** İstifadəçiyə görə top 10. */
+  byUser: { userEmail: string; userName: string; count: number }[];
+  /** Son 7 günün trendi. */
+  trend: {
+    date: string;
+    count: number;
+    actions: Record<AuditAction, number>;
+  }[];
+};
+
 /** Boş dil obyekti yaratmaq üçün köməkçi. */
 export function emptyLocalized(): LocalizedText {
   return { az: "", en: "", ru: "", tr: "", ar: "" };

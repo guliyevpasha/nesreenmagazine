@@ -25,6 +25,7 @@ import type {
   ArticleVersionInput,
   AuditLog,
   AuditLogInput,
+  AuditAction,
   ContentPlanItem,
   ContentPlanItemInput,
   CrmActivity,
@@ -655,6 +656,177 @@ export async function logAction(params: {
     // Audit xətası əsas əməliyyatı dayandırmamalıdır
     console.warn("[audit] Qeyd əlavə edilmədi");
   }
+}
+
+/**
+ * Audit log-ları filter ilə siyahıla.
+ */
+export async function listAuditLogsWithFilter(
+  filter: Partial<{
+    userEmail: string;
+    action: AuditAction;
+    resource: string;
+    dateFrom: string;
+    dateTo: string;
+    searchQuery: string;
+  }>,
+  limitCount = 100
+): Promise<AuditLog[]> {
+  let allLogs = await listAuditLogs(limitCount);
+
+  // Apply filters
+  if (filter.userEmail) {
+    allLogs = allLogs.filter((log) => log.userEmail === filter.userEmail);
+  }
+
+  if (filter.action) {
+    allLogs = allLogs.filter((log) => log.action === filter.action);
+  }
+
+  if (filter.resource) {
+    allLogs = allLogs.filter((log) => log.resource === filter.resource);
+  }
+
+  if (filter.dateFrom) {
+    allLogs = allLogs.filter((log) => log.createdAt >= filter.dateFrom!);
+  }
+
+  if (filter.dateTo) {
+    allLogs = allLogs.filter((log) => log.createdAt <= filter.dateTo!);
+  }
+
+  if (filter.searchQuery) {
+    const query = filter.searchQuery.toLowerCase();
+    allLogs = allLogs.filter(
+      (log) =>
+        log.description.toLowerCase().includes(query) ||
+        log.userName.toLowerCase().includes(query) ||
+        log.resource.toLowerCase().includes(query)
+    );
+  }
+
+  return allLogs;
+}
+
+/**
+ * Audit log statistikası hesabla.
+ */
+export async function getAuditLogStats(): Promise<{
+  totalLogs: number;
+  byAction: Record<AuditAction, number>;
+  byResource: { resource: string; count: number }[];
+  byUser: { userEmail: string; userName: string; count: number }[];
+  trend: {
+    date: string;
+    count: number;
+    actions: Record<AuditAction, number>;
+  }[];
+}> {
+  const allLogs = await listAuditLogs(1000);
+
+  // By action
+  const byAction: Record<AuditAction, number> = {
+    create: 0,
+    update: 0,
+    delete: 0,
+    publish: 0,
+    unpublish: 0,
+    login: 0,
+    logout: 0,
+    settings_change: 0,
+  };
+
+  for (const log of allLogs) {
+    byAction[log.action] = (byAction[log.action] || 0) + 1;
+  }
+
+  // By resource
+  const resourceCounts = new Map<string, number>();
+  for (const log of allLogs) {
+    resourceCounts.set(log.resource, (resourceCounts.get(log.resource) || 0) + 1);
+  }
+
+  const byResource = Array.from(resourceCounts.entries())
+    .map(([resource, count]) => ({ resource, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  // By user
+  const userCounts = new Map<string, { userName: string; count: number }>();
+  for (const log of allLogs) {
+    const existing = userCounts.get(log.userEmail);
+    if (existing) {
+      existing.count++;
+    } else {
+      userCounts.set(log.userEmail, { userName: log.userName, count: 1 });
+    }
+  }
+
+  const byUser = Array.from(userCounts.entries())
+    .map(([userEmail, data]) => ({
+      userEmail,
+      userName: data.userName,
+      count: data.count,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  // Trend (last 7 days)
+  const now = new Date();
+  const trend: {
+    date: string;
+    count: number;
+    actions: Record<AuditAction, number>;
+  }[] = [];
+
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(now);
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split("T")[0];
+
+    const dayLogs = allLogs.filter((log) => log.createdAt.startsWith(dateStr));
+
+    const dayActions: Record<AuditAction, number> = {
+      create: 0,
+      update: 0,
+      delete: 0,
+      publish: 0,
+      unpublish: 0,
+      login: 0,
+      logout: 0,
+      settings_change: 0,
+    };
+
+    for (const log of dayLogs) {
+      dayActions[log.action] = (dayActions[log.action] || 0) + 1;
+    }
+
+    trend.push({
+      date: dateStr,
+      count: dayLogs.length,
+      actions: dayActions,
+    });
+  }
+
+  return {
+    totalLogs: allLogs.length,
+    byAction,
+    byResource,
+    byUser,
+    trend,
+  };
+}
+
+/**
+ * Audit log-ları export et (JSON).
+ */
+export async function exportAuditLogs(
+  filter: Partial<{
+    dateFrom: string;
+    dateTo: string;
+  }>
+): Promise<AuditLog[]> {
+  return await listAuditLogsWithFilter(filter, 10000);
 }
 
 /* ======================================================================
