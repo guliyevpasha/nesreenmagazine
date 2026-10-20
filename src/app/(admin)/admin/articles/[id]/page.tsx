@@ -69,11 +69,16 @@ export default function EditArticlePage({
   }
 
   const publicHref = `/az/${article.category}/${article.slug}`;
+  
+  // Title can be string or multilingual object
+  const displayTitle = typeof article.title === 'string' 
+    ? article.title 
+    : (article.title?.az || article.title?.en || "Məqalə");
 
   return (
     <>
       <PageHeader
-        title={article.title.az || article.title.en || "Məqalə"}
+        title={displayTitle}
         description={`${getCategory(article.category)?.name.az} · /${article.slug}`}
         actions={
           <div className="flex gap-2">

@@ -1,14 +1,5 @@
 rules_version = '2';
 
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // DEVELOPMENT MODE: TAM AÇIQ (production üçün düzgün rules tətbiq edin!)
-    match /{document=**} {
-      allow read, write: if true;
-    }
-  }
-}
-
 /**
  * NESREEN MAGAZINE — Firestore təhlükəsizlik qaydaları
  *
@@ -89,7 +80,22 @@ service cloud.firestore {
 
     /** Məqalələr — DEVELOPMENT MODE: TAM AÇIQ */
     match /articles/{articleId} {
-      allow read, write: if true; // Allow all operations for development
+      allow read, write: if true; // Development: allow all operations
+    }
+
+    /**
+     * Analytics kolleksiyaları - tracking üçün hamıya açıq
+     */
+    match /analytics_daily/{docId} {
+      allow read, write: if true; // Allow tracking from client
+    }
+
+    match /analytics_totals/{docId} {
+      allow read, write: if true; // Allow tracking from client
+    }
+
+    match /analytics_visitors/{docId} {
+      allow read, write: if true; // Allow tracking from client
     }
 
     /** Bürc şərhləri — hamı oxuya bilər */
