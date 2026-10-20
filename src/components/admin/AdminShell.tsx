@@ -346,6 +346,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           icon={ICONS.audit}
           active={pathname.startsWith("/admin/activity-log")}
         />
+        <NavLink
+          href="/admin/api-docs"
+          label="API Docs"
+          icon={ICONS.settings}
+          active={pathname.startsWith("/admin/api-docs")}
+        />
 
         {/* Kontent */}
         <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
