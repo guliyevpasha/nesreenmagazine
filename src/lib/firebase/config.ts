@@ -142,6 +142,10 @@ export const COLLECTIONS = {
   // Performans monitoring
   pagePerformance: "pagePerformance",
   optimizationTips: "optimizationTips",
+  // Backup & Restore
+  databaseBackups: "databaseBackups",
+  backupSchedules: "backupSchedules",
+  restoreOperations: "restoreOperations",
 } as const;
 
 /** Saytın kanonik ünvanı — metadata və sitemap üçün. */

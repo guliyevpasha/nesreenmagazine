@@ -1791,6 +1791,129 @@ export type OptimizationTip = {
 export type OptimizationTipInput = Omit<OptimizationTip, "id">;
 
 /* ======================================================================
+   Backup & Restore
+   ====================================================================== */
+
+/** Backup status. */
+export type BackupStatus = "pending" | "in-progress" | "completed" | "failed";
+
+/** Backup type. */
+export type BackupType = "manual" | "scheduled" | "automatic";
+
+/** Database backup snapshot. */
+export type DatabaseBackup = {
+  id: string;
+  /** Backup adı. */
+  name: string;
+  /** Backup növü. */
+  type: BackupType;
+  /** Status. */
+  status: BackupStatus;
+  /** Backup tarixi. */
+  createdAt: string;
+  /** Backup ölçüsü (bytes). */
+  size: number;
+  /** Backup faylının storage path-i. */
+  storagePath: string;
+  /** Backup faylının URL-i. */
+  downloadUrl?: string;
+  /** Backup-a daxil olan kolleksiyalar. */
+  collections: string[];
+  /** Ümumi document sayı. */
+  totalDocuments: number;
+  /** Backup yaradan istifadəçi. */
+  createdBy: string;
+  /** Backup yaratma müddəti (milliseconds). */
+  duration?: number;
+  /** Xəta mesajı (əgər failed olarsa). */
+  error?: string;
+  /** Qeydlər. */
+  notes?: string;
+};
+
+export type DatabaseBackupInput = Omit<DatabaseBackup, "id">;
+
+/** Backup schedule configuration. */
+export type BackupSchedule = {
+  id: string;
+  /** Schedule adı. */
+  name: string;
+  /** Aktiv? */
+  enabled: boolean;
+  /** Cron expression (e.g., "0 2 * * *" = hər gün saat 02:00). */
+  cronExpression: string;
+  /** Human-readable açıqlama. */
+  description: string;
+  /** Backup-a daxil ediləcək kolleksiyalar. */
+  collections: string[];
+  /** Saxlama müddəti (gün). */
+  retentionDays: number;
+  /** Son icra tarixi. */
+  lastRunAt?: string;
+  /** Növbəti icra tarixi. */
+  nextRunAt?: string;
+  /** Son backup ID. */
+  lastBackupId?: string;
+  /** Yaradılma tarixi. */
+  createdAt: string;
+  /** Yaradan istifadəçi. */
+  createdBy: string;
+};
+
+export type BackupScheduleInput = Omit<BackupSchedule, "id">;
+
+/** Restore operation. */
+export type RestoreOperation = {
+  id: string;
+  /** Backup ID (hansı backup-dan restore edilir). */
+  backupId: string;
+  /** Status. */
+  status: "pending" | "in-progress" | "completed" | "failed";
+  /** Başlanma tarixi. */
+  startedAt: string;
+  /** Bitirmə tarixi. */
+  completedAt?: string;
+  /** Restore olunan kolleksiyalar. */
+  collections: string[];
+  /** Restore olunan document sayı. */
+  restoredDocuments: number;
+  /** Progress (%). */
+  progress: number;
+  /** Xəta mesajı. */
+  error?: string;
+  /** Restore edən istifadəçi. */
+  restoredBy: string;
+};
+
+export type RestoreOperationInput = Omit<RestoreOperation, "id">;
+
+/** Backup statistics. */
+export type BackupStats = {
+  /** Ümumi backup sayı. */
+  totalBackups: number;
+  /** Uğurlu backup sayı. */
+  successfulBackups: number;
+  /** Uğursuz backup sayı. */
+  failedBackups: number;
+  /** Ümumi backup ölçüsü (bytes). */
+  totalSize: number;
+  /** Orta backup ölçüsü (bytes). */
+  averageSize: number;
+  /** Son backup tarixi. */
+  lastBackupDate?: string;
+  /** Son uğurlu backup. */
+  lastSuccessfulBackup?: DatabaseBackup;
+  /** Scheduled backup sayı. */
+  activeSchedules: number;
+  /** Backup trend (son 30 gün). */
+  trend: {
+    date: string;
+    count: number;
+    totalSize: number;
+  }[];
+};
+
+/* ======================================================================
    Category Manager Enhancement
    ====================================================================== */
 

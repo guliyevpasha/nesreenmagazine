@@ -3889,3 +3889,330 @@ export async function testPagePerformance(
 
   return await createPagePerformance(mockPerformance);
 }
+
+
+/* ======================================================================
+   Backup & Restore
+   ====================================================================== */
+
+import type {
+  DatabaseBackup,
+  DatabaseBackupInput,
+  BackupSchedule,
+  BackupScheduleInput,
+  RestoreOperation,
+  RestoreOperationInput,
+  BackupStats,
+  BackupStatus,
+} from "@/lib/types";
+
+/**
+ * Bütün backup-ları siyahıla.
+ */
+export async function listDatabaseBackups(): Promise<DatabaseBackup[]> {
+  const snap = await getDocs(
+    query(collection(db(), COLLECTIONS.databaseBackups), orderBy("createdAt", "desc"))
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as DatabaseBackup);
+}
+
+/**
+ * ID-yə görə backup oxu.
+ */
+export async function getDatabaseBackup(id: string): Promise<DatabaseBackup | null> {
+  const docRef = doc(db(), COLLECTIONS.databaseBackups, id);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as DatabaseBackup;
+}
+
+/**
+ * Yeni backup yarat.
+ */
+export async function createDatabaseBackup(input: DatabaseBackupInput): Promise<string> {
+  const docRef = await addDoc(collection(db(), COLLECTIONS.databaseBackups), {
+    ...input,
+    createdAt: new Date().toISOString(),
+    status: "pending",
+  });
+  return docRef.id;
+}
+
+/**
+ * Backup status yenilə.
+ */
+export async function updateBackupStatus(
+  id: string,
+  status: BackupStatus,
+  updates?: Partial<DatabaseBackupInput>
+): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.databaseBackups, id);
+  await updateDoc(docRef, {
+    status,
+    ...updates,
+  });
+}
+
+/**
+ * Backup sil.
+ */
+export async function deleteBackup(id: string): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.databaseBackups, id);
+  await deleteDoc(docRef);
+}
+
+/**
+ * Manual backup yarat (mock - real implementation Firebase export API istifadə edər).
+ */
+export async function createManualBackup(
+  collections: string[],
+  name: string,
+  userId: string,
+  notes?: string
+): Promise<string> {
+  const startTime = Date.now();
+  
+  // Generate a temporary ID for storage path
+  const tempId = `backup-${Date.now()}`;
+
+  // Create backup record
+  const backupId = await createDatabaseBackup({
+    name,
+    type: "manual",
+    status: "in-progress",
+    createdAt: new Date().toISOString(),
+    size: 0,
+    storagePath: `/backups/${tempId}.json`,
+    collections,
+    totalDocuments: 0,
+    createdBy: userId,
+    notes,
+  });
+
+  try {
+    // Mock: Real implementation would export data from Firestore
+    // For now, we'll simulate the backup process
+    let totalDocs = 0;
+    const backupData: Record<string, any[]> = {};
+
+    for (const collectionName of collections) {
+      const snap = await getDocs(collection(db(), collectionName));
+      backupData[collectionName] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      totalDocs += snap.size;
+    }
+
+    // Convert to JSON string to calculate size
+    const jsonData = JSON.stringify(backupData, null, 2);
+    const size = new Blob([jsonData]).size;
+
+    const duration = Date.now() - startTime;
+
+    // Update backup record with success
+    await updateBackupStatus(backupId, "completed", {
+      size,
+      totalDocuments: totalDocs,
+      duration,
+      downloadUrl: `/api/backups/${backupId}/download`, // Mock URL
+    });
+
+    return backupId;
+  } catch (error: any) {
+    // Update backup record with failure
+    await updateBackupStatus(backupId, "failed", {
+      error: error.message || "Unknown error",
+    });
+    throw error;
+  }
+}
+
+/**
+ * Backup schedule-ləri siyahıla.
+ */
+export async function listBackupSchedules(): Promise<BackupSchedule[]> {
+  const snap = await getDocs(
+    query(collection(db(), COLLECTIONS.backupSchedules), orderBy("createdAt", "desc"))
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as BackupSchedule);
+}
+
+/**
+ * Yeni backup schedule yarat.
+ */
+export async function createBackupSchedule(input: BackupScheduleInput): Promise<string> {
+  const docRef = await addDoc(collection(db(), COLLECTIONS.backupSchedules), {
+    ...input,
+    createdAt: new Date().toISOString(),
+  });
+  return docRef.id;
+}
+
+/**
+ * Backup schedule yenilə.
+ */
+export async function updateBackupSchedule(
+  id: string,
+  updates: Partial<BackupScheduleInput>
+): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.backupSchedules, id);
+  await updateDoc(docRef, updates);
+}
+
+/**
+ * Backup schedule sil.
+ */
+export async function deleteBackupSchedule(id: string): Promise<void> {
+  const docRef = doc(db(), COLLECTIONS.backupSchedules, id);
+  await deleteDoc(docRef);
+}
+
+/**
+ * Backup schedule aktiv/deaktiv et.
+ */
+export async function toggleBackupSchedule(id: string, enabled: boolean): Promise<void> {
+  await updateBackupSchedule(id, { enabled });
+}
+
+/**
+ * Restore əməliyyatlarını siyahıla.
+ */
+export async function listRestoreOperations(): Promise<RestoreOperation[]> {
+  const snap = await getDocs(
+    query(collection(db(), COLLECTIONS.restoreOperations), orderBy("startedAt", "desc"))
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as RestoreOperation);
+}
+
+/**
+ * Restore əməliyyatı başlat.
+ */
+export async function startRestore(
+  backupId: string,
+  collections: string[],
+  userId: string
+): Promise<string> {
+  const backup = await getDatabaseBackup(backupId);
+  if (!backup) throw new Error("Backup not found");
+  if (backup.status !== "completed") throw new Error("Backup is not completed");
+
+  const docRef = await addDoc(collection(db(), COLLECTIONS.restoreOperations), {
+    backupId,
+    status: "in-progress",
+    startedAt: new Date().toISOString(),
+    collections,
+    restoredDocuments: 0,
+    progress: 0,
+    restoredBy: userId,
+  });
+
+  // Mock restore process
+  // Real implementation would restore data from backup file
+  setTimeout(async () => {
+    await updateDoc(doc(db(), COLLECTIONS.restoreOperations, docRef.id), {
+      status: "completed",
+      completedAt: new Date().toISOString(),
+      restoredDocuments: backup.totalDocuments,
+      progress: 100,
+    });
+  }, 5000);
+
+  return docRef.id;
+}
+
+/**
+ * Backup statistikası hesabla.
+ */
+export async function getBackupStats(): Promise<BackupStats> {
+  const backups = await listDatabaseBackups();
+  const schedules = await listBackupSchedules();
+
+  const successfulBackups = backups.filter((b) => b.status === "completed");
+  const failedBackups = backups.filter((b) => b.status === "failed");
+
+  const totalSize = successfulBackups.reduce((sum, b) => sum + b.size, 0);
+  const averageSize = successfulBackups.length > 0 ? totalSize / successfulBackups.length : 0;
+
+  const lastSuccessfulBackup = successfulBackups[0];
+
+  // Trend (last 30 days)
+  const now = new Date();
+  const trend: { date: string; count: number; totalSize: number }[] = [];
+
+  for (let i = 29; i >= 0; i--) {
+    const date = new Date(now);
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split("T")[0];
+
+    const dayBackups = backups.filter((b) => b.createdAt.startsWith(dateStr));
+    const daySize = dayBackups.reduce((sum, b) => sum + b.size, 0);
+
+    trend.push({
+      date: dateStr,
+      count: dayBackups.length,
+      totalSize: daySize,
+    });
+  }
+
+  return {
+    totalBackups: backups.length,
+    successfulBackups: successfulBackups.length,
+    failedBackups: failedBackups.length,
+    totalSize,
+    averageSize,
+    lastBackupDate: lastSuccessfulBackup?.createdAt,
+    lastSuccessfulBackup,
+    activeSchedules: schedules.filter((s) => s.enabled).length,
+    trend,
+  };
+}
+
+/**
+ * Köhnə backup-ları sil (retention policy).
+ */
+export async function cleanupOldBackups(retentionDays: number): Promise<number> {
+  const backups = await listDatabaseBackups();
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+
+  const oldBackups = backups.filter((b) => new Date(b.createdAt) < cutoffDate);
+
+  for (const backup of oldBackups) {
+    await deleteBackup(backup.id);
+    // Real implementation would also delete storage file
+  }
+
+  return oldBackups.length;
+}
+
+/**
+ * Export data as JSON (for manual download).
+ */
+export async function exportCollectionData(collectionName: string): Promise<any[]> {
+  const snap = await getDocs(collection(db(), collectionName));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/**
+ * Import data from JSON.
+ */
+export async function importCollectionData(
+  collectionName: string,
+  data: any[]
+): Promise<number> {
+  let imported = 0;
+
+  for (const item of data) {
+    const { id, ...docData } = item;
+    
+    if (id) {
+      // Update existing document
+      await setDoc(doc(db(), collectionName, id), docData);
+    } else {
+      // Create new document
+      await addDoc(collection(db(), collectionName), docData);
+    }
+    
+    imported++;
+  }
+
+  return imported;
+}
