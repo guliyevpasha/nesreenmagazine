@@ -23,6 +23,10 @@ import {
   type LocalizedTags,
   type LocalizedText,
 } from "@/lib/types";
+import {
+  translateArticleFields,
+  checkTranslationAPIAvailability,
+} from "@/lib/translation-helper";
 
 import {
   Alert,
@@ -102,6 +106,14 @@ export default function ArticleEditor({ article }: { article?: Article }) {
   );
   const [uploading, setUploading] = useState(false);
   const [uploadingInline, setUploadingInline] = useState(false);
+  
+  // Translation states
+  const [translating, setTranslating] = useState(false);
+  const [translationProgress, setTranslationProgress] = useState(0);
+  const [translationStatus, setTranslationStatus] = useState("");
+  const [showTranslateDialog, setShowTranslateDialog] = useState(false);
+  const [translateSourceLang, setTranslateSourceLang] = useState<Locale>("az");
+  const [translateTargetLang, setTranslateTargetLang] = useState<Locale>("en");
 
   const allowedCategories = categories.filter((category) =>
     canEditCategory(session, category.slug),
@@ -301,6 +313,65 @@ export default function ArticleEditor({ article }: { article?: Article }) {
     }
   }
 
+  async function handleAutoTranslate() {
+    setTranslating(true);
+    setTranslationProgress(0);
+    setTranslationStatus("Tərcümə başlayır...");
+    setMessage(null);
+
+    try {
+      // API mövcudluğunu yoxla
+      const apiCheck = await checkTranslationAPIAvailability();
+      if (!apiCheck.available) {
+        setMessage({
+          tone: "error",
+          text: `Tərcümə API mövcud deyil: ${apiCheck.message}`,
+        });
+        setTranslating(false);
+        return;
+      }
+
+      const result = await translateArticleFields(
+        draft,
+        translateSourceLang,
+        translateTargetLang,
+        (progress, status) => {
+          setTranslationProgress(progress);
+          setTranslationStatus(status);
+        }
+      );
+
+      if (result.success) {
+        // Tərcümə edilmiş sahələri draft-a əlavə et
+        setDraft((current) => ({
+          ...current,
+          ...result.translatedFields,
+        }));
+
+        setMessage({
+          tone: "success",
+          text: `${translateTargetLang.toUpperCase()} dilinə avtomatik tərcümə tamamlandı! Nəticəni yoxlayıb düzəliş edə bilərsiniz.`,
+        });
+        setShowTranslateDialog(false);
+        setActiveLocale(translateTargetLang);
+      } else {
+        setMessage({
+          tone: "error",
+          text: `Tərcümə zamanı xəta: ${result.errors?.join(", ")}`,
+        });
+      }
+    } catch (error) {
+      setMessage({
+        tone: "error",
+        text: error instanceof Error ? error.message : "Tərcümə xətası.",
+      });
+    } finally {
+      setTranslating(false);
+      setTranslationProgress(0);
+      setTranslationStatus("");
+    }
+  }
+
   return (
     <div className="px-6 py-8 lg:px-10">
       {message && (
@@ -317,6 +388,18 @@ export default function ArticleEditor({ article }: { article?: Article }) {
             description="Hər dil üçün ayrıca başlıq, xülasə və mətn. Qızılı nöqtə dilin dolu olduğunu göstərir."
           >
             <LocaleTabs active={activeLocale} onChange={setActiveLocale} filled={filled} />
+
+            {/* Auto-translate button */}
+            <div className="mt-4 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setShowTranslateDialog(true)}
+                disabled={translating}
+                className="flex items-center gap-2 border border-line bg-cream px-4 py-2 font-ui text-[11px] uppercase tracking-[0.12em] text-ink hover:border-bordo hover:bg-bordo hover:text-cream transition-colors disabled:opacity-50"
+              >
+                🌐 Avtomatik tərcümə
+              </button>
+            </div>
 
             <div className="mt-6 space-y-5">
               <Field label="Başlıq">
@@ -705,6 +788,91 @@ export default function ArticleEditor({ article }: { article?: Article }) {
           </Button>
         </div>
       </div>
+
+      {/* ------------------------- Tərcümə Dialog ------------------------- */}
+      {showTranslateDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md border border-line bg-paper p-6 shadow-xl">
+            <h2 className="mb-4 font-display text-xl text-ink">
+              Avtomatik Tərcümə
+            </h2>
+            
+            {translating ? (
+              <div className="space-y-4">
+                <div className="text-center">
+                  <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-bordo border-t-transparent" />
+                </div>
+                <div>
+                  <p className="mb-2 font-ui text-[13px] text-ink">
+                    {translationStatus}
+                  </p>
+                  <div className="h-2 w-full overflow-hidden border border-line bg-cream">
+                    <div
+                      className="h-full bg-bordo transition-all duration-300"
+                      style={{ width: `${translationProgress}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-right font-ui text-[11px] text-muted">
+                    {Math.round(translationProgress)}%
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <Field label="Mənbə dil">
+                  <select
+                    value={translateSourceLang}
+                    onChange={(e) => setTranslateSourceLang(e.target.value as Locale)}
+                    className={inputClass}
+                  >
+                    <option value="az">🇦🇿 Azərbaycan</option>
+                    <option value="en">🇬🇧 English</option>
+                    <option value="ru">🇷🇺 Русский</option>
+                    <option value="tr">🇹🇷 Türkçe</option>
+                    <option value="ar">🇸🇦 العربية</option>
+                  </select>
+                </Field>
+
+                <Field label="Hədəf dil">
+                  <select
+                    value={translateTargetLang}
+                    onChange={(e) => setTranslateTargetLang(e.target.value as Locale)}
+                    className={inputClass}
+                  >
+                    <option value="en">🇬🇧 English</option>
+                    <option value="ru">🇷🇺 Русский</option>
+                    <option value="tr">🇹🇷 Türkçe</option>
+                    <option value="ar">🇸🇦 العربية</option>
+                    <option value="az">🇦🇿 Azərbaycan</option>
+                  </select>
+                </Field>
+
+                <Alert tone="info">
+                  ℹ️ Google Translate API istifadə edilərək başlıq, xülasə, mətn və şəkil alt 
+                  mətni tərcümə olunacaq. Nəticəni mütləq yoxlayın və düzəliş edin.
+                </Alert>
+
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setShowTranslateDialog(false)}
+                    className="flex-1"
+                  >
+                    Ləğv et
+                  </Button>
+                  <Button
+                    onClick={() => void handleAutoTranslate()}
+                    disabled={translateSourceLang === translateTargetLang}
+                    className="flex-1"
+                  >
+                    Tərcümə et
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

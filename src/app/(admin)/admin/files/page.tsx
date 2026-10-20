@@ -478,13 +478,72 @@ export default function FileManagerPage() {
         id="file-upload"
         type="file"
         multiple
+        accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
         className="hidden"
         onChange={async (e) => {
           const uploadedFiles = e.target.files;
-          if (!uploadedFiles) return;
+          if (!uploadedFiles || uploadedFiles.length === 0) return;
 
-          // TODO: Implement Firebase Storage upload
-          alert("Fayl yükləmə funksionallığı Firebase Storage ilə tətbiq ediləcək");
+          setIsLoading(true);
+          
+          try {
+            // Her faylı Cloudinary-a yüklə
+            const uploadPromises = Array.from(uploadedFiles).map(async (file) => {
+              const formData = new FormData();
+              formData.append('file', file);
+              formData.append('folder', selectedFolder || 'general');
+
+              const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+              });
+
+              if (!response.ok) {
+                throw new Error(`${file.name} yüklənmədi`);
+              }
+
+              const result = await response.json();
+              
+              // Firestore-a fayl məlumatını əlavə et
+              const fileType = file.type.startsWith('image/') ? 'image' :
+                             file.type.startsWith('video/') ? 'video' :
+                             file.type.startsWith('audio/') ? 'audio' : 'document';
+
+              await createMediaFile({
+                name: file.name,
+                url: result.url,
+                publicId: result.publicId,
+                storagePath: result.publicId || '', // Cloudinary uses publicId as identifier
+                type: fileType,
+                mimeType: file.type,
+                size: file.size,
+                folderId: selectedFolder,
+                dimensions: result.width && result.height ? {
+                  width: result.width,
+                  height: result.height
+                } : undefined,
+                alt: file.name.replace(/\.[^/.]+$/, ''), // Extension-sız ad
+                uploadedAt: new Date().toISOString(),
+                uploadedBy: 'admin', // TODO: Real user email
+                usageCount: 0,
+                tags: [],
+              });
+
+              return result;
+            });
+
+            await Promise.all(uploadPromises);
+            
+            alert(`${uploadedFiles.length} fayl uğurla yükləndi`);
+            loadData(); // Siyahını yenilə
+          } catch (error) {
+            console.error('Upload xətası:', error);
+            alert(error instanceof Error ? error.message : 'Fayllar yüklənmədi');
+          } finally {
+            setIsLoading(false);
+            // Input-u sıfırla
+            e.target.value = '';
+          }
         }}
       />
     </div>

@@ -5,24 +5,17 @@ import { useEffect, useState } from "react";
 import { PageHeader, Panel, Alert, Empty, Button } from "@/components/admin/ui";
 import { useAuth } from "@/lib/firebase/auth";
 import { listArticles, countSubscribers } from "@/lib/data/admin";
+import {
+  getOverallStats,
+  getDailyTrend,
+  getTopArticles,
+  getCategoryStats,
+  type OverallStats,
+  type ViewRecord,
+  type ArticleViews,
+} from "@/lib/analytics/track-views";
 import type { Article } from "@/lib/types";
-import { categories } from "@/lib/categories";
-
-/* ── mock data generator (real GA4 API inteqrasiyası üçün placeholder) ── */
-function generateMockData(days: number) {
-  const data = [];
-  const now = new Date();
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-    data.push({
-      date: date.toISOString().slice(0, 10),
-      views: Math.floor(Math.random() * 5000) + 2000,
-      visitors: Math.floor(Math.random() * 3000) + 1000,
-      sessions: Math.floor(Math.random() * 3500) + 1200,
-    });
-  }
-  return data;
-}
+import { categories, getCategory } from "@/lib/categories";
 
 type DateRange = "7d" | "30d" | "90d";
 
@@ -33,46 +26,38 @@ export default function AnalyticsOverviewPage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [subscribers, setSubscribers] = useState(0);
   const [dateRange, setDateRange] = useState<DateRange>("30d");
-
-  // Mock analytics data
-  const days = dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : 90;
-  const dailyData = generateMockData(days);
   
-  const totalViews = dailyData.reduce((sum, d) => sum + d.views, 0);
-  const totalVisitors = dailyData.reduce((sum, d) => sum + d.visitors, 0);
-  const totalSessions = dailyData.reduce((sum, d) => sum + d.sessions, 0);
-  const avgBounceRate = 42.5; // Mock
-  const avgSessionDuration = 185; // saniyə
+  // Real analytics data
+  const [overallStats, setOverallStats] = useState<OverallStats | null>(null);
+  const [dailyTrend, setDailyTrend] = useState<ViewRecord[]>([]);
+  const [topArticlesData, setTopArticlesData] = useState<ArticleViews[]>([]);
+  const [categoryViews, setCategoryViews] = useState<Record<string, number>>({});
 
-  // Traffic sources (mock)
-  const trafficSources = [
-    { source: "Organic Search", visits: 12450, percentage: 45 },
-    { source: "Direct", visits: 8320, percentage: 30 },
-    { source: "Social Media", visits: 4160, percentage: 15 },
-    { source: "Referral", visits: 2775, percentage: 10 },
-  ];
-
-  // Device stats (mock)
-  const deviceStats = [
-    { device: "Mobile", visits: 15640, percentage: 56 },
-    { device: "Desktop", visits: 10980, percentage: 40 },
-    { device: "Tablet", visits: 1110, percentage: 4 },
-  ];
+  const days = dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : 90;
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [dateRange]);
 
   async function loadData() {
     setLoading(true);
     setError("");
     try {
-      const [arts, subs] = await Promise.all([
+      const [arts, subs, stats, trend, tops, catStats] = await Promise.all([
         listArticles(),
         countSubscribers(),
+        getOverallStats(),
+        getDailyTrend(days),
+        getTopArticles(days, 10),
+        getCategoryStats(days),
       ]);
+      
       setArticles(arts);
       setSubscribers(subs);
+      setOverallStats(stats);
+      setDailyTrend(trend);
+      setTopArticlesData(tops);
+      setCategoryViews(catStats);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Yüklənmə xətası");
     } finally {
@@ -80,30 +65,29 @@ export default function AnalyticsOverviewPage() {
     }
   }
 
-  // Top articles by views (simulated based on publishedAt)
-  const topArticles = [...articles]
-    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
-    .slice(0, 10)
-    .map((article, i) => ({
-      ...article,
-      views: Math.floor(Math.random() * 5000) + 500,
-      uniqueVisitors: Math.floor(Math.random() * 3000) + 300,
-    }));
+  // Məqalələr ilə analytics məlumatlarını birləşdir
+  const topArticlesWithDetails = topArticlesData
+    .map((viewData) => {
+      const article = articles.find((a) => a.id === viewData.articleId);
+      return article ? { ...article, ...viewData } : null;
+    })
+    .filter(Boolean);
 
-  // Category performance
+  // Kateqoriya statistikası
   const categoryStats = categories.map((cat) => {
     const catArticles = articles.filter((a) => a.category === cat.slug);
     return {
       category: cat.name.az,
+      slug: cat.slug,
       articles: catArticles.length,
-      views: Math.floor(Math.random() * 10000) + 1000,
+      views: categoryViews[cat.slug] || 0,
     };
-  });
+  }).sort((a, b) => b.views - a.views);
 
   function exportCSV() {
     const csv = [
-      ["Date", "Views", "Visitors", "Sessions"],
-      ...dailyData.map((d) => [d.date, d.views, d.visitors, d.sessions]),
+      ["Date", "Views", "UniqueVisitors"],
+      ...dailyTrend.map((d) => [d.date, d.views, d.uniqueVisitors]),
     ]
       .map((row) => row.join(","))
       .join("\n");
@@ -112,7 +96,7 @@ export default function AnalyticsOverviewPage() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `analytics-${dateRange}.csv`;
+    a.download = `analytics-${dateRange}-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
   }
 
@@ -123,6 +107,23 @@ export default function AnalyticsOverviewPage() {
       </div>
     );
   }
+
+  if (!overallStats) {
+    return (
+      <>
+        <PageHeader title="Analitika" description="Statistika məlumatları yoxdur" />
+        <div className="px-6 py-8 lg:px-10">
+          <Empty
+            title="Məlumat yoxdur"
+            text="Hələ ki view tracking məlumatları toplanmayıb. Saytda məqalələr oxunduqca statistika toplanacaq."
+          />
+        </div>
+      </>
+    );
+  }
+
+  const totalViewsPeriod = dailyTrend.reduce((sum, d) => sum + d.views, 0);
+  const totalVisitorsPeriod = dailyTrend.reduce((sum, d) => sum + d.uniqueVisitors, 0);
 
   return (
     <>
@@ -160,16 +161,35 @@ export default function AnalyticsOverviewPage() {
         {/* KPI Cards */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { label: "Ümumi baxış", value: totalViews.toLocaleString() },
-            { label: "Unikal ziyarətçi", value: totalVisitors.toLocaleString() },
-            { label: "Sessiya", value: totalSessions.toLocaleString() },
-            { label: "Bounce rate", value: `${avgBounceRate}%` },
+            {
+              label: "Ümumi baxış (ümumi)",
+              value: overallStats.totalViews.toLocaleString(),
+              change: `+${overallStats.viewsLast7Days}`,
+            },
+            {
+              label: `Son ${days} gün baxışı`,
+              value: totalViewsPeriod.toLocaleString(),
+              change: overallStats.viewsToday > 0 ? `Bu gün: ${overallStats.viewsToday}` : "",
+            },
+            {
+              label: "Unikal ziyarətçi",
+              value: totalVisitorsPeriod.toLocaleString(),
+              change: `${days} gün`,
+            },
+            {
+              label: "Ortalama/məqalə",
+              value: overallStats.avgViewsPerArticle.toLocaleString(),
+              change: `${overallStats.totalArticles} məqalə`,
+            },
           ].map((stat) => (
             <div key={stat.label} className="border border-line bg-paper px-5 py-4">
               <p className="font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
                 {stat.label}
               </p>
               <p className="mt-2 font-display text-3xl text-ink">{stat.value}</p>
+              {stat.change && (
+                <p className="mt-1 font-ui text-[11px] text-gold">{stat.change}</p>
+              )}
             </div>
           ))}
         </div>
@@ -177,105 +197,101 @@ export default function AnalyticsOverviewPage() {
         {/* Charts Grid */}
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Traffic Chart */}
-          <Panel title="Trafik Dinamikası" description={`Son ${days} gün`}>
-            <div className="space-y-3">
-              {dailyData.slice(-7).map((d) => (
-                <div key={d.date} className="flex items-center gap-3">
-                  <span className="font-ui text-[12px] text-muted w-20">
-                    {new Date(d.date).toLocaleDateString("az-AZ", { month: "short", day: "numeric" })}
-                  </span>
-                  <div className="flex-1 bg-cream h-8 relative overflow-hidden">
-                    <div
-                      className="absolute inset-y-0 left-0 bg-bordo/20 border-r-2 border-bordo"
-                      style={{ width: `${(d.views / 7000) * 100}%` }}
-                    />
-                  </div>
-                  <span className="font-ui text-[13px] text-ink w-16 text-right">
-                    {d.views.toLocaleString()}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </Panel>
-
-          {/* Traffic Sources */}
-          <Panel title="Trafik Mənbələri">
-            <div className="space-y-3">
-              {trafficSources.map((source) => (
-                <div key={source.source}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-ui text-[13px] text-ink">{source.source}</span>
-                    <span className="font-ui text-[12px] text-muted">
-                      {source.visits.toLocaleString()} ({source.percentage}%)
-                    </span>
-                  </div>
-                  <div className="h-2 bg-cream overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-bordo to-gold"
-                      style={{ width: `${source.percentage}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Panel>
-
-          {/* Device Stats */}
-          <Panel title="Cihaz Statistikası">
-            <div className="space-y-4">
-              {deviceStats.map((device) => (
-                <div key={device.device} className="flex items-center gap-4">
-                  <div className="text-3xl">
-                    {device.device === "Mobile" ? "📱" : device.device === "Desktop" ? "💻" : "📱"}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-ui text-[13px] text-ink">{device.device}</span>
-                      <span className="font-ui text-[12px] text-muted">{device.percentage}%</span>
+          <Panel title="Trafik Dinamikası" description={`Son ${days} gün - Real məlumat`}>
+            {dailyTrend.length === 0 ? (
+              <Empty title="Məlumat yoxdur" text="Bu tarix aralığında view məlumatı toplanmayıb." />
+            ) : (
+              <div className="space-y-3">
+                {dailyTrend.slice(-10).map((d) => {
+                  const maxViews = Math.max(...dailyTrend.map(x => x.views), 1);
+                  return (
+                    <div key={d.date} className="flex items-center gap-3">
+                      <span className="font-ui text-[12px] text-muted w-20">
+                        {new Date(d.date).toLocaleDateString("az-AZ", { month: "short", day: "numeric" })}
+                      </span>
+                      <div className="flex-1 bg-cream h-8 relative overflow-hidden">
+                        <div
+                          className="absolute inset-y-0 left-0 bg-bordo/20 border-r-2 border-bordo"
+                          style={{ width: `${(d.views / maxViews) * 100}%` }}
+                        />
+                      </div>
+                      <span className="font-ui text-[13px] text-ink w-20 text-right">
+                        {d.views.toLocaleString()}
+                      </span>
+                      <span className="font-ui text-[11px] text-muted w-16 text-right">
+                        {d.uniqueVisitors} UV
+                      </span>
                     </div>
-                    <div className="h-2 bg-cream overflow-hidden">
-                      <div
-                        className="h-full bg-bordo"
-                        style={{ width: `${device.percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
+              </div>
+            )}
+          </Panel>
+
+          {/* Traffic Sources - GA4 olmadığı üçün placeholder */}
+          <Panel
+            title="Trafik Mənbələri"
+            description="GA4 inteqrasiyası qoşulduqda real məlumat göstəriləcək"
+          >
+            <div className="py-8 text-center">
+              <p className="font-ui text-[12px] text-muted">
+                Google Analytics 4 inteqrasiyası tələb olunur
+              </p>
+              <p className="mt-2 font-ui text-[11px] text-muted">
+                .env.local-da GA4_PROPERTY_ID və GA4_SERVICE_ACCOUNT_KEY əlavə edin
+              </p>
             </div>
           </Panel>
 
-          {/* Session Duration */}
+          {/* Device Stats - GA4 olmadığı üçün placeholder */}
+          <Panel
+            title="Cihaz Statistikası"
+            description="GA4 inteqrasiyası qoşulduqda real məlumat göstəriləcək"
+          >
+            <div className="py-8 text-center">
+              <p className="font-ui text-[12px] text-muted">
+                Cihaz məlumatları üçün GA4 lazımdır
+              </p>
+            </div>
+          </Panel>
+
+          {/* Performance Metrics */}
           <Panel title="Performans Göstəriciləri">
             <div className="space-y-4">
               <div className="border border-line bg-paper p-4">
                 <p className="font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
-                  Orta sessiya müddəti
+                  Ümumi məqalə sayı
                 </p>
                 <p className="mt-2 font-display text-2xl text-ink">
-                  {Math.floor(avgSessionDuration / 60)}:{(avgSessionDuration % 60).toString().padStart(2, "0")}
+                  {overallStats.totalArticles}
                 </p>
               </div>
               <div className="border border-line bg-paper p-4">
                 <p className="font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
-                  Səhifə/sessiya
+                  Bu gün baxış
                 </p>
-                <p className="mt-2 font-display text-2xl text-ink">3.2</p>
+                <p className="mt-2 font-display text-2xl text-ink">{overallStats.viewsToday}</p>
               </div>
               <div className="border border-line bg-paper p-4">
                 <p className="font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
-                  Abunəçi artımı
+                  Abunəçilər
                 </p>
-                <p className="mt-2 font-display text-2xl text-ink">+{subscribers}</p>
+                <p className="mt-2 font-display text-2xl text-ink">{subscribers}</p>
               </div>
             </div>
           </Panel>
         </div>
 
         {/* Top Articles */}
-        <Panel title="Ən çox oxunan məqalələr" description="Son 30 gündə">
-          {topArticles.length === 0 ? (
-            <Empty title="Məqalə yoxdur" text="Statistika görmək üçün məqalələr əlavə edin." />
+        <Panel
+          title="Ən çox oxunan məqalələr"
+          description={`Son ${days} gün - Real tracking məlumatları`}
+        >
+          {topArticlesWithDetails.length === 0 ? (
+            <Empty
+              title="Məlumat yoxdur"
+              text="Hələ ki məqalə baxış statistikası yoxdur. Saytda məqalələr oxunduqca burada göstəriləcək."
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -291,16 +307,19 @@ export default function AnalyticsOverviewPage() {
                       Kateqoriya
                     </th>
                     <th className="px-4 py-3 text-right font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
-                      Baxış
+                      Ümumi
                     </th>
                     <th className="px-4 py-3 text-right font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
-                      Unikal
+                      7 gün
+                    </th>
+                    <th className="px-4 py-3 text-right font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                      30 gün
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {topArticles.map((article, i) => {
-                    const cat = categories.find((c) => c.slug === article.category);
+                  {topArticlesWithDetails.map((article: any, i) => {
+                    const cat = getCategory(article.category);
                     return (
                       <tr key={article.id} className="hover:bg-cream/30">
                         <td className="px-4 py-3 font-ui text-[13px] text-muted">{i + 1}</td>
@@ -316,10 +335,13 @@ export default function AnalyticsOverviewPage() {
                           {cat?.name.az}
                         </td>
                         <td className="px-4 py-3 text-right font-ui text-[13px] text-ink">
-                          {article.views.toLocaleString()}
+                          {article.totalViews.toLocaleString()}
                         </td>
-                        <td className="px-4 py-3 text-right font-ui text-[13px] text-muted">
-                          {article.uniqueVisitors.toLocaleString()}
+                        <td className="px-4 py-3 text-right font-ui text-[13px] text-gold">
+                          {article.last7Days.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 text-right font-ui text-[13px] text-gold">
+                          {article.last30Days.toLocaleString()}
                         </td>
                       </tr>
                     );
@@ -331,10 +353,10 @@ export default function AnalyticsOverviewPage() {
         </Panel>
 
         {/* Category Performance */}
-        <Panel title="Kateqoriya Performansı">
+        <Panel title="Kateqoriya Performansı" description={`Son ${days} gün - Real məlumat`}>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {categoryStats.map((cat) => (
-              <div key={cat.category} className="border border-line bg-paper p-4">
+              <div key={cat.slug} className="border border-line bg-paper p-4">
                 <h3 className="font-display text-[15px] text-ink">{cat.category}</h3>
                 <div className="mt-2 flex items-center justify-between">
                   <span className="font-ui text-[12px] text-muted">
@@ -351,8 +373,13 @@ export default function AnalyticsOverviewPage() {
 
         {/* Info Notice */}
         <Alert tone="info">
-          ℹ️ <strong>Demo data:</strong> Bu statistikalar simulyasiya edilib. Real Google Analytics 4 
-          inteqrasiyası üçün GA4 API açarını əlavə edin.
+          ℹ️ <strong>Real tracking:</strong> Bu səhifədə Firestore-da saxlanılan real məqalə baxış 
+          statistikaları göstərilir. GA4 inteqrasiyası əlavə edildikdə, trafik mənbələri, cihaz və 
+          coğrafi məlumatlar da görünəcək.
+          <br />
+          <br />
+          📌 <strong>Qeyd:</strong> Saytda məqalə səhifələrində /api/track-view endpoint-ini çağırın 
+          ki, baxışlar qeydə alınsın.
         </Alert>
       </div>
     </>

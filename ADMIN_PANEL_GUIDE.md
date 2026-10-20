@@ -272,3 +272,348 @@ service firebase.storage {
 Suallarınız varsa və ya problemlə üzləşirsinizsə:
 - Firebase dokumentasiyası: https://firebase.google.com/docs
 - Next.js dokumentasiyası: https://nextjs.org/docs
+
+
+## 🌐 Avtomatik Tərcümə Sistemi
+
+### Google Translate API Quraşdırması
+
+1. **Google Cloud Console-a daxil olun:**
+   - https://console.cloud.google.com/ açın
+   - Layihə yaradın və ya mövcud layihəni seçin
+
+2. **Cloud Translation API aktivləşdirin:**
+   - Sol menyudan **APIs & Services** → **Library**
+   - "Cloud Translation API" axtarın
+   - **Enable** düyməsinə klikləyin
+
+3. **API Key yaradın:**
+   - **APIs & Services** → **Credentials**
+   - **Create Credentials** → **API Key**
+   - API key-i kopyalayın
+
+4. **API Key-i təhlükəsizləşdirin (tövsiyə olunur):**
+   - Yaradılmış key-ə klikləyin
+   - **API restrictions** → **Restrict key**
+   - **Cloud Translation API** seçin
+   - **Application restrictions** → **HTTP referrers**
+   - Domain əlavə edin: `*.nesreenmagazine.com/*`
+
+5. **.env.local faylına əlavə edin:**
+   ```env
+   GOOGLE_TRANSLATE_API_KEY=AIza...your_key_here
+   ```
+
+6. **Development server-i yenidən başladın:**
+   ```bash
+   npm run dev
+   ```
+
+### Tərcümə Funksiyasının İstifadəsi
+
+#### Məqalə Redaktorunda
+
+1. Məqalə yaradın və ya mövcud məqaləni redaktə edin
+2. **Azərbaycan dilində** başlıq, xülasə və mətn yazın
+3. **"🌐 Avtomatik tərcümə"** düyməsinə klikləyin
+4. Mənbə dili (**az**) və hədəf dili seçin (məs. **en**)
+5. **"Tərcümə et"** düyməsinə klikləyin
+6. Progress bar tərcümə gedişatını göstərəcək
+7. Tərcümə bitdikdə, seçilmiş dilə avtomatik keçid edəcək
+8. **Mütləq tərcüməni yoxlayın və düzəliş edin!**
+
+#### API Endpoint-ləri
+
+**Tək mətn tərcüməsi:**
+```typescript
+POST /api/translate
+{
+  "text": "Salam dünya",
+  "sourceLanguage": "az",
+  "targetLanguage": "en"
+}
+
+Response:
+{
+  "translatedText": "Hello world",
+  "detectedLanguage": "az"
+}
+```
+
+**Batch tərcümə (bir neçə mətn):**
+```typescript
+PUT /api/translate
+{
+  "texts": ["Salam", "Necəsən?", "Salamat qal"],
+  "sourceLanguage": "az",
+  "targetLanguage": "en"
+}
+
+Response:
+{
+  "translations": [
+    { "translatedText": "Hello" },
+    { "translatedText": "How are you?" },
+    { "translatedText": "Goodbye" }
+  ]
+}
+```
+
+### Dəstəklənən Dillər
+
+- 🇦🇿 Azərbaycan (az) - Əsas dil
+- 🇬🇧 İngilis (en)
+- 🇷🇺 Rus (ru)
+- 🇹🇷 Türk (tr)
+- 🇸🇦 Ərəb (ar)
+
+### Məhdudiyyətlər və Qeydlər
+
+- **Tərcümə keyfiyyəti:** Google Translate AI tərcüməsi 100% dəqiq olmaya bilər
+- **Redaktə məcburidir:** Tərcümə edilmiş mətnləri mütləq yoxlayın
+- **Uzun mətnlər:** Uzun məqalələr avtomatik hissələrə bölünür
+- **Markdown formatı:** Link və HTML strukturu qorunmağa çalışılır
+- **API limiti:** Google-un aylıq pulsuz limitini nəzərə alın
+- **Cost:** 500,000+ simvol/ay üçün ödəniş tələb oluna bilər
+
+### Xəta Həlli
+
+**"Google Translate API key konfiqurasiya edilməyib"**
+- `.env.local` faylında `GOOGLE_TRANSLATE_API_KEY` əlavə edin
+- Server-i restart edin
+
+**"API error 403"**
+- API key-in aktivləşdirildiyini yoxlayın
+- Billing-in aktivləşdirildiyini yoxlayın (credit card əlavə edin)
+- API restrictions düzgün qurulub
+
+**"API error 429"**
+- Aylıq limit keçilib
+- Billing plan yüksəldin və ya gözləyin
+
+**Tərcümə yarımçıq qalır**
+- Çox uzun mətnlər üçün chunk size-ı kiçildin
+- İnternet bağlantısını yoxlayın
+- Browser console-da error-lara baxın
+
+### Best Practices
+
+1. **Mənbə dil həmişə Azərbaycan olsun** - ən keyfiyyətli məzmun
+2. **Hər dili ayrıca yoxlayın** - avtomatik tərcüməyə tam güvənməyin
+3. **Xüsusi terminlər** - sahə xüsusi terminləri manual düzəldin
+4. **Mədəni kontekst** - idiomalar və məhəlli ifadələri uyğunlaşdırın
+5. **Markdown və linklər** - tərcümədən sonra link və format yoxlayın
+6. **SEO metadata** - meta title və description ayrıca optimize edin
+
+
+
+## ⏰ Planlaşdırılmış Tapşırıqlar (Scheduled Jobs)
+
+### Backend Job Trigger Sistemi
+
+Sistem avtomatik olaraq planlaşdırılmış məqalələri dərc edir və reklamları aktivləşdirir/deaktiv edir.
+
+### Necə İşləyir?
+
+**Avtomatik əməliyyatlar:**
+1. **Scheduled → Published**: Vaxtı çatan məqalələr avtomatik dərc edilir
+2. **Scheduled → Active**: Başlanğıc tarixi çatan reklamlar aktivləşir
+3. **Active → Expired**: Bitmə tarixi keçən reklamlar dayandırılır
+
+### Vercel Cron Quraşdırması (Tövsiyə olunur)
+
+Vercel-də deploy edilmiş layihələr üçün built-in cron istifadə edin:
+
+1. **vercel.json faylı artıq konfiqurasiya olunub:**
+   ```json
+   {
+     "crons": [
+       {
+         "path": "/api/cron/publish-scheduled",
+         "schedule": "*/10 * * * *"
+       }
+     ]
+   }
+   ```
+
+2. **Schedule format (Cron expression):**
+   - `*/10 * * * *` - Hər 10 dəqiqədə bir
+   - `*/5 * * * *` - Hər 5 dəqiqədə bir (daha tez-tez)
+   - `0 * * * *` - Hər saat başında
+   - `0 0 * * *` - Hər gün gecə yarısı
+
+3. **Deploy edin:**
+   ```bash
+   vercel --prod
+   ```
+
+4. **Yoxlayın:**
+   - Vercel Dashboard → Settings → Cron Jobs
+   - Son icraları görə bilərsiniz
+   - Logs → [CRON] prefix ilə məlumatlar
+
+### Təhlükəsizlik (Security)
+
+**CRON_SECRET_KEY əlavə edin:**
+
+1. Təsadüfi güclü key yaradın:
+   ```bash
+   # PowerShell
+   -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 32 | % {[char]$_})
+   
+   # Və ya online: https://randomkeygen.com/
+   ```
+
+2. `.env.local` və Vercel Environment Variables-a əlavə edin:
+   ```env
+   CRON_SECRET_KEY=abc123xyz789YourRandomSecretHere
+   ```
+
+3. Cron job avtomatik bu key-i yoxlayır və unauthorized çağırışları rədd edir.
+
+### Manual Test
+
+**Admin paneldən test edin:**
+
+1. Admin → **Scheduled Jobs** səhifəsinə keçin
+2. "▶ İndi İşlət" düyməsinə klikləyin
+3. Nəticələrə baxın:
+   - Neçə məqalə dərc edildi
+   - Neçə reklam aktivləşdi
+   - Neçə reklam dayandırıldı
+   - Xəta varsa göstərilir
+
+**API ilə test:**
+```bash
+# Local
+curl http://localhost:3000/api/cron/publish-scheduled
+
+# Production (secret key ilə)
+curl -H "Authorization: Bearer YOUR_SECRET_KEY" \
+  https://nesreenmagazine.com/api/cron/publish-scheduled
+```
+
+### Alternativ: Xarici Cron Service
+
+Vercel istifadə etmirsinizsə və ya daha çevik konfiqurasiya istəyirsinizsə:
+
+#### 1. cron-job.org (Tövsiyə)
+
+- **Sayt:** https://cron-job.org
+- **Qiymət:** Pulsuz
+- **Minimum interval:** 1 dəqiqə
+- **Quraşdırma:**
+  1. Hesab yaradın
+  2. New Cronjob → URL: `https://nesreenmagazine.com/api/cron/publish-scheduled`
+  3. Schedule: `*/10 * * * *` (hər 10 dəqiqə)
+  4. Headers → Add: `Authorization: Bearer YOUR_SECRET_KEY`
+  5. Save & Enable
+
+#### 2. EasyCron
+
+- **Sayt:** https://www.easycron.com
+- **Qiymət:** Pulsuz plan mövcuddur
+- **Minimum interval:** 5 dəqiqə (free), 1 dəqiqə (paid)
+
+#### 3. UptimeRobot
+
+- **Sayt:** https://uptimerobot.com
+- **Qiymət:** Pulsuz
+- **Xüsusiyyət:** Monitoring + Cron
+- **Interval:** 5 dəqiqə
+
+### Monitoring və Debugging
+
+**Vercel Logs:**
+```
+Vercel Dashboard → Deployments → Select Latest → Logs
+Filter: [CRON]
+```
+
+**Log mesajları:**
+```
+[CRON] Scheduled tasks completed: {
+  publishedArticles: 2,
+  activatedAds: 1,
+  deactivatedAds: 3,
+  errors: []
+}
+```
+
+**Xəta halında:**
+- Error-lar `errors` array-də göstərilir
+- Firestore permissions yoxlayın
+- Environment variables düzgündür?
+- Cron secret key düzdür?
+
+### Planlaşdırılmış Məqalə Yaratmaq
+
+1. **Məqalə redaktorunda:**
+   - Məqaləni yazın
+   - "Planlaşdırılmış dərc" sahəsində gələcək tarix-vaxt seçin
+   - Status: **Scheduled** seçin
+   - Yadda saxlayın
+
+2. **Nə olur:**
+   - Məqalə `status: "scheduled"` olaraq saxlanır
+   - Public saytda görünmür
+   - Cron job hər 10 dəqiqədə yoxlayır
+   - Vaxt çatdıqda avtomatik `status: "published"` olur
+   - Məqalə saytda görünməyə başlayır
+
+### Planlaşdırılmış Reklam
+
+1. **Reklam formasında:**
+   - Reklam məlumatlarını daxil edin
+   - `startsAt` - başlanğıc tarixi
+   - `endsAt` - bitmə tarixi
+   - Status: **Scheduled**
+
+2. **Avtomatik lifecycle:**
+   - `scheduled` → `active` (startsAt tarixi çatır)
+   - `active` → `expired` (endsAt tarixi keçir)
+
+### Best Practices
+
+✅ **Tövsiyələr:**
+- Hər həftə manual test edin
+- Vercel logs-u izləyin
+- Planlaşdırılmış məqalələri bir neçə dəqiqə əvvəl hazırlayın
+- Minimum 15-30 dəqiqə əvvəl planlaşdırın (cron delay)
+
+⚠️ **Diqqət:**
+- Cron job 10 dəqiqədə bir işləyir
+- Dəqiq saniyə ilə dərc olmur (±10 dəqiqə dəqiqlik)
+- Daha dəqiq lazımsa, schedule interval-ı `*/5 * * * *` edin
+- Çox tez-tez işləmək server yükünü artırır
+
+### Troubleshooting
+
+**Problem:** Scheduled məqalə published olmur
+- ✓ Cron job işləyir? (Vercel Dashboard yoxlayın)
+- ✓ scheduledAt tarixi keçmiş tarixdir?
+- ✓ Status "scheduled" dir?
+- ✓ Manual test edin admin paneldən
+
+**Problem:** Unauthorized 401 error
+- ✓ CRON_SECRET_KEY environment variable-da var?
+- ✓ Authorization header düzdür?
+- ✓ Vercel-də environment variable sync olub?
+
+**Problem:** Firestore permission denied
+- ✓ Firebase rules yoxlayın
+- ✓ Service account permissions
+- ✓ firestore.rules faylında update icazəsi
+
+### Production Checklist
+
+Canlı mühitə deploy etməzdən əvvəl:
+
+- [ ] `vercel.json`-da cron konfiqurasiyası var
+- [ ] `CRON_SECRET_KEY` environment variable əlavə edilib
+- [ ] Vercel-ə deploy edilib
+- [ ] Vercel Dashboard-da Cron Jobs aktiv göstərilir
+- [ ] Manual test edilib və işləyir
+- [ ] İlk scheduled məqalə yaradılıb və test edilib
+- [ ] Monitoring qurulub (Slack, email notifications)
+

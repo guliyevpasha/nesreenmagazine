@@ -1621,8 +1621,10 @@ export type MediaFile = {
   type: FileType;
   /** Mime type. */
   mimeType: string;
-  /** Firebase Storage path. */
+  /** Firebase Storage path or Cloudinary public ID. */
   storagePath: string;
+  /** Cloudinary public ID (for Cloudinary uploads). */
+  publicId?: string;
   /** Public URL. */
   url: string;
   /** Fayl ölçüsü (bytes). */
