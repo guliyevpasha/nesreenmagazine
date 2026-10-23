@@ -95,9 +95,33 @@ export default function ArticleEditor({ article }: { article?: Article }) {
   const router = useRouter();
   const { session } = useAuth();
 
-  const [draft, setDraft] = useState<ArticleInput>(() =>
-    article ? { ...article } : emptyArticle(),
-  );
+  const [draft, setDraft] = useState<ArticleInput>(() => {
+    if (!article) return emptyArticle();
+    
+    // Normalize article data to ensure all LocalizedText fields are objects
+    const normalizeLocalizedText = (value: any): LocalizedText => {
+      if (typeof value === 'string') {
+        return { az: value, en: '', ru: '', tr: '', ar: '' };
+      }
+      return value || emptyLocalized();
+    };
+    
+    const normalizeLocalizedTags = (value: any): LocalizedTags => {
+      if (typeof value === 'string') {
+        return { az: [value], en: [], ru: [], tr: [], ar: [] };
+      }
+      return value || emptyLocalizedTags();
+    };
+    
+    return {
+      ...article,
+      title: normalizeLocalizedText(article.title),
+      body: normalizeLocalizedText(article.body),
+      excerpt: normalizeLocalizedText(article.excerpt),
+      coverAlt: normalizeLocalizedText(article.coverAlt),
+      tags: normalizeLocalizedTags(article.tags),
+    };
+  });
   const [activeLocale, setActiveLocale] = useState<Locale>("az");
   const [preview, setPreview] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -719,8 +743,8 @@ export default function ArticleEditor({ article }: { article?: Article }) {
 
           {/* AI Kontent Köməkçisi */}
           <AIContentAssistant
-            title={draft.title[activeLocale]}
-            body={draft.body[activeLocale]}
+            title={draft.title[activeLocale] || ""}
+            body={draft.body[activeLocale] || ""}
             category={draft.category}
             onApplyTitle={(t) =>
               setDraft((cur) => ({
