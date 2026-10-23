@@ -146,6 +146,8 @@ export default function ArticlesListPage() {
   const [success, setSuccess] = useState("");
   const [term, setTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft" | "scheduled">("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   /* Bulk state */
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -188,6 +190,17 @@ export default function ArticlesListPage() {
     });
   }, [articles, category, statusFilter, term]);
 
+  // Pagination hesablamaları
+  const totalPages = Math.ceil(visible.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedArticles = visible.slice(startIndex, endIndex);
+
+  // Filtr və ya axtarış dəyişdikdə 1-ci səhifəyə qayıt
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [term, statusFilter, category]);
+
   const title = category ? getCategory(category)?.name.az ?? "Məqalələr" : "Bütün məqalələr";
 
   /* ── Seçim əməliyyatları ── */
@@ -200,10 +213,21 @@ export default function ArticlesListPage() {
   }
 
   function toggleAll() {
-    if (selected.size === visible.length) {
-      setSelected(new Set());
+    if (selected.size === paginatedArticles.length) {
+      // Səhifədəki seçimi ləğv et
+      const pageIds = new Set(paginatedArticles.map((a) => a.id));
+      setSelected((prev) => {
+        const next = new Set(prev);
+        pageIds.forEach((id) => next.delete(id));
+        return next;
+      });
     } else {
-      setSelected(new Set(visible.map((a) => a.id)));
+      // Səhifədəkiləri seç
+      setSelected((prev) => {
+        const next = new Set(prev);
+        paginatedArticles.forEach((a) => next.add(a.id));
+        return next;
+      });
     }
   }
 
@@ -423,115 +447,175 @@ export default function ArticlesListPage() {
             text="Bu bölmədə hələ yazı yoxdur. «Yeni məqalə» düyməsi ilə başlaya bilərsiniz."
           />
         ) : (
-          <div className="overflow-x-auto border border-line bg-paper">
-            <table className="w-full min-w-[800px] text-start">
-              <thead>
-                <tr className="border-b border-line bg-cream-deep/40">
-                  {/* Seçim checkbox */}
-                  <th className="w-10 px-4 py-3">
-                    <input
-                      type="checkbox"
-                      checked={selected.size === visible.length && visible.length > 0}
-                      onChange={toggleAll}
-                      className="h-4 w-4 accent-bordo"
-                      aria-label="Hamısını seç"
-                    />
-                  </th>
-                  {["Başlıq", "Bölmə", "Dillər", "Tarix", "Vəziyyət", "Əməliyyatlar"].map((heading) => (
-                    <th
-                      key={heading}
-                      className={`px-5 py-3 font-ui text-[10.5px] uppercase tracking-[0.16em] text-muted ${
-                        heading === "Əməliyyatlar" ? "text-end" : "text-start"
-                      }`}
-                    >
-                      {heading}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {visible.map((article) => (
-                  <tr
-                    key={article.id}
-                    className={`transition-colors hover:bg-cream-deep/30 ${
-                      selected.has(article.id) ? "bg-gold/5" : ""
-                    }`}
-                  >
-                    <td className="px-4 py-4">
+          <>
+            <div className="overflow-x-auto border border-line bg-paper">
+              <table className="w-full min-w-[800px] text-start">
+                <thead>
+                  <tr className="border-b border-line bg-cream-deep/40">
+                    {/* Seçim checkbox */}
+                    <th className="w-10 px-4 py-3">
                       <input
                         type="checkbox"
-                        checked={selected.has(article.id)}
-                        onChange={() => toggleSelect(article.id)}
+                        checked={
+                          paginatedArticles.length > 0 &&
+                          paginatedArticles.every((a) => selected.has(a.id))
+                        }
+                        onChange={toggleAll}
                         className="h-4 w-4 accent-bordo"
-                        aria-label={`${getArticleTitle(article, "az")} seç`}
+                        aria-label="Səhifədəkiləri seç"
                       />
-                    </td>
-                    <td className="px-5 py-4">
-                      <Link
-                        href={`/admin/articles/${article.id}`}
-                        className="font-display text-[1.0625rem] leading-snug text-ink hover:text-bordo"
+                    </th>
+                    {["Başlıq", "Bölmə", "Dillər", "Tarix", "Vəziyyət", "Əməliyyatlar"].map((heading) => (
+                      <th
+                        key={heading}
+                        className={`px-5 py-3 font-ui text-[10.5px] uppercase tracking-[0.16em] text-muted ${
+                          heading === "Əməliyyatlar" ? "text-end" : "text-start"
+                        }`}
                       >
-                        {getArticleTitle(article, "az")}
-                      </Link>
-                      <p className="mt-1 font-mono text-[11px] text-muted">/{article.slug}</p>
-                      {article.scheduledAt && (
-                        <p className="mt-0.5 font-ui text-[10px] text-blue-600">
-                          ⏰ {new Date(article.scheduledAt).toLocaleString("az-AZ")}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-5 py-4 font-ui text-[13px] text-ink-soft">
-                      {getCategory(article.category)?.name.az || article.category}
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex gap-1">
-                        {locales.map((code: Locale) => {
-                          const done = isArticleComplete(article, code);
-                          return (
-                            <span
-                              key={code}
-                              title={done ? "dolu" : "boş"}
-                              className={`border px-1.5 py-0.5 font-ui text-[9.5px] tracking-wide ${
-                                done
-                                  ? "border-gold bg-gold/15 text-ink"
-                                  : "border-line text-muted/60"
-                              }`}
-                            >
-                              {localeShort[code]}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 font-ui text-[13px] text-ink-soft">
-                      {formatDate(article.publishedAt, "az")}
-                    </td>
-                    <td className="px-5 py-4">
-                      <ArticleStatusPill status={article.status} />
-                    </td>
-                    <td className="px-5 py-4">
-                      <ArticleActionsMenu article={article} onDelete={load} />
-                    </td>
+                        {heading}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {paginatedArticles.map((article) => (
+                    <tr
+                      key={article.id}
+                      className={`transition-colors hover:bg-cream-deep/30 ${
+                        selected.has(article.id) ? "bg-gold/5" : ""
+                      }`}
+                    >
+                      <td className="px-4 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(article.id)}
+                          onChange={() => toggleSelect(article.id)}
+                          className="h-4 w-4 accent-bordo"
+                          aria-label={`${getArticleTitle(article, "az")} seç`}
+                        />
+                      </td>
+                      <td className="px-5 py-4">
+                        <Link
+                          href={`/admin/articles/${article.id}`}
+                          className="font-display text-[1.0625rem] leading-snug text-ink hover:text-bordo"
+                        >
+                          {getArticleTitle(article, "az")}
+                        </Link>
+                        <p className="mt-1 font-mono text-[11px] text-muted">/{article.slug}</p>
+                        {article.scheduledAt && (
+                          <p className="mt-0.5 font-ui text-[10px] text-blue-600">
+                            ⏰ {new Date(article.scheduledAt).toLocaleString("az-AZ")}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 font-ui text-[13px] text-ink-soft">
+                        {getCategory(article.category)?.name.az || article.category}
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex gap-1">
+                          {locales.map((code: Locale) => {
+                            const done = isArticleComplete(article, code);
+                            return (
+                              <span
+                                key={code}
+                                title={done ? "dolu" : "boş"}
+                                className={`border px-1.5 py-0.5 font-ui text-[9.5px] tracking-wide ${
+                                  done
+                                    ? "border-gold bg-gold/15 text-ink"
+                                    : "border-line text-muted/60"
+                                }`}
+                              >
+                                {localeShort[code]}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 font-ui text-[13px] text-ink-soft">
+                        {formatDate(article.publishedAt, "az")}
+                      </td>
+                      <td className="px-5 py-4">
+                        <ArticleStatusPill status={article.status} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <ArticleActionsMenu article={article} onDelete={load} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-            {/* Footer */}
-            <div className="border-t border-line px-5 py-3 flex items-center justify-between">
-              <p className="font-ui text-[12px] text-muted">
-                {visible.length} məqalə göstərilir
-                {selected.size > 0 && ` · ${selected.size} seçilib`}
-              </p>
-              <Button
-                variant="ghost"
-                onClick={() => exportCsv(visible)}
-                className="py-1.5 text-[10px]"
-              >
-                ↓ CSV ixrac
-              </Button>
+              {/* Footer with pagination info */}
+              <div className="border-t border-line px-5 py-3 flex items-center justify-between">
+                <p className="font-ui text-[12px] text-muted">
+                  {startIndex + 1}-{Math.min(endIndex, visible.length)} məqalə, cəmi {visible.length}
+                  {selected.size > 0 && ` · ${selected.size} seçilib`}
+                </p>
+                <Button
+                  variant="ghost"
+                  onClick={() => exportCsv(visible)}
+                  className="py-1.5 text-[10px]"
+                >
+                  ↓ CSV ixrac
+                </Button>
+              </div>
             </div>
-          </div>
+
+            {/* Pagination controls */}
+            {totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="border border-line px-4 py-2 font-ui text-[11px] text-ink hover:border-bordo hover:text-bordo disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  ← Əvvəlki
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                  // Göstəriləcək səhifə nömrələrini məhdudlaşdır
+                  const showPage =
+                    page === 1 ||
+                    page === totalPages ||
+                    (page >= currentPage - 2 && page <= currentPage + 2);
+
+                  if (!showPage) {
+                    // "..." göstər (yalnız bir dəfə)
+                    if (page === currentPage - 3 || page === currentPage + 3) {
+                      return (
+                        <span key={page} className="px-2 font-ui text-[11px] text-muted">
+                          …
+                        </span>
+                      );
+                    }
+                    return null;
+                  }
+
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`min-w-[40px] border px-3 py-2 font-ui text-[11px] transition-all ${
+                        page === currentPage
+                          ? "border-gold bg-gold text-bordo-deep shadow-sm"
+                          : "border-line text-ink hover:border-bordo hover:text-bordo"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="border border-line px-4 py-2 font-ui text-[11px] text-ink hover:border-bordo hover:text-bordo disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Növbəti →
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </>

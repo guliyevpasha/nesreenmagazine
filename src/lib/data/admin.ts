@@ -170,62 +170,100 @@ export async function listArticles(): Promise<Article[]> {
 
 export async function getArticle(id: string): Promise<Article | null> {
   try {
+    // Seed məqalə ID-si ilə başlayırsa, əvvəlcə seed-dən yoxla
+    if (id.startsWith('seed-')) {
+      const { seedArticles } = await import('@/lib/content');
+      const seedArticle = seedArticles.find((a) => a.id === id);
+      
+      if (seedArticle) {
+        // Seed məqaləni Firestore-a köçür (ilk redaktə zamanı)
+        // Yeni ID yarat (seed- prefix-i sil)
+        const newId = id.replace(/^seed-/, '');
+        
+        // Firestore-da artıq varmı yoxla
+        const existingSnapshot = await getDoc(doc(db(), COLLECTIONS.articles, newId));
+        if (existingSnapshot.exists()) {
+          // Artıq köçürülüb, Firestore versiyasını qaytar
+          const data = existingSnapshot.data();
+          return normalizeArticleData(existingSnapshot.id, data);
+        }
+        
+        // Yox, seed-dən Firestore-a köçür
+        await setDoc(doc(db(), COLLECTIONS.articles, newId), {
+          ...seedArticle,
+          id: newId, // Yeni ID
+        });
+        
+        // Yeni yaradılmış məqaləni qaytar
+        return { ...seedArticle, id: newId };
+      }
+      
+      // Seed-də tapılmadı
+      return null;
+    }
+    
+    // Normal Firestore məqaləsi
     const snapshot = await getDoc(doc(db(), COLLECTIONS.articles, id));
     if (!snapshot.exists()) return null;
     
     const data = snapshot.data();
     if (!data || typeof data !== 'object') return null;
     
-    // Normalize data - same as listArticles
-    const title = data.title || {};
-    const normalizedTitle = typeof title === 'string' 
-      ? { az: title, en: '', ru: '', tr: '' }
-      : title;
-    
-    const body = data.body || {};
-    const normalizedBody = typeof body === 'string'
-      ? { az: body, en: '', ru: '', tr: '' }
-      : body;
-      
-    const excerpt = data.excerpt || {};
-    const normalizedExcerpt = typeof excerpt === 'string'
-      ? { az: excerpt, en: '', ru: '', tr: '' }
-      : excerpt;
-    
-    const normalizedCoverAlt = typeof data.coverAlt === 'string'
-      ? { az: data.coverAlt, en: '', ru: '', tr: '' }
-      : (data.coverAlt || { az: '', en: '', ru: '', tr: '' });
-    
-    const normalizedTags = typeof data.tags === 'string'
-      ? { az: [data.tags], en: [], ru: [], tr: [] }
-      : (data.tags || { az: [], en: [], ru: [], tr: [] });
-    
-    return {
-      id: snapshot.id,
-      slug: String(data.slug || snapshot.id),
-      category: String(data.category || 'gundem'),
-      subcategory: data.subcategory ? String(data.subcategory) : undefined,
-      status: String(data.status || 'draft'),
-      featured: Boolean(data.featured),
-      trending: Boolean(data.trending),
-      coverImage: String(data.coverImage || ''),
-      coverAlt: normalizedCoverAlt,
-      coverCredit: String(data.coverCredit || ''),
-      title: normalizedTitle,
-      excerpt: normalizedExcerpt,
-      body: normalizedBody,
-      tags: normalizedTags,
-      author: String(data.author || 'admin'),
-      publishedAt: String(data.publishedAt || new Date().toISOString()),
-      updatedAt: data.updatedAt ? String(data.updatedAt) : undefined,
-      readingMinutes: Number(data.readingMinutes) || 0,
-      scheduledAt: data.scheduledAt ? String(data.scheduledAt) : undefined,
-      mediaBlocks: Array.isArray(data.mediaBlocks) ? data.mediaBlocks : [],
-    } as Article;
+    return normalizeArticleData(snapshot.id, data);
   } catch (error) {
     console.error(`Error getting article ${id}:`, error);
     return null;
   }
+}
+
+// Helper function to normalize article data
+function normalizeArticleData(id: string, data: any): Article {
+  // Normalize data - same as listArticles
+  const title = data.title || {};
+  const normalizedTitle = typeof title === 'string' 
+    ? { az: title, en: '', ru: '', tr: '', ar: '' }
+    : title;
+  
+  const body = data.body || {};
+  const normalizedBody = typeof body === 'string'
+    ? { az: body, en: '', ru: '', tr: '', ar: '' }
+    : body;
+    
+  const excerpt = data.excerpt || {};
+  const normalizedExcerpt = typeof excerpt === 'string'
+    ? { az: excerpt, en: '', ru: '', tr: '', ar: '' }
+    : excerpt;
+  
+  const normalizedCoverAlt = typeof data.coverAlt === 'string'
+    ? { az: data.coverAlt, en: '', ru: '', tr: '', ar: '' }
+    : (data.coverAlt || { az: '', en: '', ru: '', tr: '', ar: '' });
+  
+  const normalizedTags = typeof data.tags === 'string'
+    ? { az: [data.tags], en: [], ru: [], tr: [], ar: [] }
+    : (data.tags || { az: [], en: [], ru: [], tr: [], ar: [] });
+  
+  return {
+    id,
+    slug: String(data.slug || id),
+    category: String(data.category || 'gundem'),
+    subcategory: data.subcategory ? String(data.subcategory) : undefined,
+    status: String(data.status || 'draft'),
+    featured: Boolean(data.featured),
+    trending: Boolean(data.trending),
+    coverImage: String(data.coverImage || ''),
+    coverAlt: normalizedCoverAlt,
+    coverCredit: String(data.coverCredit || ''),
+    title: normalizedTitle,
+    excerpt: normalizedExcerpt,
+    body: normalizedBody,
+    tags: normalizedTags,
+    author: String(data.author || 'admin'),
+    publishedAt: String(data.publishedAt || new Date().toISOString()),
+    updatedAt: data.updatedAt ? String(data.updatedAt) : undefined,
+    readingMinutes: Number(data.readingMinutes) || 0,
+    scheduledAt: data.scheduledAt ? String(data.scheduledAt) : undefined,
+    mediaBlocks: Array.isArray(data.mediaBlocks) ? data.mediaBlocks : [],
+  } as Article;
 }
 
 export async function createArticle(input: ArticleInput): Promise<string> {
