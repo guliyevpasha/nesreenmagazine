@@ -78,8 +78,36 @@ export async function getArticlesBySubcategory(
 }
 
 export async function getArticleBySlug(slug: string): Promise<Article | null> {
-  const articles = await getAllArticles();
-  return articles.find((article) => article.slug === slug) ?? null;
+  // Admin paneldən fərqli olaraq, saytda BÜTÜN məqalələri yoxlayırıq
+  // (draft, scheduled, published) və sonra səhifədə status yoxlayırıq
+  if (!isFirebaseConfigured) {
+    return seedArticles.find((article) => article.slug === slug) ?? null;
+  }
+
+  const db = getDb();
+  if (!db) {
+    return seedArticles.find((article) => article.slug === slug) ?? null;
+  }
+
+  try {
+    const snapshot = await getDocs(
+      query(
+        collection(db, COLLECTIONS.articles),
+        where("slug", "==", slug),
+      ),
+    );
+    
+    if (snapshot.empty) {
+      // Firestore-da yoxdursa seed-də yoxlayırıq
+      return seedArticles.find((article) => article.slug === slug) ?? null;
+    }
+    
+    const doc = snapshot.docs[0];
+    return { ...(doc.data() as Omit<Article, "id">), id: doc.id };
+  } catch (error) {
+    console.error("[nesreen] Məqalə oxumaq alınmadı, seed-ə baxılır:", error);
+    return seedArticles.find((article) => article.slug === slug) ?? null;
+  }
 }
 
 /** Ana səhifədəki böyük "kapak" məqaləsi. */
