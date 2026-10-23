@@ -1,22 +1,6 @@
 "use client";
 
-import { LexicalComposer } from "@lexical/react/LexicalComposer";
-import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
-import { ContentEditable } from "@lexical/react/LexicalContentEditable";
-import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
-import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
-import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
-import { HeadingNode, QuoteNode } from "@lexical/rich-text";
-import { ListItemNode, ListNode } from "@lexical/list";
-import { LinkNode } from "@lexical/link";
-import { ListPlugin } from "@lexical/react/LexicalListPlugin";
-import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin";
-import ToolbarPlugin from "./editor/ToolbarPlugin";
-import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
-import { $generateHtmlFromNodes } from "@lexical/html";
-import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { useEffect } from "react";
-import { $getRoot } from "lexical";
+import { useEffect, useRef, useState } from "react";
 
 interface RichTextEditorProps {
   content: string;
@@ -24,102 +8,183 @@ interface RichTextEditorProps {
   placeholder?: string;
 }
 
-// Theme configuration
-const theme = {
-  paragraph: "mb-2",
-  text: {
-    bold: "font-bold",
-    italic: "italic",
-    underline: "underline",
-    strikethrough: "line-through",
-  },
-  heading: {
-    h1: "text-4xl font-bold mb-4 mt-6",
-    h2: "text-3xl font-bold mb-3 mt-5",
-    h3: "text-2xl font-bold mb-2 mt-4",
-    h4: "text-xl font-semibold mb-2 mt-3",
-    h5: "text-lg font-semibold mb-1 mt-2",
-    h6: "text-base font-semibold mb-1 mt-2",
-  },
-  list: {
-    ul: "list-disc list-inside ml-4 mb-2",
-    ol: "list-decimal list-inside ml-4 mb-2",
-    listitem: "mb-1",
-  },
-  link: "text-bordo underline hover:text-bordo-deep cursor-pointer",
-  quote: "border-l-4 border-bordo pl-4 italic text-ink-soft my-4",
-};
-
-// Initial content loader
-function InitialContentPlugin({ content }: { content: string }) {
-  const [editor] = useLexicalComposerContext();
-
-  useEffect(() => {
-    if (content && content.trim()) {
-      editor.update(() => {
-        const root = $getRoot();
-        root.clear();
-        // Content will be loaded here
-      });
-    }
-  }, [editor, content]);
-
-  return null;
-}
-
 export default function RichTextEditor({
   content,
   onChange,
   placeholder = "Məzmun daxil edin...",
 }: RichTextEditorProps) {
-  const initialConfig = {
-    namespace: "NesreenEditor",
-    theme,
-    onError: (error: Error) => {
-      console.error("Lexical error:", error);
-    },
-    nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, LinkNode],
+  const editorRef = useRef<HTMLDivElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (editorRef.current && content && !editorRef.current.innerHTML) {
+      editorRef.current.innerHTML = content;
+    }
+  }, [content]);
+
+  const handleInput = () => {
+    if (editorRef.current) {
+      onChange(editorRef.current.innerHTML);
+    }
   };
 
-  function handleChange(editorState: any) {
-    editorState.read(() => {
-      const htmlString = $generateHtmlFromNodes(editorState._editorState._nodeMap);
-      onChange(htmlString);
-    });
-  }
+  const formatText = (command: string, value: string | undefined = undefined) => {
+    document.execCommand(command, false, value);
+    editorRef.current?.focus();
+  };
+
+  const insertLink = () => {
+    const url = prompt("Link URL daxil edin:");
+    if (url) {
+      formatText("createLink", url);
+    }
+  };
+
+  const insertImage = () => {
+    const url = prompt("Şəkil URL daxil edin:");
+    if (url) {
+      formatText("insertImage", url);
+    }
+  };
+
+  const formatBlock = (tag: string) => {
+    formatText("formatBlock", tag);
+  };
 
   return (
     <div className="border-2 border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
-      <LexicalComposer initialConfig={initialConfig}>
-        {/* Toolbar */}
-        <ToolbarPlugin />
-
-        {/* Editor Container */}
-        <div className="relative bg-white">
-          <RichTextPlugin
-            contentEditable={
-              <ContentEditable
-                className="min-h-[450px] p-6 outline-none prose prose-slate max-w-none focus:outline-none"
-                style={{ caretColor: "#7b2233" }}
-              />
-            }
-            placeholder={
-              <div className="absolute top-6 left-6 text-slate-400 pointer-events-none select-none">
-                {placeholder}
-              </div>
-            }
-            ErrorBoundary={LexicalErrorBoundary}
-          />
-
-          {/* Plugins */}
-          <HistoryPlugin />
-          <AutoFocusPlugin />
-          <ListPlugin />
-          <LinkPlugin />
-          <OnChangePlugin onChange={handleChange} />
-          <InitialContentPlugin content={content} />
+      {/* Toolbar */}
+      <div className="flex flex-wrap gap-2 p-3 bg-slate-50 border-b-2 border-slate-200">
+        {/* Text Format */}
+        <div className="flex gap-1 border-r-2 border-slate-300 pr-2">
+          <ToolbarButton onClick={() => formatText("bold")} title="Qalın (Ctrl+B)">
+            <strong className="text-base">B</strong>
+          </ToolbarButton>
+          <ToolbarButton onClick={() => formatText("italic")} title="Maili (Ctrl+I)">
+            <em className="text-base font-serif">I</em>
+          </ToolbarButton>
+          <ToolbarButton onClick={() => formatText("underline")} title="Altdan xətt (Ctrl+U)">
+            <u className="text-base">U</u>
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => formatText("strikeThrough")}
+            title="Üstündən xətt"
+          >
+            <s className="text-base">S</s>
+          </ToolbarButton>
         </div>
-      </LexicalComposer>
+
+        {/* Headings */}
+        <div className="flex gap-1 border-r-2 border-slate-300 pr-2">
+          <select
+            className="px-3 py-1.5 border border-slate-300 rounded-md bg-white text-sm font-medium hover:bg-slate-50 cursor-pointer"
+            onChange={(e) => formatBlock(e.target.value)}
+            defaultValue="p"
+          >
+            <option value="p">Normal</option>
+            <option value="h1">Başlıq 1</option>
+            <option value="h2">Başlıq 2</option>
+            <option value="h3">Başlıq 3</option>
+            <option value="h4">Başlıq 4</option>
+            <option value="h5">Başlıq 5</option>
+            <option value="h6">Başlıq 6</option>
+          </select>
+        </div>
+
+        {/* Text Align */}
+        <div className="flex gap-1 border-r-2 border-slate-300 pr-2">
+          <ToolbarButton onClick={() => formatText("justifyLeft")} title="Sola">
+            <span className="text-lg">⬅</span>
+          </ToolbarButton>
+          <ToolbarButton onClick={() => formatText("justifyCenter")} title="Mərkəzə">
+            <span className="text-lg">↔</span>
+          </ToolbarButton>
+          <ToolbarButton onClick={() => formatText("justifyRight")} title="Sağa">
+            <span className="text-lg">➡</span>
+          </ToolbarButton>
+          <ToolbarButton onClick={() => formatText("justifyFull")} title="İki tərəfə">
+            <span className="text-sm">⬌</span>
+          </ToolbarButton>
+        </div>
+
+        {/* Lists */}
+        <div className="flex gap-1 border-r-2 border-slate-300 pr-2">
+          <ToolbarButton onClick={() => formatText("insertUnorderedList")} title="Nöqtəli siyahı">
+            <span className="text-lg">•</span>
+          </ToolbarButton>
+          <ToolbarButton onClick={() => formatText("insertOrderedList")} title="Nömrəli siyahı">
+            <span className="text-sm font-bold">1.</span>
+          </ToolbarButton>
+        </div>
+
+        {/* Quote */}
+        <div className="flex gap-1 border-r-2 border-slate-300 pr-2">
+          <ToolbarButton onClick={() => formatBlock("blockquote")} title="Sitat">
+            <span className="text-lg">"</span>
+          </ToolbarButton>
+        </div>
+
+        {/* Link & Image */}
+        <div className="flex gap-1 border-r-2 border-slate-300 pr-2">
+          <ToolbarButton onClick={insertLink} title="Link əlavə et">
+            <span className="text-base">🔗</span>
+          </ToolbarButton>
+          <ToolbarButton onClick={insertImage} title="Şəkil əlavə et">
+            <span className="text-base">🖼️</span>
+          </ToolbarButton>
+        </div>
+
+        {/* Undo/Redo */}
+        <div className="flex gap-1">
+          <ToolbarButton onClick={() => formatText("undo")} title="Geri al">
+            <span className="text-lg">↶</span>
+          </ToolbarButton>
+          <ToolbarButton onClick={() => formatText("redo")} title="Təkrar et">
+            <span className="text-lg">↷</span>
+          </ToolbarButton>
+        </div>
+      </div>
+
+      {/* Editor */}
+      <div className="relative bg-white p-6">
+        {!isFocused && !content && (
+          <div className="absolute top-6 left-6 text-slate-400 pointer-events-none">
+            {placeholder}
+          </div>
+        )}
+        <div
+          ref={editorRef}
+          contentEditable
+          onInput={handleInput}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          className="min-h-[450px] outline-none prose prose-slate max-w-none focus:outline-none"
+          style={{
+            caretColor: "#7b2233",
+            fontSize: "16px",
+            lineHeight: "1.7",
+          }}
+        />
+      </div>
     </div>
+  );
+}
+
+interface ToolbarButtonProps {
+  onClick: () => void;
+  title?: string;
+  children: React.ReactNode;
+}
+
+function ToolbarButton({ onClick, title, children }: ToolbarButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className="px-3 py-1.5 rounded-md font-ui text-sm min-w-[38px] bg-white hover:bg-slate-100 text-slate-700 hover:text-bordo border border-slate-200 hover:border-bordo cursor-pointer active:scale-95 transition-all duration-150"
+    >
+      {children}
+    </button>
   );
 }
