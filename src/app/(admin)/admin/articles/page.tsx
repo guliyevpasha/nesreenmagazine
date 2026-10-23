@@ -69,9 +69,16 @@ export default function ArticlesListPage() {
   async function load() {
     try {
       const list = await listArticles();
+      console.log('📊 Loaded articles:', list);
+      console.log('📊 First article:', list[0]);
+      if (list[0]) {
+        console.log('📊 First article title type:', typeof list[0].title);
+        console.log('📊 First article title:', list[0].title);
+      }
       setArticles(list);
       setSelected(new Set()); // seçimi sıfırla
     } catch (caught) {
+      console.error('❌ Error loading articles:', caught);
       setError(caught instanceof Error ? caught.message : "Məqalələr oxunmadı.");
     }
   }
