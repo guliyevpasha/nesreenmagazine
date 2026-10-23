@@ -64,11 +64,12 @@ function db() {
 
 export async function listArticles(): Promise<Article[]> {
   try {
+    // 1. Firestore-dan məqalələr
     const snapshot = await getDocs(
       query(collection(db(), COLLECTIONS.articles), orderBy("publishedAt", "desc")),
     );
     
-    return snapshot.docs
+    const firestoreArticles = snapshot.docs
       .map((item) => {
         try {
           const data = item.data();
@@ -134,9 +135,36 @@ export async function listArticles(): Promise<Article[]> {
         }
       })
       .filter((article): article is Article => article !== null);
+    
+    // 2. Seed articles (hard-coded) - fəqət Firestore-da olmayan
+    // Import seed articles dynamically to avoid circular dependency
+    const { seedArticles } = await import('@/lib/content');
+    const firestoreSlugs = new Set(firestoreArticles.map(a => a.slug));
+    const uniqueSeedArticles = seedArticles
+      .filter(article => !firestoreSlugs.has(article.slug))
+      .map(article => ({
+        ...article,
+        // Ensure all fields are properly formatted
+        id: article.id || `seed-${article.slug}`,
+      }));
+    
+    // 3. Birləşdir və tarixə görə sort et
+    const allArticles = [...firestoreArticles, ...uniqueSeedArticles];
+    return allArticles.sort((a, b) => 
+      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+    );
   } catch (error) {
     console.error('Error listing articles:', error);
-    return [];
+    // Əgər Firestore xəta versə, ən azı seed articles qaytaraq
+    try {
+      const { seedArticles } = await import('@/lib/content');
+      return seedArticles.map(article => ({
+        ...article,
+        id: article.id || `seed-${article.slug}`,
+      }));
+    } catch {
+      return [];
+    }
   }
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { Alert, Button, Empty, PageHeader, StatusPill } from "@/components/admin/ui";
@@ -48,6 +48,91 @@ function ArticleStatusPill({ status }: { status: string }) {
     );
   }
   return <StatusPill status={status} />;
+}
+
+/* ── Actions Menu ─────────────────────────────────────────────────────────── */
+function ArticleActionsMenu({ article, onDelete }: { article: Article; onDelete: () => void }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function handleDelete() {
+    if (!confirm(`"${getArticleTitle(article, "az")}" məqaləsi silinsin?`)) return;
+    
+    setBusy(true);
+    try {
+      await removeArticle(article.id);
+      setOpen(false);
+      onDelete();
+    } catch (error) {
+      alert("Silinmədi: " + (error instanceof Error ? error.message : "Xəta"));
+      setBusy(false);
+    }
+  }
+
+  async function handleDuplicate() {
+    setBusy(true);
+    try {
+      // Create a copy without id
+      const copy = {
+        ...article,
+        slug: `${article.slug}-kopyası-${Date.now()}`,
+        status: "draft" as const,
+        publishedAt: new Date().toISOString(),
+      };
+      delete (copy as any).id;
+      
+      const newId = await saveArticle("new", copy);
+      router.push(`/admin/articles/${newId}`);
+    } catch (error) {
+      alert("Kopyalana bilmədi: " + (error instanceof Error ? error.message : "Xəta"));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        disabled={busy}
+        className="rounded border border-line bg-white px-3 py-1.5 font-ui text-[11px] text-ink hover:border-bordo hover:bg-cream transition-colors disabled:opacity-50"
+      >
+        ⋯
+      </button>
+
+      {open && (
+        <>
+          <div 
+            className="fixed inset-0 z-10" 
+            onClick={() => setOpen(false)}
+          />
+          <div className="absolute right-0 top-full z-20 mt-1 w-48 border border-line bg-white shadow-lg">
+            <Link
+              href={`/admin/articles/${article.id}`}
+              className="block px-4 py-2.5 font-ui text-[12px] text-ink hover:bg-cream-deep transition-colors"
+              onClick={() => setOpen(false)}
+            >
+              ✏️ Redaktə et
+            </Link>
+            <button
+              onClick={handleDuplicate}
+              disabled={busy}
+              className="w-full px-4 py-2.5 text-left font-ui text-[12px] text-ink hover:bg-cream-deep transition-colors disabled:opacity-50"
+            >
+              📋 Kopyala
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={busy}
+              className="w-full px-4 py-2.5 text-left font-ui text-[12px] text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+            >
+              🗑️ Sil
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 export default function ArticlesListPage() {
@@ -352,10 +437,12 @@ export default function ArticlesListPage() {
                       aria-label="Hamısını seç"
                     />
                   </th>
-                  {["Başlıq", "Bölmə", "Dillər", "Tarix", "Vəziyyət"].map((heading) => (
+                  {["Başlıq", "Bölmə", "Dillər", "Tarix", "Vəziyyət", "Əməliyyatlar"].map((heading) => (
                     <th
                       key={heading}
-                      className="px-5 py-3 text-start font-ui text-[10.5px] uppercase tracking-[0.16em] text-muted"
+                      className={`px-5 py-3 font-ui text-[10.5px] uppercase tracking-[0.16em] text-muted ${
+                        heading === "Əməliyyatlar" ? "text-end" : "text-start"
+                      }`}
                     >
                       {heading}
                     </th>
@@ -421,6 +508,9 @@ export default function ArticlesListPage() {
                     </td>
                     <td className="px-5 py-4">
                       <ArticleStatusPill status={article.status} />
+                    </td>
+                    <td className="px-5 py-4">
+                      <ArticleActionsMenu article={article} onDelete={load} />
                     </td>
                   </tr>
                 ))}
