@@ -63,19 +63,124 @@ function db() {
 /* ------------------------------ Məqalələr ------------------------------ */
 
 export async function listArticles(): Promise<Article[]> {
-  const snapshot = await getDocs(
-    query(collection(db(), COLLECTIONS.articles), orderBy("publishedAt", "desc")),
-  );
-  return snapshot.docs.map((item) => ({
-    ...(item.data() as Omit<Article, "id">),
-    id: item.id,
-  }));
+  try {
+    const snapshot = await getDocs(
+      query(collection(db(), COLLECTIONS.articles), orderBy("publishedAt", "desc")),
+    );
+    
+    return snapshot.docs
+      .map((item) => {
+        try {
+          const data = item.data();
+          
+          // Validate required fields
+          if (!data || typeof data !== 'object') {
+            console.warn(`Invalid article data for ${item.id}`, data);
+            return null;
+          }
+          
+          // Ensure title is in correct format
+          const title = data.title || {};
+          const normalizedTitle = typeof title === 'string' 
+            ? { az: title, en: '', ru: '', tr: '' }
+            : title;
+          
+          // Ensure body is in correct format  
+          const body = data.body || {};
+          const normalizedBody = typeof body === 'string'
+            ? { az: body, en: '', ru: '', tr: '' }
+            : body;
+            
+          // Ensure excerpt is in correct format
+          const excerpt = data.excerpt || {};
+          const normalizedExcerpt = typeof excerpt === 'string'
+            ? { az: excerpt, en: '', ru: '', tr: '' }
+            : excerpt;
+          
+          return {
+            id: item.id,
+            slug: data.slug || item.id,
+            category: data.category || 'gundem',
+            subcategory: data.subcategory,
+            status: data.status || 'draft',
+            featured: data.featured || false,
+            trending: data.trending || false,
+            coverImage: data.coverImage || '',
+            coverAlt: data.coverAlt || { az: '', en: '', ru: '', tr: '' },
+            coverCredit: data.coverCredit || '',
+            title: normalizedTitle,
+            excerpt: normalizedExcerpt,
+            body: normalizedBody,
+            tags: data.tags || { az: [], en: [], ru: [], tr: [] },
+            author: data.author || 'admin',
+            publishedAt: data.publishedAt || new Date().toISOString(),
+            updatedAt: data.updatedAt,
+            readingMinutes: data.readingMinutes || 0,
+            scheduledAt: data.scheduledAt,
+            mediaBlocks: data.mediaBlocks || [],
+          } as Article;
+        } catch (error) {
+          console.error(`Error parsing article ${item.id}:`, error);
+          return null;
+        }
+      })
+      .filter((article): article is Article => article !== null);
+  } catch (error) {
+    console.error('Error listing articles:', error);
+    return [];
+  }
 }
 
 export async function getArticle(id: string): Promise<Article | null> {
-  const snapshot = await getDoc(doc(db(), COLLECTIONS.articles, id));
-  if (!snapshot.exists()) return null;
-  return { ...(snapshot.data() as Omit<Article, "id">), id: snapshot.id };
+  try {
+    const snapshot = await getDoc(doc(db(), COLLECTIONS.articles, id));
+    if (!snapshot.exists()) return null;
+    
+    const data = snapshot.data();
+    if (!data || typeof data !== 'object') return null;
+    
+    // Normalize data - same as listArticles
+    const title = data.title || {};
+    const normalizedTitle = typeof title === 'string' 
+      ? { az: title, en: '', ru: '', tr: '' }
+      : title;
+    
+    const body = data.body || {};
+    const normalizedBody = typeof body === 'string'
+      ? { az: body, en: '', ru: '', tr: '' }
+      : body;
+      
+    const excerpt = data.excerpt || {};
+    const normalizedExcerpt = typeof excerpt === 'string'
+      ? { az: excerpt, en: '', ru: '', tr: '' }
+      : excerpt;
+    
+    return {
+      id: snapshot.id,
+      slug: data.slug || snapshot.id,
+      category: data.category || 'gundem',
+      subcategory: data.subcategory,
+      status: data.status || 'draft',
+      featured: data.featured || false,
+      trending: data.trending || false,
+      coverImage: data.coverImage || '',
+      coverAlt: data.coverAlt || { az: '', en: '', ru: '', tr: '' },
+      coverCredit: data.coverCredit || '',
+      title: normalizedTitle,
+      excerpt: normalizedExcerpt,
+      body: normalizedBody,
+      tags: data.tags || { az: [], en: [], ru: [], tr: [] },
+      author: data.author || 'admin',
+      publishedAt: data.publishedAt || new Date().toISOString(),
+      updatedAt: data.updatedAt,
+      readingMinutes: data.readingMinutes || 0,
+      scheduledAt: data.scheduledAt,
+      mediaBlocks: data.mediaBlocks || [],
+    } as Article;
+  } catch (error) {
+    console.error(`Error getting article ${id}:`, error);
+    return null;
+  }
 }
 
 export async function createArticle(input: ArticleInput): Promise<string> {
