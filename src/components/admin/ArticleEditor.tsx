@@ -38,6 +38,7 @@ import {
   labelClass,
 } from "./ui";
 import AIContentAssistant from "./AIContentAssistant";
+import RichTextEditor from "./RichTextEditor";
 
 /** Başlıqdan URL üçün ünvan düzəldir: "Payız 2026" → "payiz-2026". */
 function slugify(value: string): string {
@@ -482,22 +483,23 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                     }}
                   />
                 ) : (
-                  <textarea
-                    rows={20}
-                    value={draft.body[activeLocale]}
-                    onChange={(event) => setLocalized("body", event.target.value)}
-                    className={`${inputClass} resize-y font-mono !text-[13.5px] leading-relaxed`}
+                  <RichTextEditor
+                    content={draft.body[activeLocale]}
+                    onChange={(html) => setLocalized("body", html)}
                     placeholder="Məqalənin mətni…"
                   />
                 )}
 
                 <details className="mt-3">
                   <summary className="cursor-pointer font-ui text-[11.5px] text-muted hover:text-bordo">
-                    Markdown yazı qaydaları
+                    Formatlaşdırma məsləhətləri
                   </summary>
-                  <pre className="mt-2 overflow-x-auto border border-line bg-cream-deep/40 p-3 font-mono text-[12px] leading-relaxed text-ink-soft">
-                    {MARKDOWN_HELP}
-                  </pre>
+                  <div className="mt-2 border border-line bg-cream-deep/40 p-3 font-ui text-[12px] leading-relaxed text-ink-soft">
+                    <p>• Başlıqlar üçün H1-H6 düymələrindən istifadə edin</p>
+                    <p>• Şəkil əlavə etmək üçün 🖼️ düyməsinə basın</p>
+                    <p>• Link əlavə etmək üçün mətni seçib 🔗 düyməsinə basın</p>
+                    <p>• Mətn düzəlişi üçün qalın (B), maili (I), altdan xətt (U) istifadə edin</p>
+                  </div>
                 </details>
               </div>
 
