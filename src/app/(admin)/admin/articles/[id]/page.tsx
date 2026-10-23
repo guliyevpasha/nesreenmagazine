@@ -76,7 +76,7 @@ export default function EditArticlePage({
     <>
       <PageHeader
         title={displayTitle}
-        description={`${getCategory(article.category)?.name.az} · /${article.slug}`}
+        description={`${getCategory(article.category)?.name.az || article.category} · /${article.slug}`}
         actions={
           <div className="flex gap-2">
             <Link

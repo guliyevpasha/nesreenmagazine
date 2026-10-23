@@ -394,7 +394,7 @@ export default function ArticlesListPage() {
                       )}
                     </td>
                     <td className="px-5 py-4 font-ui text-[13px] text-ink-soft">
-                      {getCategory(article.category)?.name.az}
+                      {getCategory(article.category)?.name.az || article.category}
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex gap-1">

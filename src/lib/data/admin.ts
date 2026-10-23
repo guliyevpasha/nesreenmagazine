@@ -97,27 +97,36 @@ export async function listArticles(): Promise<Article[]> {
             ? { az: excerpt, en: '', ru: '', tr: '' }
             : excerpt;
           
+          // Normalize ALL fields to prevent object rendering
+          const normalizedCoverAlt = typeof data.coverAlt === 'string'
+            ? { az: data.coverAlt, en: '', ru: '', tr: '' }
+            : (data.coverAlt || { az: '', en: '', ru: '', tr: '' });
+          
+          const normalizedTags = typeof data.tags === 'string'
+            ? { az: [data.tags], en: [], ru: [], tr: [] }
+            : (data.tags || { az: [], en: [], ru: [], tr: [] });
+          
           return {
             id: item.id,
-            slug: data.slug || item.id,
-            category: data.category || 'gundem',
-            subcategory: data.subcategory,
-            status: data.status || 'draft',
-            featured: data.featured || false,
-            trending: data.trending || false,
-            coverImage: data.coverImage || '',
-            coverAlt: data.coverAlt || { az: '', en: '', ru: '', tr: '' },
-            coverCredit: data.coverCredit || '',
+            slug: String(data.slug || item.id),
+            category: String(data.category || 'gundem'),
+            subcategory: data.subcategory ? String(data.subcategory) : undefined,
+            status: String(data.status || 'draft'),
+            featured: Boolean(data.featured),
+            trending: Boolean(data.trending),
+            coverImage: String(data.coverImage || ''),
+            coverAlt: normalizedCoverAlt,
+            coverCredit: String(data.coverCredit || ''),
             title: normalizedTitle,
             excerpt: normalizedExcerpt,
             body: normalizedBody,
-            tags: data.tags || { az: [], en: [], ru: [], tr: [] },
-            author: data.author || 'admin',
-            publishedAt: data.publishedAt || new Date().toISOString(),
-            updatedAt: data.updatedAt,
-            readingMinutes: data.readingMinutes || 0,
-            scheduledAt: data.scheduledAt,
-            mediaBlocks: data.mediaBlocks || [],
+            tags: normalizedTags,
+            author: String(data.author || 'admin'),
+            publishedAt: String(data.publishedAt || new Date().toISOString()),
+            updatedAt: data.updatedAt ? String(data.updatedAt) : undefined,
+            readingMinutes: Number(data.readingMinutes) || 0,
+            scheduledAt: data.scheduledAt ? String(data.scheduledAt) : undefined,
+            mediaBlocks: Array.isArray(data.mediaBlocks) ? data.mediaBlocks : [],
           } as Article;
         } catch (error) {
           console.error(`Error parsing article ${item.id}:`, error);
@@ -155,27 +164,35 @@ export async function getArticle(id: string): Promise<Article | null> {
       ? { az: excerpt, en: '', ru: '', tr: '' }
       : excerpt;
     
+    const normalizedCoverAlt = typeof data.coverAlt === 'string'
+      ? { az: data.coverAlt, en: '', ru: '', tr: '' }
+      : (data.coverAlt || { az: '', en: '', ru: '', tr: '' });
+    
+    const normalizedTags = typeof data.tags === 'string'
+      ? { az: [data.tags], en: [], ru: [], tr: [] }
+      : (data.tags || { az: [], en: [], ru: [], tr: [] });
+    
     return {
       id: snapshot.id,
-      slug: data.slug || snapshot.id,
-      category: data.category || 'gundem',
-      subcategory: data.subcategory,
-      status: data.status || 'draft',
-      featured: data.featured || false,
-      trending: data.trending || false,
-      coverImage: data.coverImage || '',
-      coverAlt: data.coverAlt || { az: '', en: '', ru: '', tr: '' },
-      coverCredit: data.coverCredit || '',
+      slug: String(data.slug || snapshot.id),
+      category: String(data.category || 'gundem'),
+      subcategory: data.subcategory ? String(data.subcategory) : undefined,
+      status: String(data.status || 'draft'),
+      featured: Boolean(data.featured),
+      trending: Boolean(data.trending),
+      coverImage: String(data.coverImage || ''),
+      coverAlt: normalizedCoverAlt,
+      coverCredit: String(data.coverCredit || ''),
       title: normalizedTitle,
       excerpt: normalizedExcerpt,
       body: normalizedBody,
-      tags: data.tags || { az: [], en: [], ru: [], tr: [] },
-      author: data.author || 'admin',
-      publishedAt: data.publishedAt || new Date().toISOString(),
-      updatedAt: data.updatedAt,
-      readingMinutes: data.readingMinutes || 0,
-      scheduledAt: data.scheduledAt,
-      mediaBlocks: data.mediaBlocks || [],
+      tags: normalizedTags,
+      author: String(data.author || 'admin'),
+      publishedAt: String(data.publishedAt || new Date().toISOString()),
+      updatedAt: data.updatedAt ? String(data.updatedAt) : undefined,
+      readingMinutes: Number(data.readingMinutes) || 0,
+      scheduledAt: data.scheduledAt ? String(data.scheduledAt) : undefined,
+      mediaBlocks: Array.isArray(data.mediaBlocks) ? data.mediaBlocks : [],
     } as Article;
   } catch (error) {
     console.error(`Error getting article ${id}:`, error);
