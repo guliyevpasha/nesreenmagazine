@@ -53,7 +53,8 @@ export default function RichTextEditor({
     editorProps: {
       attributes: {
         class:
-          "prose prose-sm max-w-none min-h-[400px] px-4 py-3 border border-line rounded-md focus:outline-none focus:ring-2 focus:ring-bordo/20",
+          "prose prose-sm max-w-none min-h-[400px] px-4 py-3 focus:outline-none",
+        "data-placeholder": placeholder,
       },
     },
     onUpdate: ({ editor }) => {
@@ -94,182 +95,184 @@ export default function RichTextEditor({
   }
 
   return (
-    <div className="border border-line rounded-lg overflow-hidden">
+    <div className="border border-line rounded-lg overflow-hidden bg-white">
       {/* Toolbar */}
-      <div className="bg-paper-soft border-b border-line p-2 flex flex-wrap gap-1">
+      <div className="bg-slate-50 border-b-2 border-slate-200 p-3 flex flex-wrap gap-2">
         {/* Text Formatting */}
-        <div className="flex gap-0.5 border-r border-line pr-2">
+        <div className="flex gap-1 border-r-2 border-slate-300 pr-3">
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBold().run()}
             isActive={editor.isActive("bold")}
             title="Qalın (Ctrl+B)"
           >
-            <strong>B</strong>
+            <strong className="text-sm">B</strong>
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleItalic().run()}
             isActive={editor.isActive("italic")}
             title="Maili (Ctrl+I)"
           >
-            <em>I</em>
+            <em className="text-sm font-serif">I</em>
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleUnderline().run()}
             isActive={editor.isActive("underline")}
             title="Altdan xətt (Ctrl+U)"
           >
-            <u>U</u>
+            <u className="text-sm">U</u>
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleStrike().run()}
             isActive={editor.isActive("strike")}
             title="Üstündən xətt"
           >
-            <s>S</s>
+            <s className="text-sm">S</s>
           </ToolbarButton>
         </div>
 
         {/* Headings */}
-        <div className="flex gap-0.5 border-r border-line pr-2">
+        <div className="flex gap-1 border-r-2 border-slate-300 pr-3">
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
             isActive={editor.isActive("heading", { level: 1 })}
             title="Başlıq 1"
           >
-            H1
+            <span className="text-sm font-bold">H1</span>
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
             isActive={editor.isActive("heading", { level: 2 })}
             title="Başlıq 2"
           >
-            H2
+            <span className="text-sm font-bold">H2</span>
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
             isActive={editor.isActive("heading", { level: 3 })}
             title="Başlıq 3"
           >
-            H3
+            <span className="text-sm font-bold">H3</span>
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}
             isActive={editor.isActive("heading", { level: 4 })}
             title="Başlıq 4"
           >
-            H4
+            <span className="text-sm font-bold">H4</span>
           </ToolbarButton>
         </div>
 
         {/* Text Align */}
-        <div className="flex gap-0.5 border-r border-line pr-2">
+        <div className="flex gap-1 border-r-2 border-slate-300 pr-3">
           <ToolbarButton
             onClick={() => editor.chain().focus().setTextAlign("left").run()}
             isActive={editor.isActive({ textAlign: "left" })}
             title="Sola doğru"
           >
-            ←
+            <span className="text-lg">⬅</span>
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().setTextAlign("center").run()}
             isActive={editor.isActive({ textAlign: "center" })}
             title="Mərkəzə"
           >
-            ↔
+            <span className="text-lg">↔</span>
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().setTextAlign("right").run()}
             isActive={editor.isActive({ textAlign: "right" })}
             title="Sağa doğru"
           >
-            →
+            <span className="text-lg">➡</span>
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().setTextAlign("justify").run()}
             isActive={editor.isActive({ textAlign: "justify" })}
             title="İki tərəfə"
           >
-            ⇔
+            <span className="text-sm">⬌</span>
           </ToolbarButton>
         </div>
 
         {/* Lists */}
-        <div className="flex gap-0.5 border-r border-line pr-2">
+        <div className="flex gap-1 border-r-2 border-slate-300 pr-3">
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBulletList().run()}
             isActive={editor.isActive("bulletList")}
             title="Nöqtəli siyahı"
           >
-            •
+            <span className="text-lg">•</span>
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
             isActive={editor.isActive("orderedList")}
             title="Nömrəli siyahı"
           >
-            1.
+            <span className="text-sm font-bold">1.</span>
           </ToolbarButton>
         </div>
 
         {/* Quote & Code */}
-        <div className="flex gap-0.5 border-r border-line pr-2">
+        <div className="flex gap-1 border-r-2 border-slate-300 pr-3">
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
             isActive={editor.isActive("blockquote")}
             title="Sitat"
           >
-            " "
+            <span className="text-lg">"</span>
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleCode().run()}
             isActive={editor.isActive("code")}
             title="Kod"
           >
-            {"</>"}
+            <span className="text-xs font-mono">{"<>"}</span>
           </ToolbarButton>
         </div>
 
         {/* Links & Images */}
-        <div className="flex gap-0.5 border-r border-line pr-2">
+        <div className="flex gap-1 border-r-2 border-slate-300 pr-3">
           <ToolbarButton onClick={setLink} isActive={editor.isActive("link")} title="Link əlavə et">
-            🔗
+            <span className="text-base">🔗</span>
           </ToolbarButton>
           <ToolbarButton onClick={addImage} title="Şəkil əlavə et">
-            🖼️
+            <span className="text-base">🖼️</span>
           </ToolbarButton>
         </div>
 
         {/* Divider */}
-        <div className="flex gap-0.5 border-r border-line pr-2">
+        <div className="flex gap-1 border-r-2 border-slate-300 pr-3">
           <ToolbarButton
             onClick={() => editor.chain().focus().setHorizontalRule().run()}
             title="Ayırıcı xətt"
           >
-            —
+            <span className="text-xl">—</span>
           </ToolbarButton>
         </div>
 
         {/* Undo/Redo */}
-        <div className="flex gap-0.5">
+        <div className="flex gap-1">
           <ToolbarButton
             onClick={() => editor.chain().focus().undo().run()}
             disabled={!editor.can().undo()}
             title="Geri al"
           >
-            ↶
+            <span className="text-lg">↶</span>
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().redo().run()}
             disabled={!editor.can().redo()}
             title="Təkrar et"
           >
-            ↷
+            <span className="text-lg">↷</span>
           </ToolbarButton>
         </div>
       </div>
 
       {/* Editor Content */}
-      <EditorContent editor={editor} />
+      <div className="p-4 bg-white">
+        <EditorContent editor={editor} />
+      </div>
     </div>
   );
 }
@@ -296,15 +299,14 @@ function ToolbarButton({
       disabled={disabled}
       title={title}
       className={`
-        px-2.5 py-1.5 font-ui text-[13px] rounded
-        transition-colors
+        px-3 py-2 rounded-md font-ui text-sm
+        transition-all duration-200
         ${
           isActive
-            ? "bg-bordo text-white"
-            : "bg-white hover:bg-paper-soft text-ink hover:text-bordo"
+            ? "bg-bordo text-white shadow-sm"
+            : "bg-white hover:bg-slate-100 text-slate-700 hover:text-bordo border border-slate-200 hover:border-bordo"
         }
-        ${disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}
-        border border-line
+        ${disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:scale-105"}
       `}
     >
       {children}
