@@ -14,18 +14,19 @@ import type { Article } from "@/lib/types";
 /* ── CSV ixrac köməkçisi ─────────────────────────────────────────────────── */
 function exportCsv(articles: Article[]) {
   const header = "ID,Başlıq (AZ),Bölmə,Status,Tarix,Slug";
-  const rows = articles.map((a) =>
-    [
+  const rows = articles.map((a) => {
+    const title = typeof a.title === 'string' ? a.title : (a.title?.az || a.title?.en || a.slug);
+    return [
       a.id,
-      a.title.az || a.title.en || a.slug,
+      title,
       a.category,
       a.status,
       a.publishedAt.slice(0, 10),
       a.slug,
     ]
       .map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`)
-      .join(","),
-  );
+      .join(",");
+  });
   const csv = [header, ...rows].join("\n");
   const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -83,9 +84,11 @@ export default function ArticlesListPage() {
       if (category && article.category !== category) return false;
       if (statusFilter !== "all" && article.status !== statusFilter) return false;
       if (!needle) return true;
+      const titleText = typeof article.title === 'string' ? article.title : '';
       return (
         article.slug.includes(needle) ||
-        locales.some((code) => article.title[code]?.toLowerCase().includes(needle))
+        titleText.toLowerCase().includes(needle) ||
+        (typeof article.title !== 'string' && locales.some((code) => article.title[code]?.toLowerCase().includes(needle)))
       );
     });
   }, [articles, category, statusFilter, term]);
@@ -363,7 +366,7 @@ export default function ArticlesListPage() {
                         checked={selected.has(article.id)}
                         onChange={() => toggleSelect(article.id)}
                         className="h-4 w-4 accent-bordo"
-                        aria-label={`${article.title.az} seç`}
+                        aria-label={`${typeof article.title === 'string' ? article.title : (article.title?.az || article.slug)} seç`}
                       />
                     </td>
                     <td className="px-5 py-4">
@@ -371,7 +374,7 @@ export default function ArticlesListPage() {
                         href={`/admin/articles/${article.id}`}
                         className="font-display text-[1.0625rem] leading-snug text-ink hover:text-bordo"
                       >
-                        {article.title.az || article.title.en || article.slug}
+                        {typeof article.title === 'string' ? article.title : (article.title?.az || article.title?.en || article.slug)}
                       </Link>
                       <p className="mt-1 font-mono text-[11px] text-muted">/{article.slug}</p>
                       {article.scheduledAt && (
