@@ -267,10 +267,17 @@ export default function ArticleEditor({ article }: { article?: Article }) {
       return;
     }
 
+    // İndi dərc et - avtomatik tarix set et
+    let finalPublishedAt = draft.publishedAt;
+    if (nextStatus === "published") {
+      finalPublishedAt = new Date().toISOString();
+    }
+
     const payload: ArticleInput = {
       ...draft,
       slug,
       status: nextStatus ?? draft.status,
+      publishedAt: finalPublishedAt,
       readingMinutes:
         draft.readingMinutes > 0
           ? draft.readingMinutes
@@ -765,53 +772,99 @@ export default function ArticleEditor({ article }: { article?: Article }) {
       </div>
 
       {/* ------------------------- Alt panel ------------------------- */}
-      <div className="sticky bottom-0 mt-8 flex flex-wrap items-center justify-between gap-4 border border-line bg-paper px-6 py-4">
-        <div className="flex items-center gap-3">
-          <span className="font-ui text-[11px] uppercase tracking-[0.14em] text-muted">
-            Vəziyyət
-          </span>
-          <span
-            className={`border px-2.5 py-1 font-ui text-[10px] uppercase tracking-[0.14em] ${
-              draft.status === "published"
-                ? "border-gold bg-gold/15 text-ink"
-                : draft.status === "scheduled"
-                ? "border-blue-300 bg-blue-50 text-blue-700"
-                : "border-line bg-cream-deep text-muted"
-            }`}
-          >
-            {draft.status === "published"
-              ? "Dərc olunub"
-              : draft.status === "scheduled"
-              ? "Planlaşdırılıb"
-              : "Qaralama"}
-          </span>
-          {article && (
-            <a
-              href={`/admin/article-versions?articleId=${article.id}`}
-              className="font-ui text-[10px] uppercase tracking-[0.12em] text-muted hover:text-bordo transition-colors"
+      <div className="sticky bottom-0 mt-8 border border-line bg-paper px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-3">
+            <span className="font-ui text-[11px] uppercase tracking-[0.14em] text-muted">
+              Vəziyyət
+            </span>
+            <span
+              className={`border px-2.5 py-1 font-ui text-[10px] uppercase tracking-[0.14em] ${
+                draft.status === "published"
+                  ? "border-gold bg-gold/15 text-ink"
+                  : draft.status === "scheduled"
+                  ? "border-blue-300 bg-blue-50 text-blue-700"
+                  : "border-line bg-cream-deep text-muted"
+              }`}
             >
-              Versiyalar →
-            </a>
-          )}
-        </div>
+              {draft.status === "published"
+                ? "Dərc olunub"
+                : draft.status === "scheduled"
+                ? "Planlaşdırılıb"
+                : "Qaralama"}
+            </span>
+            {article && (
+              <a
+                href={`/admin/article-versions?articleId=${article.id}`}
+                className="font-ui text-[10px] uppercase tracking-[0.12em] text-muted hover:text-bordo transition-colors"
+              >
+                Versiyalar →
+              </a>
+            )}
+          </div>
 
-        <div className="flex flex-wrap items-center gap-3">
           {article && isAdmin(session) && (
             <Button variant="danger" onClick={() => void handleDelete()} disabled={busy}>
               Sil
             </Button>
           )}
-          <Button variant="ghost" onClick={() => void handleSave("draft")} disabled={busy}>
-            Qaralama saxla
-          </Button>
-          {draft.scheduledAt && new Date(draft.scheduledAt) > new Date() && (
-            <Button variant="ghost" onClick={() => void handleSave("scheduled")} disabled={busy}>
-              {busy ? "Saxlanılır…" : "Planlaşdır"}
-            </Button>
+        </div>
+
+        {/* Status Selection */}
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="flex-1 min-w-[200px]">
+            <label className="block font-ui text-[11px] uppercase tracking-[0.14em] text-muted mb-2">
+              Dərc seçimi
+            </label>
+            <select
+              value={draft.status}
+              onChange={(e) => setDraft({ ...draft, status: e.target.value as ArticleStatus })}
+              className="w-full rounded border border-line px-4 py-2.5 font-ui text-sm focus:border-bordo focus:outline-none"
+            >
+              <option value="draft">📝 Qaralama</option>
+              <option value="scheduled">⏰ Planlaşdırılmış</option>
+              <option value="published">✅ Dərc edilmiş</option>
+            </select>
+          </div>
+
+          {draft.status === "scheduled" && (
+            <div className="flex-1 min-w-[200px]">
+              <label className="block font-ui text-[11px] uppercase tracking-[0.14em] text-muted mb-2">
+                Dərc tarixi və vaxtı
+              </label>
+              <input
+                type="datetime-local"
+                value={draft.scheduledAt ?? ""}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    scheduledAt: event.target.value || undefined,
+                  }))
+                }
+                className="w-full rounded border border-line px-4 py-2.5 font-ui text-sm focus:border-bordo focus:outline-none"
+              />
+            </div>
           )}
-          <Button onClick={() => void handleSave("published")} disabled={busy}>
-            {busy ? "Saxlanılır…" : "Dərc et"}
-          </Button>
+
+          <div className="flex gap-3 ml-auto">
+            <Button variant="ghost" onClick={() => void handleSave("draft")} disabled={busy}>
+              Qaralama saxla
+            </Button>
+            {draft.status === "scheduled" && (
+              <Button 
+                variant="ghost" 
+                onClick={() => void handleSave("scheduled")} 
+                disabled={busy || !draft.scheduledAt}
+              >
+                {busy ? "Saxlanılır…" : "Planlaşdır"}
+              </Button>
+            )}
+            {draft.status === "published" && (
+              <Button onClick={() => void handleSave("published")} disabled={busy}>
+                {busy ? "Saxlanılır…" : "İndi dərc et"}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -874,8 +927,28 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                 </Field>
 
                 <Alert tone="info">
-                  ℹ️ Google Translate API istifadə edilərək başlıq, xülasə, mətn və şəkil alt 
-                  mətni tərcümə olunacaq. Nəticəni mütləq yoxlayın və düzəliş edin.
+                  <div className="space-y-2">
+                    <p className="font-medium">ℹ️ Google Translate API</p>
+                    <p className="text-sm">
+                      Başlıq, xülasə, mətn və şəkil alt mətni tərcümə olunacaq. 
+                      Nəticəni mütləq yoxlayın və düzəliş edin.
+                    </p>
+                    <div className="mt-3 rounded bg-cream-deep p-3 text-xs">
+                      <p className="font-medium mb-1">⚙️ Konfiqurasiya:</p>
+                      <p className="text-muted">
+                        Əgər tərcümə işləmirsə, <code className="bg-white px-1 py-0.5 rounded">GOOGLE_TRANSLATE_API_KEY</code> 
+                        environment variable-ını <code className="bg-white px-1 py-0.5 rounded">.env.local</code> faylına əlavə edin.
+                      </p>
+                      <a 
+                        href="https://console.cloud.google.com/apis/credentials" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-bordo hover:underline mt-1 inline-block"
+                      >
+                        Google Cloud Console →
+                      </a>
+                    </div>
+                  </div>
                 </Alert>
 
                 <div className="flex gap-3 pt-2">
