@@ -8,6 +8,7 @@ import { Alert, Empty, PageHeader } from "@/components/admin/ui";
 import { getCategory } from "@/lib/categories";
 import { getArticle } from "@/lib/data/admin";
 import type { Article } from "@/lib/types";
+import { getArticleTitle } from "@/lib/article-helpers";
 
 export default function EditArticlePage({
   params,
@@ -69,11 +70,7 @@ export default function EditArticlePage({
   }
 
   const publicHref = `/az/${article.category}/${article.slug}`;
-  
-  // Title can be string or multilingual object
-  const displayTitle = typeof article.title === 'string' 
-    ? article.title 
-    : (article.title?.az || article.title?.en || "Məqalə");
+  const displayTitle = getArticleTitle(article, "az");
 
   return (
     <>

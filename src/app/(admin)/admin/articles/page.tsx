@@ -10,12 +10,13 @@ import { listArticles, removeArticle, saveArticle } from "@/lib/data/admin";
 import { isAdmin, useAuth } from "@/lib/firebase/auth";
 import { formatDate, locales, localeShort, type Locale } from "@/lib/i18n/config";
 import type { Article } from "@/lib/types";
+import { getArticleTitle, isArticleComplete } from "@/lib/article-helpers";
 
 /* ── CSV ixrac köməkçisi ─────────────────────────────────────────────────── */
 function exportCsv(articles: Article[]) {
   const header = "ID,Başlıq (AZ),Bölmə,Status,Tarix,Slug";
   const rows = articles.map((a) => {
-    const title = typeof a.title === 'string' ? a.title : (a.title?.az || a.title?.en || a.slug);
+    const title = getArticleTitle(a, "az");
     return [
       a.id,
       title,
@@ -84,12 +85,14 @@ export default function ArticlesListPage() {
       if (category && article.category !== category) return false;
       if (statusFilter !== "all" && article.status !== statusFilter) return false;
       if (!needle) return true;
-      const titleText = typeof article.title === 'string' ? article.title : '';
-      return (
-        article.slug.includes(needle) ||
-        titleText.toLowerCase().includes(needle) ||
-        (typeof article.title !== 'string' && locales.some((code) => article.title[code]?.toLowerCase().includes(needle)))
-      );
+      
+      if (article.slug.includes(needle)) return true;
+      
+      // Check all locales
+      return locales.some((code) => {
+        const title = getArticleTitle(article, code);
+        return title.toLowerCase().includes(needle);
+      });
     });
   }, [articles, category, statusFilter, term]);
 
@@ -366,7 +369,7 @@ export default function ArticlesListPage() {
                         checked={selected.has(article.id)}
                         onChange={() => toggleSelect(article.id)}
                         className="h-4 w-4 accent-bordo"
-                        aria-label={`${typeof article.title === 'string' ? article.title : (article.title?.az || article.slug)} seç`}
+                        aria-label={`${getArticleTitle(article, "az")} seç`}
                       />
                     </td>
                     <td className="px-5 py-4">
@@ -374,7 +377,7 @@ export default function ArticlesListPage() {
                         href={`/admin/articles/${article.id}`}
                         className="font-display text-[1.0625rem] leading-snug text-ink hover:text-bordo"
                       >
-                        {typeof article.title === 'string' ? article.title : (article.title?.az || article.title?.en || article.slug)}
+                        {getArticleTitle(article, "az")}
                       </Link>
                       <p className="mt-1 font-mono text-[11px] text-muted">/{article.slug}</p>
                       {article.scheduledAt && (
@@ -389,9 +392,7 @@ export default function ArticlesListPage() {
                     <td className="px-5 py-4">
                       <div className="flex gap-1">
                         {locales.map((code: Locale) => {
-                          const done = Boolean(
-                            article.title[code]?.trim() && article.body[code]?.trim(),
-                          );
+                          const done = isArticleComplete(article, code);
                           return (
                             <span
                               key={code}
