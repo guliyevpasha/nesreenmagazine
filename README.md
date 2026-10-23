@@ -1,6 +1,12 @@
 # Nesreen Magazine
 
-Last updated: 2026-10-15
+**Müasir Azərbaycan qadın jurnalı** - moda, gözəllik, həyat tərzi və astrologiya
+
+🚀 **Production:** https://www.nesreenmagazine.com  
+📱 **Admin Panel:** https://www.nesreenmagazine.com/admin  
+✨ **Rich Text Editor:** WYSIWYG editor with formatting tools
+
+Last updated: 2026-10-23
 
 Qadınlar üçün moda, gözəllik, astrologiya, biznes və gündəm jurnalı.
 
