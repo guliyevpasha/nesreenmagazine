@@ -267,36 +267,54 @@ function normalizeArticleData(id: string, data: any): Article {
 }
 
 export async function createArticle(input: ArticleInput): Promise<string> {
-  // Remove undefined fields to avoid Firestore error
-  const cleanedInput: Record<string, any> = {};
-  
-  for (const [key, value] of Object.entries(input)) {
-    if (value !== undefined) {
-      cleanedInput[key] = value;
+  try {
+    // Remove undefined fields to avoid Firestore error
+    const cleanedInput: Record<string, any> = {};
+    
+    for (const [key, value] of Object.entries(input)) {
+      if (value !== undefined) {
+        cleanedInput[key] = value;
+      }
     }
+    
+    console.log('[DEBUG createArticle] Cleaned input:', JSON.stringify(cleanedInput, null, 2));
+    
+    const created = await addDoc(collection(db(), COLLECTIONS.articles), {
+      ...cleanedInput,
+      updatedAt: new Date().toISOString(),
+    });
+    
+    console.log('[DEBUG createArticle] Created article with ID:', created.id);
+    return created.id;
+  } catch (error) {
+    console.error('[ERROR createArticle] Failed to create article:', error);
+    throw error;
   }
-  
-  const created = await addDoc(collection(db(), COLLECTIONS.articles), {
-    ...cleanedInput,
-    updatedAt: new Date().toISOString(),
-  });
-  return created.id;
 }
 
 export async function saveArticle(id: string, input: ArticleInput): Promise<void> {
-  // Remove undefined fields to avoid Firestore error
-  const cleanedInput: Record<string, any> = {};
-  
-  for (const [key, value] of Object.entries(input)) {
-    if (value !== undefined) {
-      cleanedInput[key] = value;
+  try {
+    // Remove undefined fields to avoid Firestore error
+    const cleanedInput: Record<string, any> = {};
+    
+    for (const [key, value] of Object.entries(input)) {
+      if (value !== undefined) {
+        cleanedInput[key] = value;
+      }
     }
+    
+    console.log('[DEBUG saveArticle] ID:', id, 'Cleaned input keys:', Object.keys(cleanedInput));
+    
+    await updateDoc(doc(db(), COLLECTIONS.articles, id), {
+      ...cleanedInput,
+      updatedAt: new Date().toISOString(),
+    });
+    
+    console.log('[DEBUG saveArticle] Updated article:', id);
+  } catch (error) {
+    console.error('[ERROR saveArticle] Failed to save article:', id, error);
+    throw error;
   }
-  
-  await updateDoc(doc(db(), COLLECTIONS.articles, id), {
-    ...cleanedInput,
-    updatedAt: new Date().toISOString(),
-  });
 }
 
 export async function removeArticle(id: string): Promise<void> {
