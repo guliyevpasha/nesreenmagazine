@@ -267,16 +267,34 @@ function normalizeArticleData(id: string, data: any): Article {
 }
 
 export async function createArticle(input: ArticleInput): Promise<string> {
+  // Remove undefined fields to avoid Firestore error
+  const cleanedInput: Record<string, any> = {};
+  
+  for (const [key, value] of Object.entries(input)) {
+    if (value !== undefined) {
+      cleanedInput[key] = value;
+    }
+  }
+  
   const created = await addDoc(collection(db(), COLLECTIONS.articles), {
-    ...input,
+    ...cleanedInput,
     updatedAt: new Date().toISOString(),
   });
   return created.id;
 }
 
 export async function saveArticle(id: string, input: ArticleInput): Promise<void> {
+  // Remove undefined fields to avoid Firestore error
+  const cleanedInput: Record<string, any> = {};
+  
+  for (const [key, value] of Object.entries(input)) {
+    if (value !== undefined) {
+      cleanedInput[key] = value;
+    }
+  }
+  
   await updateDoc(doc(db(), COLLECTIONS.articles, id), {
-    ...input,
+    ...cleanedInput,
     updatedAt: new Date().toISOString(),
   });
 }

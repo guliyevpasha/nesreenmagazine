@@ -282,9 +282,12 @@ export default function ArticleEditor({ article }: { article?: Article }) {
         draft.readingMinutes > 0
           ? draft.readingMinutes
           : estimateReadingMinutes(draft.body.az || draft.body.en || ""),
-      // Scheduled deyilsə scheduledAt-ı sil
-      scheduledAt: nextStatus === "scheduled" ? draft.scheduledAt : undefined,
     };
+
+    // Scheduled statusdursa scheduledAt əlavə et, deyilsə çıxart
+    if (nextStatus === "scheduled" && draft.scheduledAt) {
+      payload.scheduledAt = draft.scheduledAt;
+    }
 
     setBusy(true);
     try {
