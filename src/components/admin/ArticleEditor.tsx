@@ -67,7 +67,7 @@ function emptyArticle(): ArticleInput {
     slug: "",
     category: "gundem",
     subcategory: "",
-    status: "draft",
+    status: "published", // Default: published (dərc edilmiş)
     featured: false,
     trending: false,
     coverImage: "",
@@ -97,41 +97,23 @@ const MARKDOWN_HELP = `## Başlıq      ### Alt başlıq
  */
 async function revalidateArticleCache(slug: string, category: string) {
   try {
-    const token = process.env.NEXT_PUBLIC_REVALIDATE_TOKEN;
-    if (!token) {
-      console.warn("REVALIDATE_TOKEN not configured, skipping cache revalidation");
-      return;
-    }
-
     const response = await fetch("/api/revalidate", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        paths: [
-          "/az", // Ana səhifə
-          "/en",
-          "/ru",
-          "/tr",
-          "/ar",
-          `/az/${category}`, // Kateqoriya səhifəsi
-          `/en/${category}`,
-          `/ru/${category}`,
-          `/tr/${category}`,
-          `/ar/${category}`,
-          `/az/${category}/${slug}`, // Məqalə səhifəsi
-          `/en/${category}/${slug}`,
-          `/ru/${category}/${slug}`,
-          `/tr/${category}/${slug}`,
-          `/ar/${category}/${slug}`,
-        ],
+        slug,
+        category,
       }),
     });
 
     if (!response.ok) {
-      console.error("Cache revalidation failed:", await response.text());
+      const errorText = await response.text();
+      console.error("Cache revalidation failed:", errorText);
+    } else {
+      const result = await response.json();
+      console.log("✅ Cache successfully revalidated:", result);
     }
   } catch (error) {
     console.error("Cache revalidation error:", error);

@@ -9,30 +9,39 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { paths, tags } = body;
+    const { paths, tags, slug, category } = body;
 
-    // Təhlükəsizlik: yalnız admin istifadəçilər revalidate edə bilər
+    // Təhlükəsizlik yoxlaması
     const authHeader = request.headers.get("authorization");
     const expectedToken = process.env.REVALIDATE_TOKEN;
 
-    if (!expectedToken) {
-      return NextResponse.json(
-        { error: "REVALIDATE_TOKEN environment variable not set" },
-        { status: 500 }
-      );
-    }
+    // Development modda və ya token düzgündürsə icazə ver
+    const isDev = process.env.NODE_ENV === "development";
+    const isValidToken = expectedToken && authHeader === `Bearer ${expectedToken}`;
 
-    if (authHeader !== `Bearer ${expectedToken}`) {
+    if (!isDev && !isValidToken) {
       return NextResponse.json(
-        { error: "Unauthorized" },
+        { error: "Unauthorized - Invalid or missing token" },
         { status: 401 }
       );
     }
 
+    // Əgər slug və category verilmişsə, avtomatik path-lar yarat
+    const allPaths = paths || [];
+    if (slug && category) {
+      const locales = ["az", "en", "ru", "tr", "ar"];
+      locales.forEach((locale) => {
+        allPaths.push(`/${locale}`);
+        allPaths.push(`/${locale}/${category}`);
+        allPaths.push(`/${locale}/${category}/${slug}`);
+      });
+    }
+
     // Path-ları revalidate et
-    if (Array.isArray(paths)) {
-      for (const path of paths) {
+    if (Array.isArray(allPaths) && allPaths.length > 0) {
+      for (const path of allPaths) {
         revalidatePath(path, "page");
+        console.log("✅ Revalidated:", path);
       }
     }
 
@@ -40,14 +49,16 @@ export async function POST(request: NextRequest) {
     if (Array.isArray(tags)) {
       for (const tag of tags) {
         revalidateTag(tag);
+        console.log("✅ Revalidated tag:", tag);
       }
     }
 
     return NextResponse.json({
       revalidated: true,
       now: Date.now(),
-      paths: paths || [],
+      paths: allPaths || [],
       tags: tags || [],
+      message: "Cache successfully cleared",
     });
   } catch (error) {
     console.error("Revalidation error:", error);
