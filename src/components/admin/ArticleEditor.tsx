@@ -92,6 +92,52 @@ const MARKDOWN_HELP = `## Başlıq      ### Alt başlıq
 ![izah](şəkil.jpg)
 ---  (ayırıcı xətt)`;
 
+/**
+ * Məqalə cache-ini təmizlə
+ */
+async function revalidateArticleCache(slug: string, category: string) {
+  try {
+    const token = process.env.NEXT_PUBLIC_REVALIDATE_TOKEN;
+    if (!token) {
+      console.warn("REVALIDATE_TOKEN not configured, skipping cache revalidation");
+      return;
+    }
+
+    const response = await fetch("/api/revalidate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        paths: [
+          "/az", // Ana səhifə
+          "/en",
+          "/ru",
+          "/tr",
+          "/ar",
+          `/az/${category}`, // Kateqoriya səhifəsi
+          `/en/${category}`,
+          `/ru/${category}`,
+          `/tr/${category}`,
+          `/ar/${category}`,
+          `/az/${category}/${slug}`, // Məqalə səhifəsi
+          `/en/${category}/${slug}`,
+          `/ru/${category}/${slug}`,
+          `/tr/${category}/${slug}`,
+          `/ar/${category}/${slug}`,
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Cache revalidation failed:", await response.text());
+    }
+  } catch (error) {
+    console.error("Cache revalidation error:", error);
+  }
+}
+
 export default function ArticleEditor({ article }: { article?: Article }) {
   const router = useRouter();
   const { session } = useAuth();
@@ -305,6 +351,12 @@ export default function ArticleEditor({ article }: { article?: Article }) {
           userEmail: session?.email ?? "unknown",
         });
         setDraft(payload);
+        
+        // Məqalə published statusuna keçdisə, cache-i təmizlə
+        if (nextStatus === "published" || payload.status === "published") {
+          await revalidateArticleCache(article.slug, article.category);
+        }
+        
         setMessage({ tone: "success", text: "Dəyişikliklər yadda saxlanıldı." });
       } else {
         const id = await createArticle(payload);
@@ -316,6 +368,12 @@ export default function ArticleEditor({ article }: { article?: Article }) {
           userEmail: session?.email ?? "unknown",
           currentVersion: 0,
         });
+        
+        // Yeni məqalə published statusundadırsa, cache-i təmizlə
+        if (payload.status === "published") {
+          await revalidateArticleCache(payload.slug, payload.category);
+        }
+        
         setMessage({ tone: "success", text: "Məqalə yaradıldı." });
         router.push(`/admin/articles/${id}`);
       }
