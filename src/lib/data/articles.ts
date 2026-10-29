@@ -30,6 +30,7 @@ function publishedSeed(): Article[] {
 }
 
 async function fetchFromFirestore(db: Firestore): Promise<Article[]> {
+  console.log('[DEBUG] Fetching articles from Firestore...');
   const snapshot = await getDocs(
     query(
       collection(db, COLLECTIONS.articles),
@@ -37,7 +38,13 @@ async function fetchFromFirestore(db: Firestore): Promise<Article[]> {
       orderBy("publishedAt", "desc"),
     ),
   );
-  return snapshot.docs.map((doc) => ({ ...(doc.data() as Omit<Article, "id">), id: doc.id }));
+  console.log('[DEBUG] Found', snapshot.docs.length, 'published articles');
+  const articles = snapshot.docs.map((doc) => {
+    const data = doc.data() as Omit<Article, "id">;
+    console.log('[DEBUG] Article:', doc.id, 'status:', data.status, 'publishedAt:', data.publishedAt);
+    return { ...data, id: doc.id };
+  });
+  return articles;
 }
 
 /** Dərc olunmuş bütün məqalələr, tarixə görə yenidən köhnəyə. */
