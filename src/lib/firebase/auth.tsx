@@ -221,3 +221,59 @@ export function canAccessAnalytics(session: AdminSession | null): boolean {
   if (!session) return false;
   return ["admin", "analyst", "editor"].includes(session.role);
 }
+
+/**
+ * Sol menyuda hansı linkləri göstərəcəyimizi müəyyənləşdirir
+ * Yazar və redaktorlar yalnız məqalələr və media görür
+ */
+export function getVisibleMenuItems(session: AdminSession | null): string[] {
+  if (!session) return [];
+  
+  // Admin hər şeyi görür
+  if (session.role === "admin") {
+    return ["all"]; // "all" = bütün menyular görsənsin
+  }
+  
+  // Yazar və redaktorlar üçün məhdud siyahı
+  const limitedAccess = ["author", "editor", "moderator"];
+  if (limitedAccess.includes(session.role)) {
+    return [
+      "dashboard",
+      "articles",
+      "media",
+      "analytics-basic", // yalnız öz statistikaları
+    ];
+  }
+  
+  // SEO rolları
+  if (session.role === "seo") {
+    return [
+      "dashboard",
+      "articles",
+      "media",
+      "analytics",
+      "seo",
+    ];
+  }
+  
+  // Satış və maliyyə
+  if (["sales", "finance"].includes(session.role)) {
+    return [
+      "dashboard",
+      "crm",
+      "ad-orders",
+      "analytics",
+    ];
+  }
+  
+  // Analyst
+  if (session.role === "analyst") {
+    return [
+      "dashboard",
+      "analytics",
+      "subscribers",
+    ];
+  }
+  
+  return ["dashboard"];
+}
