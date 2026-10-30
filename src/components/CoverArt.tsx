@@ -55,6 +55,9 @@ export default function CoverArt({
         className={`h-full w-full object-cover ${className}`}
         loading={priority ? "eager" : "lazy"}
         sizes={sizes}
+        decoding="async"
+        fetchPriority={priority ? "high" : "auto"}
+        style={{ objectFit: 'cover', objectPosition: 'center' }}
       />
     );
   }
