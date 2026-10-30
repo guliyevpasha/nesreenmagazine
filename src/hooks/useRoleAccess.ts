@@ -28,6 +28,15 @@ export function useRoleAccess(requiredPath: string) {
     }
 
     const role = session.role;
+    
+    // Admin her yerə daxil ola bilər
+    if (role === 'admin') {
+      console.log('[useRoleAccess] ✅ Admin - tam icazə');
+      setHasAccess(true);
+      setChecking(false);
+      return;
+    }
+    
     const access = canAccessPath(role, requiredPath);
 
     console.log('[useRoleAccess] Yoxlama:', { 
