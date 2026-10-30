@@ -744,25 +744,59 @@ function TrendingTags() {
 }
 
 function StaffPanel() {
-  // Mock staff data - real data gələcək staff collection-dan
-  const staff = [
-    { name: "Admin", role: "admin", articles: 45, active: true },
-    { name: "Leyla Məmmədova", role: "editor", articles: 32, active: true },
-    { name: "Aynur Həsənova", role: "writer", articles: 28, active: true },
-    { name: "Səbinə Quliyeva", role: "writer", articles: 15, active: true },
-  ];
+  const [staff, setStaff] = useState<Array<{
+    email: string;
+    name: string;
+    role: string;
+    categories?: string[];
+    active: boolean;
+  }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadStaff() {
+      try {
+        const { collection, getDocs } = await import("firebase/firestore");
+        const { db } = await import("@/lib/firebase/config");
+        
+        const staffSnap = await getDocs(collection(db, "staff"));
+        const staffData = staffSnap.docs.map((doc) => ({
+          email: doc.id,
+          name: doc.data().name || doc.id,
+          role: doc.data().role || "author",
+          categories: doc.data().categories || [],
+          active: true,
+        }));
+        
+        setStaff(staffData);
+      } catch (error) {
+        console.error("Failed to load staff:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    void loadStaff();
+  }, []);
 
   const roleColors: Record<string, string> = {
     admin: "border-red-200 bg-red-50 text-red-700",
-    editor: "border-purple-200 bg-purple-50 text-purple-700",
-    writer: "border-blue-200 bg-blue-50 text-blue-700",
+    author: "border-blue-200 bg-blue-50 text-blue-700",
   };
 
   const roleNames: Record<string, string> = {
     admin: "Admin",
-    editor: "Redaktor",
-    writer: "Yazar",
+    author: "Yazar",
   };
+
+  if (loading) {
+    return (
+      <div className="border border-line bg-paper p-5">
+        <h3 className="mb-4 font-display text-[15px] text-ink">Komanda</h3>
+        <p className="text-center font-ui text-[11px] text-muted">Yüklənir...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="border border-line bg-paper p-5">
@@ -776,10 +810,10 @@ function StaffPanel() {
         </Link>
       </div>
       <div className="space-y-3">
-        {staff.map((member, idx) => (
-          <div key={idx} className="flex items-center gap-3">
+        {staff.map((member) => (
+          <div key={member.email} className="flex items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-bordo to-gold text-white font-ui text-[11px] font-bold">
-              {member.name.charAt(0)}
+              {member.name.charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
               <p className="font-ui text-[12px] font-medium text-ink truncate">{member.name}</p>
@@ -787,7 +821,11 @@ function StaffPanel() {
                 <span className={`border px-1.5 py-0.5 font-ui text-[9px] uppercase tracking-wider ${roleColors[member.role]}`}>
                   {roleNames[member.role]}
                 </span>
-                <span className="font-ui text-[10px] text-muted">{member.articles} məqalə</span>
+                {member.role === "author" && member.categories && member.categories.length > 0 && (
+                  <span className="font-ui text-[10px] text-muted truncate">
+                    {member.categories.slice(0, 2).join(", ")}
+                  </span>
+                )}
               </div>
             </div>
             <div className={`h-2 w-2 rounded-full ${member.active ? "bg-green-500" : "bg-gray-300"}`} />
