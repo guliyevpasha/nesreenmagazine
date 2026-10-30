@@ -38,16 +38,17 @@ export function useRoleAccess(requiredPath: string) {
       sessionEmail: session.email,
     });
 
-    setHasAccess(access);
-    
     if (!access) {
-      console.log('[useRoleAccess] İcazə yoxdur, dashboarda yönləndirilir');
-      // 100ms gözlə ki React state update edə bilsin
-      setTimeout(() => {
-        router.replace('/admin');
-      }, 100);
+      console.log('[useRoleAccess] ⛔ İcazə YOX - redirect edilir');
+      setHasAccess(false);
+      setChecking(false);
+      // Dərhal redirect et
+      router.replace('/admin');
+      return;
     }
     
+    console.log('[useRoleAccess] ✅ İcazə var');
+    setHasAccess(true);
     setChecking(false);
   }, [session, loading, requiredPath, router]);
 
