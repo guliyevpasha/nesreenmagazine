@@ -11,6 +11,7 @@ import { isAdmin, useAuth } from "@/lib/firebase/auth";
 import { formatDate, locales, localeShort, type Locale } from "@/lib/i18n/config";
 import type { Article } from "@/lib/types";
 import { getArticleTitle, isArticleComplete } from "@/lib/article-helpers";
+import { getArticleViews, type ArticleViews } from "@/lib/analytics/track-views";
 
 /* ── CSV ixrac köməkçisi ─────────────────────────────────────────────────── */
 function exportCsv(articles: Article[]) {
@@ -148,6 +149,10 @@ export default function ArticlesListPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft" | "scheduled">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  
+  /* View statistics state */
+  const [viewsMap, setViewsMap] = useState<Map<string, ArticleViews>>(new Map());
+  const [loadingViews, setLoadingViews] = useState(false);
 
   /* Bulk state */
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -164,9 +169,29 @@ export default function ArticlesListPage() {
       }
       setArticles(list);
       setSelected(new Set()); // seçimi sıfırla
+      
+      // Load view statistics for all articles
+      await loadViewStats(list);
     } catch (caught) {
       console.error('❌ Error loading articles:', caught);
       setError(caught instanceof Error ? caught.message : "Məqalələr oxunmadı.");
+    }
+  }
+
+  async function loadViewStats(articleList: Article[]) {
+    setLoadingViews(true);
+    try {
+      const viewsData = await Promise.all(
+        articleList.map(async (article) => {
+          const views = await getArticleViews(article.id);
+          return [article.id, views] as const;
+        })
+      );
+      setViewsMap(new Map(viewsData));
+    } catch (error) {
+      console.error('❌ Error loading view stats:', error);
+    } finally {
+      setLoadingViews(false);
     }
   }
 
@@ -465,7 +490,7 @@ export default function ArticlesListPage() {
                         aria-label="Səhifədəkiləri seç"
                       />
                     </th>
-                    {["Başlıq", "Bölmə", "Dillər", "Tarix", "Vəziyyət", "Əməliyyatlar"].map((heading) => (
+                    {["Başlıq", "Bölmə", "Dillər", "Tarix", "Baxış", "Vəziyyət", "Əməliyyatlar"].map((heading) => (
                       <th
                         key={heading}
                         className={`px-5 py-3 font-ui text-[10.5px] uppercase tracking-[0.16em] text-muted ${
@@ -533,6 +558,27 @@ export default function ArticlesListPage() {
                       </td>
                       <td className="px-5 py-4 font-ui text-[13px] text-ink-soft">
                         {formatDate(article.publishedAt, "az")}
+                      </td>
+                      <td className="px-5 py-4">
+                        {loadingViews ? (
+                          <span className="font-ui text-[11px] text-muted">...</span>
+                        ) : (
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-display text-[15px] text-ink font-medium">
+                                {viewsMap.get(article.id)?.totalViews.toLocaleString('az-AZ') || '0'}
+                              </span>
+                              <span className="font-ui text-[10px] text-muted uppercase tracking-wide">
+                                cəmi
+                              </span>
+                            </div>
+                            {(viewsMap.get(article.id)?.last7Days || 0) > 0 && (
+                              <div className="font-ui text-[10px] text-muted">
+                                📈 {viewsMap.get(article.id)?.last7Days} son 7 gün
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="px-5 py-4">
                         <ArticleStatusPill status={article.status} />

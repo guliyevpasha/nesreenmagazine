@@ -8,6 +8,7 @@ import CoverArt from "@/components/CoverArt";
 import { RoseMark } from "@/components/Logo";
 import SectionHeading from "@/components/SectionHeading";
 import ShareButtons from "@/components/ShareButtons";
+import ViewTracker from "@/components/ViewTracker";
 import { categoryName, isCategorySlug } from "@/lib/categories";
 import { getArticleBySlug, getRelatedArticles } from "@/lib/data/articles";
 import { siteUrl } from "@/lib/firebase/config";
@@ -143,6 +144,9 @@ export default async function ArticlePage({
 
   return (
     <article>
+      {/* View tracking - görünməz komponent */}
+      <ViewTracker articleId={article.id} slug={article.slug} category={article.category} />
+      
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

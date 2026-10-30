@@ -33,10 +33,82 @@ export default function AdminDashboard() {
   const [recentArticles, setRecentArticles] = useState<Article[]>([]);
   const [error, setError] = useState("");
   const [dateRange, setDateRange] = useState("30d");
+  const [filteredStats, setFilteredStats] = useState<Stats | null>(null);
+  const [customDate, setCustomDate] = useState("");
 
   useEffect(() => {
     loadDashboardData();
   }, []);
+
+  // Filter stats when dateRange changes
+  useEffect(() => {
+    if (!stats) return;
+    
+    const now = new Date();
+    let startDate = new Date();
+    
+    // If custom date is selected, use that
+    if (customDate && dateRange === "custom") {
+      startDate = new Date(customDate);
+    } else {
+      // Calculate start date based on selected range
+      switch (dateRange) {
+        case "1h":
+          startDate = new Date(now.getTime() - 60 * 60 * 1000);
+          break;
+        case "1d":
+          startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case "7d":
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case "30d":
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case "90d":
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        case "180d":
+          startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+          break;
+        case "270d":
+          startDate = new Date(now.getTime() - 270 * 24 * 60 * 60 * 1000);
+          break;
+        case "365d":
+          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+          break;
+        case "730d":
+          startDate = new Date(now.getTime() - 730 * 24 * 60 * 60 * 1000);
+          break;
+        case "1095d":
+          startDate = new Date(now.getTime() - 1095 * 24 * 60 * 60 * 1000);
+          break;
+        case "3650d":
+          startDate = new Date(now.getTime() - 3650 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      }
+    }
+    
+    // Filter articles by date range
+    const filteredArticles = stats.articles.filter((article) => {
+      const articleDate = new Date(article.publishedAt);
+      return articleDate >= startDate && articleDate <= now;
+    });
+    
+    const published = filteredArticles.filter((a) => a.status === "published");
+    const drafts = filteredArticles.filter((a) => a.status === "draft");
+    
+    setFilteredStats({
+      ...stats,
+      articles: filteredArticles,
+      totalArticles: filteredArticles.length,
+      publishedArticles: published.length,
+      draftArticles: drafts.length,
+      // Note: Views are still total - would need date-filtered analytics query
+    });
+  }, [stats, dateRange, customDate]);
 
   async function loadDashboardData() {
     try {
@@ -73,6 +145,17 @@ export default function AdminDashboard() {
         subscribers,
         totalRevenue,
       });
+      
+      // Initialize filteredStats with full stats
+      setFilteredStats({
+        articles,
+        totalArticles: articles.length,
+        publishedArticles: published.length,
+        draftArticles: drafts.length,
+        pageViews: analyticsStats.totalViews,
+        subscribers,
+        totalRevenue,
+      });
 
       setFeaturedArticle(featured);
       setRecentArticles(recent);
@@ -80,7 +163,7 @@ export default function AdminDashboard() {
       console.error("Dashboard error:", err);
       setError(err instanceof Error ? err.message : "Məlumat yüklənmədi");
       // Set empty stats to show page
-      setStats({
+      const emptyStats = {
         articles: [],
         totalArticles: 0,
         publishedArticles: 0,
@@ -88,11 +171,13 @@ export default function AdminDashboard() {
         pageViews: 0,
         subscribers: 0,
         totalRevenue: 0,
-      });
+      };
+      setStats(emptyStats);
+      setFilteredStats(emptyStats);
     }
   }
 
-  if (!stats) {
+  if (!stats || !filteredStats) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-cream-deep">
         <div className="text-center">
@@ -102,31 +187,58 @@ export default function AdminDashboard() {
       </div>
     );
   }
+  
+  const displayStats = filteredStats;
 
   return (
     <div className="min-h-screen bg-cream-deep">
       {/* Header */}
-      <div className="border-b border-line bg-paper px-6 py-4 lg:px-10">
-        <div className="flex items-center justify-between">
+      <div className="border-b border-line bg-paper px-6 py-6 lg:px-10">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="font-display text-2xl text-ink">Ana səhifə</h1>
-            <p className="mt-1 font-ui text-[13px] text-muted">
-              Saytın ümumi statistikası və son fəaliyyətlər
-            </p>
+            <h1 className="font-display text-3xl text-ink">İcmal</h1>
           </div>
-          <div className="flex items-center gap-3">
-            <select
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-              className="border border-line bg-paper px-3 py-2 font-ui text-[12px] text-ink rounded"
-            >
-              <option value="7d">Son 7 gün</option>
-              <option value="30d">Son 30 gün</option>
-              <option value="90d">Son 90 gün</option>
-            </select>
-            <Button onClick={() => router.push("/admin/articles/new")}>
-              + Yeni məqalə
-            </Button>
+          
+          {/* Time Range Filter */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-ui text-[11px] uppercase tracking-[0.14em] text-muted mr-2">
+              Dövr:
+            </span>
+            {[
+              { value: "1h", label: "Saatlıq" },
+              { value: "1d", label: "Günlük" },
+              { value: "7d", label: "Həftəlik" },
+              { value: "30d", label: "Aylıq" },
+              { value: "90d", label: "3 ay" },
+              { value: "180d", label: "6 ay" },
+              { value: "270d", label: "9 ay" },
+              { value: "365d", label: "İllik" },
+              { value: "730d", label: "2 il" },
+              { value: "1095d", label: "3 il" },
+              { value: "3650d", label: "10 il" },
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setDateRange(option.value)}
+                className={`border px-3 py-1.5 font-ui text-[11px] uppercase tracking-[0.12em] transition-all duration-200 ${
+                  dateRange === option.value
+                    ? "border-gold bg-gold text-bordo-deep shadow-sm"
+                    : "border-line bg-paper text-ink hover:border-gold hover:text-bordo"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+            <input
+              type="date"
+              value={customDate}
+              onChange={(e) => {
+                setCustomDate(e.target.value);
+                setDateRange("custom");
+              }}
+              className="border border-line bg-paper px-3 py-1.5 font-ui text-[11px] text-ink focus:border-gold focus:outline-none"
+              title="Xüsusi tarix seçin"
+            />
           </div>
         </div>
       </div>
@@ -142,25 +254,25 @@ export default function AdminDashboard() {
         <div className="mb-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Ümumi məqalələr"
-            value={stats.totalArticles.toLocaleString()}
+            value={displayStats.totalArticles.toLocaleString()}
             change="+12%"
             isPositive={true}
           />
           <StatCard
-            label="Bu ay baxış"
-            value={stats.pageViews.toLocaleString()}
+            label="Baxışlar"
+            value={displayStats.pageViews.toLocaleString()}
             change="+8.2%"
             isPositive={true}
           />
           <StatCard
             label="Aktiv istifadəçilər"
-            value={(stats.pageViews / 3).toFixed(0)}
+            value={(displayStats.pageViews / 3).toFixed(0)}
             change="+5.4%"
             isPositive={true}
           />
           <StatCard
             label="Yayımlanmış"
-            value={stats.publishedArticles.toLocaleString()}
+            value={displayStats.publishedArticles.toLocaleString()}
             change="+15"
             isPositive={true}
           />
@@ -198,16 +310,16 @@ export default function AdminDashboard() {
             <LayoutTemplates />
 
             {/* Son fəaliyyətlər */}
-            <RecentActivity articles={stats.articles.slice(0, 10)} />
+            <RecentActivity articles={displayStats.articles.slice(0, 10)} />
           </div>
 
           {/* Sağ sidebar - 4 sütun */}
           <div className="space-y-6 lg:col-span-4">
-            <CategoriesPanel articles={stats.articles} />
+            <CategoriesPanel articles={displayStats.articles} />
             <TrendingTags />
             <StaffPanel />
-            <RecentEditsPanel articles={stats.articles} />
-            <SubscribersPanel count={stats.subscribers} />
+            <RecentEditsPanel articles={displayStats.articles} />
+            <SubscribersPanel count={displayStats.subscribers} />
             <QuickActionsPanel />
           </div>
         </div>
@@ -587,7 +699,7 @@ function TrendingTags() {
           href="/admin/analytics"
           className="font-ui text-[10px] uppercase tracking-wider text-bordo hover:underline"
         >
-          Tam analytics →
+          Tam analiz →
         </Link>
       </div>
     </div>
