@@ -213,7 +213,7 @@ export default async function ArticlePage({
       {/* ---------- Mətn ---------- */}
       <div className="container-mag py-14 lg:py-16">
         <div className="mx-auto grid grid-cols-1 lg:grid-cols-[1fr_720px_1fr] gap-8">
-          {/* Sol reklam sahəsi - yalnız desktop */}
+          {/* Sol reklam sahəsi - desktop */}
           <aside className="hidden lg:block">
             <div className="sticky top-24">
               <div className="border border-line bg-cream-deep/30 p-4 text-center">
@@ -227,15 +227,29 @@ export default async function ArticlePage({
 
           {/* Mərkəz mətn sahəsi */}
           <div className="min-w-0">
+            {/* Mobil/Tablet üçün üst reklam banneri */}
+            <div className="mb-8 lg:hidden">
+              <div className="border border-line bg-cream-deep/30 p-4 text-center">
+                <p className="text-xs text-muted uppercase tracking-wider">Reklam</p>
+                <div className="mt-2 aspect-[320/100] sm:aspect-[728/90] bg-line/20 flex items-center justify-center">
+                  {/* AdSlot komponenti buraya - mobile banner 320x100, tablet 728x90 */}
+                </div>
+              </div>
+            </div>
+
             <div className="prose-mag" dangerouslySetInnerHTML={{ __html: firstHalf }} />
 
             {secondHalf.trim().length > 0 && (
               <>
-                {/* MÜVƏQQƏTİ: reklam sahəsi gizlədilib — bu bloku şərhdən çıxarmaqla geri qaytarın.
+                {/* Mətn ortası reklam banneri - bütün ekranlar üçün */}
                 <div className="my-12">
-                  <AdSlot slot="article-inline" locale={locale} />
+                  <div className="border border-line bg-cream-deep/30 p-4 text-center">
+                    <p className="text-xs text-muted uppercase tracking-wider">Reklam</p>
+                    <div className="mt-2 aspect-[320/100] sm:aspect-[728/90] lg:aspect-[970/90] bg-line/20 flex items-center justify-center">
+                      {/* AdSlot komponenti buraya - responsive banner */}
+                    </div>
+                  </div>
                 </div>
-                */}
                 <div className="prose-mag" dangerouslySetInnerHTML={{ __html: secondHalf }} />
               </>
             )}
@@ -264,9 +278,19 @@ export default async function ArticlePage({
             <div className="mt-8 border-t border-line pt-8">
               <ShareButtons locale={locale} title={title} />
             </div>
+
+            {/* Mobil/Tablet üçün alt reklam banneri */}
+            <div className="mt-8 lg:hidden">
+              <div className="border border-line bg-cream-deep/30 p-4 text-center">
+                <p className="text-xs text-muted uppercase tracking-wider">Reklam</p>
+                <div className="mt-2 aspect-[320/100] sm:aspect-[728/90] bg-line/20 flex items-center justify-center">
+                  {/* AdSlot komponenti buraya - mobile banner 320x100, tablet 728x90 */}
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Sağ reklam sahəsi - yalnız desktop */}
+          {/* Sağ reklam sahəsi - desktop */}
           <aside className="hidden lg:block">
             <div className="sticky top-24">
               <div className="border border-line bg-cream-deep/30 p-4 text-center">
