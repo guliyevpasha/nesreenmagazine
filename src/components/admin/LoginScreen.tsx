@@ -27,18 +27,16 @@ function readableError(error: unknown): string {
 }
 
 export default function LoginScreen({ unauthorized }: { unauthorized: boolean }) {
-  const { signIn, signOut, resetPassword } = useAuth();
+  const { signIn, signOut } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError("");
-    setNotice("");
     setBusy(true);
     try {
       await signIn(email, password);
@@ -46,20 +44,6 @@ export default function LoginScreen({ unauthorized }: { unauthorized: boolean })
       setError(readableError(caught));
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function handleReset() {
-    if (!email.trim()) {
-      setError("Şifrəni bərpa etmək üçün əvvəlcə e-poçtunuzu yazın.");
-      return;
-    }
-    setError("");
-    try {
-      await resetPassword(email);
-      setNotice("Şifrə bərpası üçün link e-poçtunuza göndərildi.");
-    } catch (caught) {
-      setError(readableError(caught));
     }
   }
 
@@ -201,14 +185,6 @@ export default function LoginScreen({ unauthorized }: { unauthorized: boolean })
               {busy ? "Yoxlanılır…" : "Daxil ol"}
             </button>
           </form>
-
-          <button
-            type="button"
-            onClick={() => void handleReset()}
-            className="link-underline mt-6 font-ui text-[12px] text-muted"
-          >
-            Şifrəni unutmusunuz?
-          </button>
         </div>
       </div>
     </div>
