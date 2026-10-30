@@ -56,6 +56,12 @@ function inline(text: string): string {
 export function markdownToHtml(markdown: string): string {
   if (!markdown) return "";
 
+  // Əgər mətn artıq HTML-dirsə (RichTextEditor-dan gəlirsə), onu təmizlə və qaytart
+  if (markdown.trim().startsWith("<") || markdown.includes("<p>") || markdown.includes("<div>")) {
+    return sanitizeHtml(markdown);
+  }
+
+  // Markdown formatındadırsa, çevirməyə davam et
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const html: string[] = [];
 
@@ -65,7 +71,12 @@ export function markdownToHtml(markdown: string): string {
 
   const flushParagraph = () => {
     if (paragraph.length === 0) return;
-    html.push(`<p>${inline(paragraph.join(" "))}</p>`);
+    // Hər bir sətir ayrıca paragraph kimi göstər (Word davranışı)
+    paragraph.forEach(line => {
+      if (line.trim()) {
+        html.push(`<p>${inline(line)}</p>`);
+      }
+    });
     paragraph = [];
   };
 
@@ -148,6 +159,27 @@ export function markdownToHtml(markdown: string): string {
 
   flushAll();
   return html.join("\n");
+}
+
+/** HTML-i təmizləyir və yalnız təhlükəsiz tag-ları saxlayır */
+function sanitizeHtml(html: string): string {
+  // Boş div və br tag-larını təmizlə
+  let cleaned = html
+    .replace(/<div>\s*<\/div>/gi, "")
+    .replace(/<div><br><\/div>/gi, "<br>")
+    .replace(/<div>\s*<br\s*\/?>\s*<\/div>/gi, "<br>")
+    .replace(/(<br\s*\/?>\s*){3,}/gi, "<br><br>") // Çox sayda br-ləri azalt
+    .replace(/<div>/gi, "<p>")
+    .replace(/<\/div>/gi, "</p>")
+    .replace(/<p>\s*<\/p>/gi, "") // Boş p tag-larını sil
+    .replace(/(<p><br\s*\/?><\/p>)/gi, ""); // Boş paragraph + br-ləri sil
+
+  // Təhlükəli script və iframe tag-larını sil
+  cleaned = cleaned
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "");
+
+  return cleaned.trim();
 }
 
 /** Mətndən nişanları çıxarıb təmiz mətn qaytarır — meta təsvirlər üçün. */

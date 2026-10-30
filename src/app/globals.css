@@ -362,8 +362,24 @@
     margin-top: 2em;
     margin-bottom: 0.1em;
   }
-  .prose-mag strong { color: var(--color-ink); font-weight: 600; }
-  .prose-mag em { font-style: italic; }
+  .prose-mag h4 {
+    font-size: 1.125rem;
+    color: var(--color-ink);
+    margin-top: 1.8em;
+    margin-bottom: 0.1em;
+  }
+  .prose-mag h5, .prose-mag h6 {
+    font-size: 1rem;
+    color: var(--color-ink);
+    margin-top: 1.6em;
+    margin-bottom: 0.1em;
+  }
+  .prose-mag strong, .prose-mag b { color: var(--color-ink); font-weight: 600; }
+  .prose-mag em, .prose-mag i { font-style: italic; }
+  .prose-mag u { text-decoration: underline; text-underline-offset: 2px; }
+  .prose-mag s, .prose-mag del, .prose-mag strike { text-decoration: line-through; }
+  .prose-mag sup { font-size: 0.75em; vertical-align: super; }
+  .prose-mag sub { font-size: 0.75em; vertical-align: sub; }
   .prose-mag a { color: var(--color-bordo); text-decoration: underline; text-underline-offset: 3px; }
   .prose-mag ul, .prose-mag ol { padding-inline-start: 1.35em; }
   .prose-mag li { margin-top: 0.5em; }
@@ -396,6 +412,22 @@
     color: var(--color-muted);
     margin-top: 0.7rem;
     text-align: center;
+  }
+  .prose-mag img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1.5em auto;
+    border-radius: 4px;
+  }
+  .prose-mag p {
+    margin-block: 1em;
+  }
+  .prose-mag p:first-of-type {
+    margin-top: 0;
+  }
+  .prose-mag p:last-of-type {
+    margin-bottom: 0;
   }
   /* İlk abzasda buraxılmış baş hərf */
   .prose-mag > p:first-of-type::first-letter {

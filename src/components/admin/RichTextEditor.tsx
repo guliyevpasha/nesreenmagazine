@@ -180,6 +180,45 @@ export default function RichTextEditor({
             >
               <s className="text-base">S</s>
             </ToolbarButton>
+            <ToolbarButton onClick={() => formatText("superscript")} title="Üst indeks (x²)">
+              <span className="text-xs">x<sup>2</sup></span>
+            </ToolbarButton>
+            <ToolbarButton onClick={() => formatText("subscript")} title="Alt indeks (H₂O)">
+              <span className="text-xs">H<sub>2</sub></span>
+            </ToolbarButton>
+          </div>
+
+          {/* Font Size */}
+          <div className="flex gap-1 border-r-2 border-slate-300 pr-2">
+            <select
+              className="px-3 py-1.5 border border-slate-300 rounded-md bg-white text-sm font-medium hover:bg-slate-50 cursor-pointer"
+              onChange={(e) => formatText("fontSize", e.target.value)}
+              defaultValue="3"
+            >
+              <option value="1">Çox kiçik</option>
+              <option value="2">Kiçik</option>
+              <option value="3">Normal</option>
+              <option value="4">Böyük</option>
+              <option value="5">Çox böyük</option>
+              <option value="6">Ən böyük</option>
+              <option value="7">Nəhəng</option>
+            </select>
+          </div>
+
+          {/* Text Color & Highlight */}
+          <div className="flex gap-1 border-r-2 border-slate-300 pr-2">
+            <ToolbarButton onClick={() => {
+              const color = prompt("Rəng kodu (məs: #ff0000, red):");
+              if (color) formatText("foreColor", color);
+            }} title="Mətn rəngi">
+              <span className="text-base">A</span>
+            </ToolbarButton>
+            <ToolbarButton onClick={() => {
+              const color = prompt("Fon rəngi (məs: #ffff00, yellow):");
+              if (color) formatText("hiliteColor", color);
+            }} title="Fon rəngi">
+              <span className="text-base" style={{background: '#ffeb3b', padding: '2px 4px'}}>H</span>
+            </ToolbarButton>
           </div>
 
           {/* Headings */}
