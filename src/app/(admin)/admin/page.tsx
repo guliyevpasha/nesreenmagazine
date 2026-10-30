@@ -40,12 +40,16 @@ export default function AdminDashboard() {
 
   async function loadDashboardData() {
     try {
+      console.log("Loading dashboard data...");
+      
       const [articles, subscribers, adOrders, analyticsStats] = await Promise.all([
-        listArticles(),
-        countSubscribers(),
-        listAdOrders().catch(() => []),
-        getOverallStats(),
+        listArticles().catch(err => { console.error("Articles error:", err); return []; }),
+        countSubscribers().catch(err => { console.error("Subscribers error:", err); return 0; }),
+        listAdOrders().catch(err => { console.error("AdOrders error:", err); return []; }),
+        getOverallStats().catch(err => { console.error("Analytics error:", err); return { totalViews: 0 }; }),
       ]);
+
+      console.log("Data loaded:", { articles: articles.length, subscribers, analyticsStats });
 
       const published = articles.filter((a) => a.status === "published");
       const drafts = articles.filter((a) => a.status === "draft");
@@ -73,7 +77,18 @@ export default function AdminDashboard() {
       setFeaturedArticle(featured);
       setRecentArticles(recent);
     } catch (err) {
+      console.error("Dashboard error:", err);
       setError(err instanceof Error ? err.message : "Məlumat yüklənmədi");
+      // Set empty stats to show page
+      setStats({
+        articles: [],
+        totalArticles: 0,
+        publishedArticles: 0,
+        draftArticles: 0,
+        pageViews: 0,
+        subscribers: 0,
+        totalRevenue: 0,
+      });
     }
   }
 
