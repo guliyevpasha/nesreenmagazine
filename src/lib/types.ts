@@ -2132,8 +2132,10 @@ export type AdvancedAdBanner = {
   id: string;
   /** Banner adı (admin üçün). */
   name: string;
-  /** Banner rəsminin URL-i. */
+  /** Banner media URL-i (şəkil, GIF, video). */
   imageUrl: string;
+  /** Media tipi. */
+  mediaType: "image" | "gif" | "video";
   /** Reklam linki. */
   linkUrl: string;
   /** Alt mətn. */

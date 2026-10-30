@@ -22,6 +22,7 @@ export default function EditBannerPage({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     loadBanner();
@@ -85,6 +86,73 @@ export default function EditBannerPage({
     });
   }
 
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4", "video/webm"];
+    if (!validTypes.includes(file.type)) {
+      setMessage({ tone: "error", text: "Yalnız şəkil (JPG, PNG, GIF, WebP) və ya video (MP4, WebM) fayl yükləyə bilərsiniz" });
+      return;
+    }
+
+    // Validate file size (50MB max)
+    if (file.size > 50 * 1024 * 1024) {
+      setMessage({ tone: "error", text: "Fayl ölçüsü 50MB-dan çox ola bilməz" });
+      return;
+    }
+
+    setUploading(true);
+    setMessage(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Fayl yüklənmədi");
+      }
+
+      const data = await response.json();
+      
+      // Auto-detect media type from file
+      let mediaType: "image" | "gif" | "video" = "image";
+      if (file.type === "image/gif") {
+        mediaType = "gif";
+      } else if (file.type.startsWith("video/")) {
+        mediaType = "video";
+      }
+
+      setBanner({ 
+        ...banner, 
+        imageUrl: data.url,
+        mediaType: mediaType
+      });
+      setMessage({ tone: "success", text: "Fayl uğurla yükləndi" });
+    } catch (err) {
+      setMessage({
+        tone: "error",
+        text: err instanceof Error ? err.message : "Fayl yüklənərkən xəta baş verdi",
+      });
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function applyPresetSize(width: number, height: number) {
+    if (!banner) return;
+    setBanner({
+      ...banner,
+      dimensions: { width, height }
+    });
+  }
+
   if (loading) {
     return (
       <>
@@ -144,7 +212,19 @@ export default function EditBannerPage({
                   />
                 </Field>
 
-                <Field label="Şəkil URL" hint="Banner şəklinin ünvanı">
+                <Field label="Media Tipi">
+                  <select
+                    value={banner.mediaType || "image"}
+                    onChange={(e) => setBanner({ ...banner, mediaType: e.target.value as "image" | "gif" | "video" })}
+                    className={inputClass}
+                  >
+                    <option value="image">Şəkil (Image)</option>
+                    <option value="gif">GIF / Motion Dizayn</option>
+                    <option value="video">Video</option>
+                  </select>
+                </Field>
+
+                <Field label="Şəkil URL" hint="Banner mediyasının ünvanı">
                   <input
                     type="url"
                     value={banner.imageUrl}
@@ -154,14 +234,37 @@ export default function EditBannerPage({
                   />
                 </Field>
 
+                <Field label="Və ya Cihazdan Yüklə" hint="Şəkil, GIF və ya Video (maksimum 50MB)">
+                  <div className="space-y-3">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+                      onChange={handleFileUpload}
+                      disabled={uploading}
+                      className="w-full text-sm text-muted file:mr-4 file:rounded file:border-0 file:bg-bordo file:px-4 file:py-2 file:text-sm file:text-white file:cursor-pointer hover:file:bg-bordo/90 disabled:opacity-50"
+                    />
+                    {uploading && (
+                      <p className="text-xs text-muted animate-pulse">Yüklənir...</p>
+                    )}
+                  </div>
+                </Field>
+
                 {banner.imageUrl && (
                   <div className="border border-line bg-cream-deep/30 p-4">
                     <p className="mb-2 text-xs text-muted uppercase tracking-wider">Önizləmə</p>
-                    <img
-                      src={banner.imageUrl}
-                      alt={banner.altText}
-                      className="max-h-64 w-auto border border-line"
-                    />
+                    {banner.mediaType === "video" ? (
+                      <video
+                        src={banner.imageUrl}
+                        controls
+                        className="max-h-64 w-auto border border-line"
+                      />
+                    ) : (
+                      <img
+                        src={banner.imageUrl}
+                        alt={banner.altText}
+                        className="max-h-64 w-auto border border-line"
+                      />
+                    )}
                   </div>
                 )}
 
@@ -211,36 +314,60 @@ export default function EditBannerPage({
             </Panel>
 
             <Panel title="Ölçülər">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Genişlik (px)">
-                  <input
-                    type="number"
-                    value={banner.dimensions.width}
-                    onChange={(e) =>
-                      setBanner({
-                        ...banner,
-                        dimensions: { ...banner.dimensions, width: parseInt(e.target.value) || 0 },
-                      })
-                    }
+              <div className="space-y-4">
+                <Field label="Standart Ölçülər" hint="Populyar banner ölçüləri">
+                  <select
+                    onChange={(e) => {
+                      const [width, height] = e.target.value.split("x").map(Number);
+                      if (width && height) applyPresetSize(width, height);
+                    }}
                     className={inputClass}
-                    min="1"
-                  />
+                    defaultValue=""
+                  >
+                    <option value="">Hazır ölçü seç...</option>
+                    <option value="300x250">300×250 (Medium Rectangle)</option>
+                    <option value="728x90">728×90 (Leaderboard)</option>
+                    <option value="300x600">300×600 (Half Page)</option>
+                    <option value="320x50">320×50 (Mobile Banner)</option>
+                    <option value="320x100">320×100 (Mobile Large)</option>
+                    <option value="970x90">970×90 (Large Leaderboard)</option>
+                    <option value="160x600">160×600 (Wide Skyscraper)</option>
+                    <option value="300x50">300×50 (Mobile Banner)</option>
+                    <option value="468x60">468×60 (Banner)</option>
+                  </select>
                 </Field>
 
-                <Field label="Hündürlük (px)">
-                  <input
-                    type="number"
-                    value={banner.dimensions.height}
-                    onChange={(e) =>
-                      setBanner({
-                        ...banner,
-                        dimensions: { ...banner.dimensions, height: parseInt(e.target.value) || 0 },
-                      })
-                    }
-                    className={inputClass}
-                    min="1"
-                  />
-                </Field>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Genişlik (px)">
+                    <input
+                      type="number"
+                      value={banner.dimensions.width}
+                      onChange={(e) =>
+                        setBanner({
+                          ...banner,
+                          dimensions: { ...banner.dimensions, width: parseInt(e.target.value) || 0 },
+                        })
+                      }
+                      className={inputClass}
+                      min="1"
+                    />
+                  </Field>
+
+                  <Field label="Hündürlük (px)">
+                    <input
+                      type="number"
+                      value={banner.dimensions.height}
+                      onChange={(e) =>
+                        setBanner({
+                          ...banner,
+                          dimensions: { ...banner.dimensions, height: parseInt(e.target.value) || 0 },
+                        })
+                      }
+                      className={inputClass}
+                      min="1"
+                    />
+                  </Field>
+                </div>
               </div>
             </Panel>
           </div>

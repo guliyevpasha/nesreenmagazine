@@ -18,6 +18,7 @@ export default function NewBannerPage() {
   const [banner, setBanner] = useState<AdvancedAdBannerInput>({
     name: "",
     imageUrl: "",
+    mediaType: "image",
     linkUrl: "",
     altText: "",
     locations: [],
@@ -34,6 +35,8 @@ export default function NewBannerPage() {
     priority: 5,
     animation: "none",
   });
+
+  const [uploading, setUploading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -78,6 +81,66 @@ export default function NewBannerPage() {
     });
   }
 
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4", "video/webm"];
+    if (!allowedTypes.includes(file.type)) {
+      alert("Yalnız şəkil (JPG, PNG, GIF, WebP) və ya video (MP4, WebM) yükləyə bilərsiniz.");
+      return;
+    }
+
+    // Validate file size (max 50MB for video, 10MB for image)
+    const maxSize = file.type.startsWith("video/") ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert(`Fayl ölçüsü ${file.type.startsWith("video/") ? "50MB" : "10MB"}-dan çox ola bilməz.`);
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Yüklənmədi");
+      }
+
+      const data = await response.json();
+      
+      // Determine media type
+      let mediaType: "image" | "gif" | "video" = "image";
+      if (file.type === "image/gif") {
+        mediaType = "gif";
+      } else if (file.type.startsWith("video/")) {
+        mediaType = "video";
+      }
+
+      setBanner({
+        ...banner,
+        imageUrl: data.url,
+        mediaType,
+      });
+
+      setMessage({ tone: "success", text: "Fayl uğurla yükləndi!" });
+    } catch (err) {
+      setMessage({
+        tone: "error",
+        text: "Yüklənərkən xəta: " + (err instanceof Error ? err.message : "Xəta"),
+      });
+    } finally {
+      setUploading(false);
+    }
+  }
+
   return (
     <>
       <PageHeader
@@ -113,28 +176,82 @@ export default function NewBannerPage() {
                   />
                 </Field>
 
-                <Field label="Şəkil URL" hint="Banner şəklinin ünvanı">
-                  <input
-                    type="url"
-                    value={banner.imageUrl}
-                    onChange={(e) => setBanner({ ...banner, imageUrl: e.target.value })}
-                    className={inputClass}
-                    placeholder="https://example.com/banner.jpg"
-                    required
-                  />
+                <Field label="Şəkil/Video" hint="Banner media faylı (şəkil, GIF, video)">
+                  <div className="space-y-3">
+                    {/* URL Input */}
+                    <div>
+                      <label className="mb-1 block text-xs text-muted">URL ilə</label>
+                      <input
+                        type="url"
+                        value={banner.imageUrl}
+                        onChange={(e) => setBanner({ ...banner, imageUrl: e.target.value })}
+                        className={inputClass}
+                        placeholder="https://example.com/banner.jpg"
+                      />
+                    </div>
+
+                    {/* File Upload */}
+                    <div>
+                      <label className="mb-1 block text-xs text-muted">və ya cihazdan yüklə</label>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+                        onChange={handleFileUpload}
+                        disabled={uploading}
+                        className="w-full font-ui text-sm text-ink file:mr-4 file:rounded file:border file:border-line file:bg-cream file:px-4 file:py-2 file:font-ui file:text-[11px] file:uppercase file:tracking-[0.12em] file:text-ink hover:file:border-bordo hover:file:bg-bordo hover:file:text-cream disabled:opacity-50"
+                      />
+                      {uploading && (
+                        <p className="mt-2 text-xs text-blue-600">Yüklənir...</p>
+                      )}
+                      <p className="mt-1 text-xs text-muted">
+                        Şəkil: JPG, PNG, GIF, WebP (max 10MB) · Video: MP4, WebM (max 50MB)
+                      </p>
+                    </div>
+
+                    {/* Media Type Selection */}
+                    {banner.imageUrl && (
+                      <div>
+                        <label className="mb-1 block text-xs text-muted">Media tipi</label>
+                        <select
+                          value={banner.mediaType}
+                          onChange={(e) => setBanner({ ...banner, mediaType: e.target.value as any })}
+                          className={inputClass}
+                        >
+                          <option value="image">Şəkil (statik)</option>
+                          <option value="gif">GIF (animasiyalı)</option>
+                          <option value="video">Video</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
                 </Field>
 
                 {banner.imageUrl && (
                   <div className="border border-line bg-cream-deep/30 p-4">
-                    <p className="mb-2 text-xs text-muted uppercase tracking-wider">Önizləmə</p>
-                    <img
-                      src={banner.imageUrl}
-                      alt={banner.altText}
-                      className="max-h-64 w-auto border border-line"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
+                    <p className="mb-2 text-xs text-muted uppercase tracking-wider">
+                      Önizləmə ({banner.mediaType})
+                    </p>
+                    {banner.mediaType === "video" ? (
+                      <video
+                        src={banner.imageUrl}
+                        className="max-h-64 w-auto border border-line"
+                        controls
+                        muted
+                        loop
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <img
+                        src={banner.imageUrl}
+                        alt={banner.altText}
+                        className="max-h-64 w-auto border border-line"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                    )}
                   </div>
                 )}
 
@@ -186,6 +303,35 @@ export default function NewBannerPage() {
             </Panel>
 
             <Panel title="Ölçülər">
+              <div className="mb-4">
+                <label className="mb-2 block font-ui text-[11px] uppercase tracking-[0.12em] text-muted">
+                  Standart Ölçülər
+                </label>
+                <select
+                  onChange={(e) => {
+                    const [width, height] = e.target.value.split("x").map(Number);
+                    if (width && height) {
+                      setBanner({
+                        ...banner,
+                        dimensions: { width, height },
+                      });
+                    }
+                  }}
+                  className={inputClass}
+                >
+                  <option value="">Seçin (və ya aşağıda custom daxil edin)</option>
+                  <option value="300x250">300x250 - Medium Rectangle</option>
+                  <option value="728x90">728x90 - Leaderboard</option>
+                  <option value="300x600">300x600 - Half Page</option>
+                  <option value="320x50">320x50 - Mobile Banner</option>
+                  <option value="320x100">320x100 - Large Mobile Banner</option>
+                  <option value="970x90">970x90 - Large Leaderboard</option>
+                  <option value="160x600">160x600 - Wide Skyscraper</option>
+                  <option value="300x50">300x50 - Mobile Small</option>
+                  <option value="468x60">468x60 - Banner</option>
+                </select>
+              </div>
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Genişlik (px)">
                   <input

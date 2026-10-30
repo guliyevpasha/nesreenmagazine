@@ -441,12 +441,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           active={pathname.startsWith("/admin/advanced-banners")}
         />
         <NavLink
-          href="/admin/banners"
-          label="Banner Sahələri (Köhnə)"
-          icon={ICONS.banner}
-          active={pathname === "/admin/banners"}
-        />
-        <NavLink
           href="/admin/ejournals"
           label="E-Jurnallar"
           icon={ICONS.ejournal}
