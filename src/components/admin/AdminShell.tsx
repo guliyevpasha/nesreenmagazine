@@ -526,6 +526,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               icon={ICONS.mail}
               active={pathname.startsWith("/admin/messages")}
             />
+            <NavLink
+              href="/admin/newsletters"
+              label="Email Bülten"
+              icon={ICONS.mail}
+              active={pathname.startsWith("/admin/newsletters")}
+            />
           </>
         )}
 
