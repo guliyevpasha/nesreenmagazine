@@ -137,10 +137,9 @@ service cloud.firestore {
     //  İstifadəçilər
     // ═══════════════════════════════════════════
 
-    /** Redaksiya heyəti — admin siyahını görür, işçi öz sənədini */
+    /** Redaksiya heyəti — staff üzvləri siyahını görə bilər, admin idarə edir */
     match /staff/{memberEmail} {
-      allow read: if isAdmin()
-                  || (signedIn() && memberEmail == request.auth.token.email.lower());
+      allow read: if isStaff();  // Any active staff member can read all staff
       allow create, update, delete: if isAdmin();
     }
 
