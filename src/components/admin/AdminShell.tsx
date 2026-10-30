@@ -294,6 +294,14 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   if (!session) return <LoginScreen unauthorized={unauthorized} />;
 
   const canManage = isAdmin(session);
+  const userRole = session?.role || 'author';
+  
+  // Rol-based görünən menyular
+  const canSeeStaff = userRole === 'admin';
+  const canSeeBanners = userRole === 'admin';
+  const canSeeCRM = ['admin', 'sales', 'finance'].includes(userRole);
+  const canSeeSettings = userRole === 'admin';
+  const canSeeBackup = userRole === 'admin';
 
   const sidebar = (
     <div className="flex h-full flex-col bg-bordo-deep">
@@ -325,30 +333,34 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           icon={ICONS.analytics}
           active={pathname.startsWith("/admin/analytics")}
         />
-        <NavLink
-          href="/admin/performance"
-          label="Performans"
-          icon={ICONS.settings}
-          active={pathname.startsWith("/admin/performance")}
-        />
-        <NavLink
-          href="/admin/backup"
-          label="Backup & Restore"
-          icon={ICONS.audit}
-          active={pathname.startsWith("/admin/backup")}
-        />
-        <NavLink
-          href="/admin/activity-log"
-          label="Activity Log"
-          icon={ICONS.audit}
-          active={pathname.startsWith("/admin/activity-log")}
-        />
-        <NavLink
-          href="/admin/api-docs"
-          label="API Docs"
-          icon={ICONS.settings}
-          active={pathname.startsWith("/admin/api-docs")}
-        />
+        {canSeeBackup && (
+          <>
+            <NavLink
+              href="/admin/performance"
+              label="Performans"
+              icon={ICONS.settings}
+              active={pathname.startsWith("/admin/performance")}
+            />
+            <NavLink
+              href="/admin/backup"
+              label="Backup & Restore"
+              icon={ICONS.audit}
+              active={pathname.startsWith("/admin/backup")}
+            />
+            <NavLink
+              href="/admin/activity-log"
+              label="Activity Log"
+              icon={ICONS.audit}
+              active={pathname.startsWith("/admin/activity-log")}
+            />
+            <NavLink
+              href="/admin/api-docs"
+              label="API Docs"
+              icon={ICONS.settings}
+              active={pathname.startsWith("/admin/api-docs")}
+            />
+          </>
+        )}
         <NavLink
           href="/admin/system-health"
           label="System Health"

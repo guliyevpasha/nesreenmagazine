@@ -69,6 +69,20 @@ export type Ejournal = {
 
 export type EjournalInput = Omit<Ejournal, "id">;
 
+export type DeletionRequest = {
+  id: string;
+  type: 'article' | 'staff' | 'banner';
+  itemId: string;
+  itemTitle: string;
+  requestedBy: string;
+  requestedByName: string;
+  requestedAt: string;
+  status: 'pending' | 'approved' | 'rejected';
+  approvedBy?: string;
+  approvedAt?: string;
+  reason?: string;
+};
+
 export type StaffRole =
   | "admin"
   | "editor"
