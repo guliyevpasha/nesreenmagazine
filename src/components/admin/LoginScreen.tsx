@@ -175,11 +175,6 @@ export default function LoginScreen({ unauthorized }: { unauthorized: boolean })
                 {error}
               </p>
             )}
-            {notice && (
-              <p className="border-s-2 border-gold bg-gold/10 px-3 py-2 font-ui text-[13px] text-ink-soft" role="status">
-                {notice}
-              </p>
-            )}
 
             <button type="submit" disabled={busy} className="btn-primary w-full disabled:opacity-60">
               {busy ? "Yoxlanılır…" : "Daxil ol"}
