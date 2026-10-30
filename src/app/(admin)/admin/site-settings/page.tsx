@@ -5,7 +5,6 @@ import { getSiteSettings, saveSiteSettings } from "@/lib/data/admin";
 import type { SiteSettings } from "@/lib/types";
 import { emptyLocalized } from "@/lib/types";
 import { useAuth } from "@/lib/firebase/auth";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
 import {
   Alert,
   Button,
@@ -56,11 +55,8 @@ function emptyForm(): SiteSettings {
 /* ── Əsas səhifə ────────────────────────────────────────────────────────── */
 export default function SiteSettingsPage() {
   const { session } = useAuth();
-  const { hasAccess, loading: accessLoading } = useRoleAccess('/admin/site-settings');
   
   const [settings, setSettings] = useState<SiteSettings>(emptyForm());
-  
-  if (accessLoading || !hasAccess) return null;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");

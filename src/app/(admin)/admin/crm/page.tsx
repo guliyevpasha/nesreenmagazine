@@ -241,7 +241,7 @@ function ClientModal({
 /* ── Əsas səhifə ────────────────────────────────────────────────────────── */
 export default function CrmPage() {
   const { session } = useAuth();
-  const { hasAccess, loading: accessLoading } = useRoleAccess('/admin/crm');
+  // useRoleAccess silindi
   
   const [clients, setClients] = useState<CrmClient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -251,10 +251,6 @@ export default function CrmPage() {
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState<DealStage | "all">("all");
   const [view, setView] = useState<"list" | "kanban">("list");
-
-  if (accessLoading || !hasAccess) {
-    return null;
-  }
 
   async function load() {
     setLoading(true);

@@ -47,12 +47,10 @@ function exportCsv(subscribers: Subscriber[]) {
 
 /* ── Əsas səhifə ────────────────────────────────────────────────────────── */
 export default function SubscribersPage() {
-  const { hasAccess, loading: accessLoading } = useRoleAccess('/admin/subscribers');
+  // useRoleAccess silindi
   
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  if (accessLoading || !hasAccess) return null;
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [filterActive, setFilterActive] = useState<"all" | "active" | "inactive">("all");
