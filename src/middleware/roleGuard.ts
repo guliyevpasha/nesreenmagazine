@@ -120,6 +120,6 @@ export function canAccessPath(role: StaffRole, path: string): boolean {
  * Qadağan olunmuş səhifədə mesaj
  */
 export const FORBIDDEN_MESSAGE = {
-  title: 'İcazə yoxdur',
-  message: 'Bu bölməyə daxil olmaq üçün icazəniz yoxdur. Admin ilə əlaqə saxlayın.',
+  title: 'Giriş qadağandır',
+  message: 'Sizin bu bölməyə giriş icazəniz yoxdur. Zəhmət olmasa geri qayıdın.',
 };
