@@ -34,7 +34,8 @@ export default function AdminDashboard() {
   const [error, setError] = useState("");
   const [dateRange, setDateRange] = useState("30d");
   const [filteredStats, setFilteredStats] = useState<Stats | null>(null);
-  const [customDate, setCustomDate] = useState("");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
 
   useEffect(() => {
     loadDashboardData();
@@ -46,10 +47,13 @@ export default function AdminDashboard() {
     
     const now = new Date();
     let startDate = new Date();
+    let endDate = now;
     
-    // If custom date is selected, use that
-    if (customDate && dateRange === "custom") {
-      startDate = new Date(customDate);
+    // If custom date range is selected, use those dates
+    if (customStartDate && customEndDate && dateRange === "custom") {
+      startDate = new Date(customStartDate);
+      endDate = new Date(customEndDate);
+      endDate.setHours(23, 59, 59, 999); // End of day
     } else {
       // Calculate start date based on selected range
       switch (dateRange) {
@@ -83,9 +87,6 @@ export default function AdminDashboard() {
         case "1095d":
           startDate = new Date(now.getTime() - 1095 * 24 * 60 * 60 * 1000);
           break;
-        case "3650d":
-          startDate = new Date(now.getTime() - 3650 * 24 * 60 * 60 * 1000);
-          break;
         default:
           startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       }
@@ -94,7 +95,7 @@ export default function AdminDashboard() {
     // Filter articles by date range
     const filteredArticles = stats.articles.filter((article) => {
       const articleDate = new Date(article.publishedAt);
-      return articleDate >= startDate && articleDate <= now;
+      return articleDate >= startDate && articleDate <= endDate;
     });
     
     const published = filteredArticles.filter((a) => a.status === "published");
@@ -108,7 +109,7 @@ export default function AdminDashboard() {
       draftArticles: drafts.length,
       // Note: Views are still total - would need date-filtered analytics query
     });
-  }, [stats, dateRange, customDate]);
+  }, [stats, dateRange, customStartDate, customEndDate]);
 
   async function loadDashboardData() {
     try {
@@ -194,11 +195,7 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-cream-deep">
       {/* Header */}
       <div className="border-b border-line bg-paper px-6 py-6 lg:px-10">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h1 className="font-display text-3xl text-ink">İcmal</h1>
-          </div>
-          
+        <div className="flex flex-col gap-4">
           {/* Time Range Filter */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-ui text-[11px] uppercase tracking-[0.14em] text-muted mr-2">
@@ -215,7 +212,6 @@ export default function AdminDashboard() {
               { value: "365d", label: "İllik" },
               { value: "730d", label: "2 il" },
               { value: "1095d", label: "3 il" },
-              { value: "3650d", label: "10 il" },
             ].map((option) => (
               <button
                 key={option.value}
@@ -229,16 +225,57 @@ export default function AdminDashboard() {
                 {option.label}
               </button>
             ))}
-            <input
-              type="date"
-              value={customDate}
-              onChange={(e) => {
-                setCustomDate(e.target.value);
-                setDateRange("custom");
-              }}
-              className="border border-line bg-paper px-3 py-1.5 font-ui text-[11px] text-ink focus:border-gold focus:outline-none"
-              title="Xüsusi tarix seçin"
-            />
+          </div>
+          
+          {/* Custom Date Range */}
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="font-ui text-[11px] uppercase tracking-[0.14em] text-muted">
+              Xüsusi tarix aralığı:
+            </span>
+            <div className="flex items-center gap-2">
+              <label className="font-ui text-[11px] text-muted">Başlanğıc:</label>
+              <input
+                type="date"
+                value={customStartDate}
+                min="2016-01-01"
+                max={new Date().toISOString().split('T')[0]}
+                onChange={(e) => {
+                  setCustomStartDate(e.target.value);
+                  if (e.target.value && customEndDate) {
+                    setDateRange("custom");
+                  }
+                }}
+                className="border border-line bg-paper px-3 py-1.5 font-ui text-[11px] text-ink focus:border-gold focus:outline-none"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="font-ui text-[11px] text-muted">Son:</label>
+              <input
+                type="date"
+                value={customEndDate}
+                min={customStartDate || "2016-01-01"}
+                max={new Date().toISOString().split('T')[0]}
+                onChange={(e) => {
+                  setCustomEndDate(e.target.value);
+                  if (customStartDate && e.target.value) {
+                    setDateRange("custom");
+                  }
+                }}
+                className="border border-line bg-paper px-3 py-1.5 font-ui text-[11px] text-ink focus:border-gold focus:outline-none"
+              />
+            </div>
+            {customStartDate && customEndDate && (
+              <button
+                onClick={() => {
+                  setCustomStartDate("");
+                  setCustomEndDate("");
+                  setDateRange("30d");
+                }}
+                className="border border-line px-3 py-1.5 font-ui text-[10px] uppercase tracking-wider text-muted hover:border-red-500 hover:text-red-600 transition-colors"
+              >
+                ✕ Təmizlə
+              </button>
+            )}
           </div>
         </div>
       </div>
