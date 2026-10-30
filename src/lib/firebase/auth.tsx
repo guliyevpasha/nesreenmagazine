@@ -116,15 +116,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         const staff = await loadStaffRecord(email);
+        console.log('[Auth] Staff record loaded:', {
+          email,
+          name: staff?.name,
+          role: staff?.role,
+          active: staff?.active,
+        });
+        
         if (staff && staff.active) {
-          setSession({
+          const newSession = {
             uid: nextUser.uid,
             email,
             name: staff.name || email,
             role: staff.role,
             categories: staff.categories ?? [],
-          });
+          };
+          console.log('[Auth] Setting session:', newSession);
+          setSession(newSession);
         } else {
+          console.log('[Auth] Staff not found or inactive');
           setSession(null);
           setUnauthorized(true);
         }
