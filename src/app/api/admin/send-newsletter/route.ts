@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore } from 'firebase-admin/firestore';
-import { initAdmin } from '@/lib/firebase/admin';
 import { sendNewsletter } from '@/lib/email/mailer';
+import { getDb } from '@/lib/firebase/client';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 /**
  * Admin newsletter göndərir
@@ -9,43 +9,34 @@ import { sendNewsletter } from '@/lib/email/mailer';
  */
 export async function POST(request: NextRequest) {
   try {
-    const app = initAdmin();
-    if (!app) {
-      return NextResponse.json(
-        { error: 'Firebase Admin quraşdırılmayıb' },
-        { status: 500 }
-      );
-    }
-
-    const db = getFirestore(app);
     const body = await request.json();
-    const { adminUid, subject, html, attachments } = body;
+    const { subject, html } = body;
 
-    if (!adminUid || !subject || !html) {
+    if (!subject || !html) {
       return NextResponse.json(
-        { error: 'adminUid, subject və html tələb olunur' },
+        { error: 'subject və html tələb olunur' },
         { status: 400 }
       );
     }
 
-    // Admin yoxlaması
-    const adminDoc = await db.collection('staff').doc(adminUid).get();
-    if (!adminDoc.exists || adminDoc.data()?.role !== 'admin') {
+    // Aktiv abunəçiləri tap (client SDK)
+    const db = getDb();
+    if (!db) {
       return NextResponse.json(
-        { error: 'Yalnız admin newsletter göndərə bilər' },
-        { status: 403 }
+        { error: 'Firebase qoşulmayıb' },
+        { status: 500 }
       );
     }
 
-    // Aktiv abunəçiləri tap
-    const subscribersSnapshot = await db
-      .collection('subscribers')
-      .where('active', '==', true)
-      .get();
+    const subscribersQuery = query(
+      collection(db, 'subscribers'),
+      where('active', '==', true)
+    );
+    const subscribersSnapshot = await getDocs(subscribersQuery);
 
     const subscriberEmails = subscribersSnapshot.docs
       .map((doc) => doc.data().email)
-      .filter(Boolean);
+      .filter(Boolean) as string[];
 
     if (subscriberEmails.length === 0) {
       return NextResponse.json({
@@ -57,12 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Newsletter göndər
-    const results = await sendNewsletter(
-      subscriberEmails,
-      subject,
-      html,
-      attachments
-    );
+    const results = await sendNewsletter(subscriberEmails, subject, html);
 
     return NextResponse.json({
       success: true,
