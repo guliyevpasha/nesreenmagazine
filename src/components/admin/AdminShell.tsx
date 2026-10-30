@@ -5,8 +5,6 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import Logo, { RoseMark } from "@/components/Logo";
-import QuickCreateModal from "@/components/admin/QuickCreateModal";
-import SearchBar from "@/components/admin/SearchBar";
 import { categories } from "@/lib/categories";
 import {
   listNotifications,
@@ -277,7 +275,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const activeCategory = searchParams.get("category");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
 
   if (!configured) return <SetupNotice />;
 
@@ -581,28 +578,9 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Desktop Top Bar with Search */}
+        {/* Desktop Top Bar - Empty header */}
         <div className="hidden border-b border-slate-200 bg-white px-6 py-4 lg:block">
-          <div className="flex items-center gap-4">
-            <SearchBar />
-            <button
-              onClick={() => setQuickCreateOpen(true)}
-              className="group flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2.5 font-ui text-[13px] font-semibold text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-4 w-4 transition-transform group-hover:rotate-90"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              <span>Tez Yarat</span>
-            </button>
-          </div>
+          {/* Header boşdur */}
         </div>
 
         {/* Mobile header */}
@@ -620,23 +598,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             <span className="font-ui text-[14px] font-bold text-slate-900">NESREEN</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <button
-              onClick={() => setQuickCreateOpen(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-600 text-white shadow-lg transition-transform hover:scale-110"
-            >
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-            </button>
             <NotificationBell userRole={session.role} />
           </div>
         </div>
 
         <main className="min-w-0 flex-1 bg-slate-50">{children}</main>
       </div>
-
-      {/* Quick Create Modal */}
-      <QuickCreateModal isOpen={quickCreateOpen} onClose={() => setQuickCreateOpen(false)} />
     </div>
   );
 }
