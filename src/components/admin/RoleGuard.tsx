@@ -41,6 +41,8 @@ export function RoleGuard({ children }: RoleGuardProps) {
     const role = session.role;
     const canAccess = canAccessPath(role, pathname);
 
+    console.log('[RoleGuard] Yoxlama:', { role, pathname, canAccess });
+
     if (!canAccess) {
       setHasAccess(false);
       setIsChecking(false);

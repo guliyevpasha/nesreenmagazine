@@ -84,22 +84,36 @@ const rolePermissions: Record<StaffRole, string[]> = {
  * İstifadəçinin path-a daxil icazəsi varmı?
  */
 export function canAccessPath(role: StaffRole, path: string): boolean {
-  if (role === 'admin') return true;
+  console.log('[canAccessPath] Yoxlanır:', { role, path });
+  
+  if (role === 'admin') {
+    console.log('[canAccessPath] Admin - icazə verildi');
+    return true;
+  }
   
   const permissions = rolePermissions[role] || [];
+  console.log('[canAccessPath] İcazələr:', permissions);
   
-  return permissions.some(pattern => {
+  const hasAccess = permissions.some(pattern => {
     // Exact match
-    if (pattern === path) return true;
+    if (pattern === path) {
+      console.log('[canAccessPath] Exact match:', pattern);
+      return true;
+    }
     
     // Wildcard match: /admin/articles/** matches /admin/articles/123
     if (pattern.endsWith('/**')) {
       const basePath = pattern.slice(0, -3);
-      return path.startsWith(basePath);
+      const matches = path.startsWith(basePath);
+      console.log('[canAccessPath] Wildcard yoxlama:', { pattern, basePath, path, matches });
+      return matches;
     }
     
     return false;
   });
+  
+  console.log('[canAccessPath] Nəticə:', hasAccess);
+  return hasAccess;
 }
 
 /**

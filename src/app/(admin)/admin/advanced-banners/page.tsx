@@ -6,13 +6,20 @@ import { PageHeader, Alert, Empty } from "@/components/admin/ui";
 import { getAllBanners, deleteBanner, duplicateBanner, getBannerStats, toggleBannerStatus } from "@/lib/data/banners";
 import type { AdvancedAdBanner } from "@/lib/types";
 import { adBannerLocationLabels } from "@/lib/types";
+import { useRoleAccess } from "@/hooks/useRoleAccess";
 
 export default function AdvancedBannersPage() {
+  const { hasAccess, loading: accessLoading } = useRoleAccess('/admin/advanced-banners');
+  
   const [banners, setBanners] = useState<AdvancedAdBanner[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
+
+  if (accessLoading || !hasAccess) {
+    return null;
+  }
 
   useEffect(() => {
     loadData();

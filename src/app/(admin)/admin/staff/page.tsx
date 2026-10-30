@@ -16,6 +16,7 @@ import { addStaff, listStaff, removeStaff, saveStaff } from "@/lib/data/admin";
 import { isAdmin, roleLabels, useAuth } from "@/lib/firebase/auth";
 import { formatDate } from "@/lib/i18n/config";
 import type { StaffMember, StaffRole } from "@/lib/types";
+import { useRoleAccess } from "@/hooks/useRoleAccess";
 
 // Alt kateqoriyalar
 const SUBCATEGORIES: Partial<Record<CategorySlug, string[]>> = {
@@ -51,6 +52,8 @@ const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
 
 export default function StaffPage() {
   const { session } = useAuth();
+  const { hasAccess, loading: accessLoading } = useRoleAccess('/admin/staff');
+  
   const [staff, setStaff] = useState<StaffMember[] | null>(null);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(
     null,
@@ -64,6 +67,22 @@ export default function StaffPage() {
   const [allowed, setAllowed] = useState<CategorySlug[]>([]);
   const [selectedSubcategories, setSelectedSubcategories] = useState<Partial<Record<CategorySlug, string[]>>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Əgər icazə yoxdursa, loading göstər
+  if (accessLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <p className="mt-4 text-gray-600">Yoxlanılır...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasAccess) {
+    return null; // useRoleAccess artıq redirect edir
+  }
 
   async function refresh() {
     try {
