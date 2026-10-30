@@ -167,6 +167,18 @@ export async function incrementClicks(id: string): Promise<void> {
 }
 
 /**
+ * Banner statusunu dəyiş (aktiv/deaktiv)
+ */
+export async function toggleBannerStatus(id: string): Promise<boolean> {
+  const banner = await getBanner(id);
+  if (!banner) throw new Error("Banner tapılmadı");
+  
+  const newStatus = !banner.active;
+  await updateBanner(id, { active: newStatus } as any);
+  return newStatus;
+}
+
+/**
  * Banner statistikaları
  */
 export async function getBannerStats() {

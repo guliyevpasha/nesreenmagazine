@@ -106,6 +106,13 @@ export default function BannerDisplay({
             className="h-full w-full object-cover"
             aria-label={banner.altText}
           />
+        ) : banner.imageUrl.endsWith(".html") ? (
+          <iframe
+            src={banner.imageUrl}
+            className="h-full w-full border-0"
+            title={banner.altText}
+            loading="lazy"
+          />
         ) : (
           <img
             src={banner.imageUrl}
@@ -116,7 +123,7 @@ export default function BannerDisplay({
         )}
         
         {/* Reklam badge */}
-        <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 text-[9px] uppercase tracking-wider text-white">
+        <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 text-[9px] uppercase tracking-wider text-white pointer-events-none">
           Reklam
         </div>
       </div>

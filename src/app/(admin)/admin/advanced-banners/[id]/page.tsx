@@ -313,30 +313,8 @@ export default function EditBannerPage({
               </div>
             </Panel>
 
-            <Panel title="Ölçülər">
+            <Panel title="Ölçülər" description="Fayl yükləyəndə avtomatik təyin olunur">
               <div className="space-y-4">
-                <Field label="Standart Ölçülər" hint="Populyar banner ölçüləri">
-                  <select
-                    onChange={(e) => {
-                      const [width, height] = e.target.value.split("x").map(Number);
-                      if (width && height) applyPresetSize(width, height);
-                    }}
-                    className={inputClass}
-                    defaultValue=""
-                  >
-                    <option value="">Hazır ölçü seç...</option>
-                    <option value="300x250">300×250 (Medium Rectangle)</option>
-                    <option value="728x90">728×90 (Leaderboard)</option>
-                    <option value="300x600">300×600 (Half Page)</option>
-                    <option value="320x50">320×50 (Mobile Banner)</option>
-                    <option value="320x100">320×100 (Mobile Large)</option>
-                    <option value="970x90">970×90 (Large Leaderboard)</option>
-                    <option value="160x600">160×600 (Wide Skyscraper)</option>
-                    <option value="300x50">300×50 (Mobile Banner)</option>
-                    <option value="468x60">468×60 (Banner)</option>
-                  </select>
-                </Field>
-
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Genişlik (px)">
                     <input

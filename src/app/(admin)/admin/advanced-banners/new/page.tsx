@@ -302,36 +302,7 @@ export default function NewBannerPage() {
               </div>
             </Panel>
 
-            <Panel title="Ölçülər">
-              <div className="mb-4">
-                <label className="mb-2 block font-ui text-[11px] uppercase tracking-[0.12em] text-muted">
-                  Standart Ölçülər
-                </label>
-                <select
-                  onChange={(e) => {
-                    const [width, height] = e.target.value.split("x").map(Number);
-                    if (width && height) {
-                      setBanner({
-                        ...banner,
-                        dimensions: { width, height },
-                      });
-                    }
-                  }}
-                  className={inputClass}
-                >
-                  <option value="">Seçin (və ya aşağıda custom daxil edin)</option>
-                  <option value="300x250">300x250 - Medium Rectangle</option>
-                  <option value="728x90">728x90 - Leaderboard</option>
-                  <option value="300x600">300x600 - Half Page</option>
-                  <option value="320x50">320x50 - Mobile Banner</option>
-                  <option value="320x100">320x100 - Large Mobile Banner</option>
-                  <option value="970x90">970x90 - Large Leaderboard</option>
-                  <option value="160x600">160x600 - Wide Skyscraper</option>
-                  <option value="300x50">300x50 - Mobile Small</option>
-                  <option value="468x60">468x60 - Banner</option>
-                </select>
-              </div>
-
+            <Panel title="Ölçülər" description="Fayl yükləyəndə avtomatik təyin olunur">
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Genişlik (px)">
                   <input

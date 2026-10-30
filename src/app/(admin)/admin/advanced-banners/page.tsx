@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PageHeader, Alert, Empty } from "@/components/admin/ui";
-import { getAllBanners, deleteBanner, duplicateBanner, getBannerStats } from "@/lib/data/banners";
+import { getAllBanners, deleteBanner, duplicateBanner, getBannerStats, toggleBannerStatus } from "@/lib/data/banners";
 import type { AdvancedAdBanner } from "@/lib/types";
 import { adBannerLocationLabels } from "@/lib/types";
 
@@ -51,6 +51,17 @@ export default function AdvancedBannersPage() {
       alert("Banner kopyalandı!");
     } catch (err) {
       alert("Kopyalanmadı: " + (err instanceof Error ? err.message : "Xəta"));
+    }
+  }
+
+  async function handleToggleStatus(id: string) {
+    try {
+      const newStatus = await toggleBannerStatus(id);
+      setBanners((prev) =>
+        prev.map((b) => (b.id === id ? { ...b, active: newStatus } : b))
+      );
+    } catch (err) {
+      alert("Dəyişdirilmədi: " + (err instanceof Error ? err.message : "Xəta"));
     }
   }
 
@@ -146,6 +157,7 @@ export default function AdvancedBannersPage() {
                 banner={banner}
                 onDelete={() => handleDelete(banner.id, banner.name)}
                 onDuplicate={() => handleDuplicate(banner.id)}
+                onToggleStatus={() => handleToggleStatus(banner.id)}
               />
             ))}
           </div>
@@ -190,10 +202,12 @@ function BannerCard({
   banner,
   onDelete,
   onDuplicate,
+  onToggleStatus,
 }: {
   banner: AdvancedAdBanner;
   onDelete: () => void;
   onDuplicate: () => void;
+  onToggleStatus: () => void;
 }) {
   const ctr = banner.impressions > 0 
     ? ((banner.clicks / banner.impressions) * 100).toFixed(2)
@@ -274,12 +288,24 @@ function BannerCard({
               <Link
                 href={`/admin/advanced-banners/${banner.id}`}
                 className="btn-ghost !py-1.5 !px-3 !text-[10px]"
+                title="Redaktə et"
               >
-                Redaktə
+                ✏️
               </Link>
               <button
+                onClick={onToggleStatus}
+                className={`btn-ghost !py-1.5 !px-3 !text-[10px] ${
+                  banner.active 
+                    ? "hover:!border-orange-500 hover:!text-orange-600" 
+                    : "hover:!border-green-500 hover:!text-green-600"
+                }`}
+                title={banner.active ? "Deaktiv et" : "Aktiv et"}
+              >
+                {banner.active ? "⏸️" : "▶️"}
+              </button>
+              <button
                 onClick={onDuplicate}
-                className="btn-ghost !py-1.5 !px-3 !text-[10px]"
+                className="btn-ghost !py-1.5 !px-3 !text-[10px] hover:!border-blue-500 hover:!text-blue-600"
                 title="Kopyala"
               >
                 📋
