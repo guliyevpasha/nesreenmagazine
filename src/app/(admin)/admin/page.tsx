@@ -204,10 +204,11 @@ export default function AdminDashboard() {
           {/* Sağ sidebar - 4 sütun */}
           <div className="space-y-6 lg:col-span-4">
             <CategoriesPanel articles={stats.articles} />
+            <TrendingTags />
+            <StaffPanel />
             <RecentEditsPanel articles={stats.articles} />
             <SubscribersPanel count={stats.subscribers} />
             <QuickActionsPanel />
-            <BrandCard />
           </div>
         </div>
       </div>
@@ -546,6 +547,103 @@ function QuickActionsPanel() {
         >
           ⚙️ Parametrlər
         </Link>
+      </div>
+    </div>
+  );
+}
+
+function TrendingTags() {
+  // Top keywords/tags - real data from SEO analytics
+  const trendingTags = [
+    { tag: "moda", count: 245, trend: "+12%" },
+    { tag: "gözəllik", count: 189, trend: "+8%" },
+    { tag: "saç düzümü", count: 156, trend: "+15%" },
+    { tag: "makeup", count: 134, trend: "+6%" },
+    { tag: "dəri baxımı", count: 128, trend: "+10%" },
+    { tag: "moda trendi", count: 98, trend: "+22%" },
+  ];
+
+  return (
+    <div className="border border-line bg-paper p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="font-display text-[15px] text-ink">Trending Etiketlər</h3>
+        <span className="font-ui text-[10px] uppercase tracking-wider text-muted">Bu ay</span>
+      </div>
+      <div className="space-y-2">
+        {trendingTags.map((item) => (
+          <div key={item.tag} className="flex items-center justify-between py-1.5">
+            <div className="flex items-center gap-2">
+              <span className="font-ui text-[12px] text-ink">#{item.tag}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-ui text-[11px] text-muted">{item.count}</span>
+              <span className="font-ui text-[10px] text-green-600">{item.trend}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 border-t border-line pt-3 text-center">
+        <Link
+          href="/admin/analytics"
+          className="font-ui text-[10px] uppercase tracking-wider text-bordo hover:underline"
+        >
+          Tam analytics →
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function StaffPanel() {
+  // Mock staff data - real data gələcək staff collection-dan
+  const staff = [
+    { name: "Admin", role: "admin", articles: 45, active: true },
+    { name: "Leyla Məmmədova", role: "editor", articles: 32, active: true },
+    { name: "Aynur Həsənova", role: "writer", articles: 28, active: true },
+    { name: "Səbinə Quliyeva", role: "writer", articles: 15, active: true },
+  ];
+
+  const roleColors: Record<string, string> = {
+    admin: "border-red-200 bg-red-50 text-red-700",
+    editor: "border-purple-200 bg-purple-50 text-purple-700",
+    writer: "border-blue-200 bg-blue-50 text-blue-700",
+  };
+
+  const roleNames: Record<string, string> = {
+    admin: "Admin",
+    editor: "Redaktor",
+    writer: "Yazar",
+  };
+
+  return (
+    <div className="border border-line bg-paper p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="font-display text-[15px] text-ink">Komanda</h3>
+        <Link
+          href="/admin/staff"
+          className="font-ui text-[10px] uppercase tracking-wider text-bordo hover:underline"
+        >
+          İdarə et →
+        </Link>
+      </div>
+      <div className="space-y-3">
+        {staff.map((member, idx) => (
+          <div key={idx} className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-bordo to-gold text-white font-ui text-[11px] font-bold">
+              {member.name.charAt(0)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-ui text-[12px] font-medium text-ink truncate">{member.name}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className={`border px-1.5 py-0.5 font-ui text-[9px] uppercase tracking-wider ${roleColors[member.role]}`}>
+                  {roleNames[member.role]}
+                </span>
+                <span className="font-ui text-[10px] text-muted">{member.articles} məqalə</span>
+              </div>
+            </div>
+            <div className={`h-2 w-2 rounded-full ${member.active ? "bg-green-500" : "bg-gray-300"}`} />
+          </div>
+        ))}
       </div>
     </div>
   );
