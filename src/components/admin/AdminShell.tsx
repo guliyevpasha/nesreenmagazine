@@ -435,10 +435,16 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           Marketinq
         </p>
         <NavLink
-          href="/admin/banners"
+          href="/admin/advanced-banners"
           label="Reklam Bannerləri"
           icon={ICONS.banner}
-          active={pathname.startsWith("/admin/banners")}
+          active={pathname.startsWith("/admin/advanced-banners")}
+        />
+        <NavLink
+          href="/admin/banners"
+          label="Banner Sahələri (Köhnə)"
+          icon={ICONS.banner}
+          active={pathname === "/admin/banners"}
         />
         <NavLink
           href="/admin/ejournals"

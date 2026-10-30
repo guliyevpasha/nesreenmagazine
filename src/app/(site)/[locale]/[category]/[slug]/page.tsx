@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-// MÜVƏQQƏTİ: reklam sahələri gizlədilib — geri qaytarmaq üçün bu sətri silin, aşağıdakı importu bərpa edin.
-// import AdSlot from "@/components/AdSlot";
 import ArticleCard from "@/components/ArticleCard";
+import ArticleBanners from "@/components/ArticleBanners";
 import CoverArt from "@/components/CoverArt";
 import { RoseMark } from "@/components/Logo";
 import SectionHeading from "@/components/SectionHeading";
@@ -216,12 +215,7 @@ export default async function ArticlePage({
           {/* Sol reklam sahəsi - desktop */}
           <aside className="hidden lg:block">
             <div className="sticky top-24">
-              <div className="border border-line bg-cream-deep/30 p-4 text-center">
-                <p className="text-xs text-muted uppercase tracking-wider">Reklam</p>
-                <div className="mt-2 aspect-[300/600] bg-line/20 flex items-center justify-center">
-                  {/* AdSlot komponenti buraya */}
-                </div>
-              </div>
+              <ArticleBanners location="article-sidebar-left" />
             </div>
           </aside>
 
@@ -229,26 +223,16 @@ export default async function ArticlePage({
           <div className="min-w-0">
             {/* Mobil/Tablet üçün üst reklam banneri */}
             <div className="mb-8 lg:hidden">
-              <div className="border border-line bg-cream-deep/30 p-4 text-center">
-                <p className="text-xs text-muted uppercase tracking-wider">Reklam</p>
-                <div className="mt-2 aspect-[320/100] sm:aspect-[728/90] bg-line/20 flex items-center justify-center">
-                  {/* AdSlot komponenti buraya - mobile banner 320x100, tablet 728x90 */}
-                </div>
-              </div>
+              <ArticleBanners location="article-header" />
             </div>
 
             <div className="prose-mag" dangerouslySetInnerHTML={{ __html: firstHalf }} />
 
             {secondHalf.trim().length > 0 && (
               <>
-                {/* Mətn ortası reklam banneri - bütün ekranlar üçün */}
+                {/* Mətn ortası reklam banneri */}
                 <div className="my-12">
-                  <div className="border border-line bg-cream-deep/30 p-4 text-center">
-                    <p className="text-xs text-muted uppercase tracking-wider">Reklam</p>
-                    <div className="mt-2 aspect-[320/100] sm:aspect-[728/90] lg:aspect-[970/90] bg-line/20 flex items-center justify-center">
-                      {/* AdSlot komponenti buraya - responsive banner */}
-                    </div>
-                  </div>
+                  <ArticleBanners location="article-inline" />
                 </div>
                 <div className="prose-mag" dangerouslySetInnerHTML={{ __html: secondHalf }} />
               </>
@@ -281,24 +265,14 @@ export default async function ArticlePage({
 
             {/* Mobil/Tablet üçün alt reklam banneri */}
             <div className="mt-8 lg:hidden">
-              <div className="border border-line bg-cream-deep/30 p-4 text-center">
-                <p className="text-xs text-muted uppercase tracking-wider">Reklam</p>
-                <div className="mt-2 aspect-[320/100] sm:aspect-[728/90] bg-line/20 flex items-center justify-center">
-                  {/* AdSlot komponenti buraya - mobile banner 320x100, tablet 728x90 */}
-                </div>
-              </div>
+              <ArticleBanners location="article-inline" />
             </div>
           </div>
 
           {/* Sağ reklam sahəsi - desktop */}
           <aside className="hidden lg:block">
             <div className="sticky top-24">
-              <div className="border border-line bg-cream-deep/30 p-4 text-center">
-                <p className="text-xs text-muted uppercase tracking-wider">Reklam</p>
-                <div className="mt-2 aspect-[300/600] bg-line/20 flex items-center justify-center">
-                  {/* AdSlot komponenti buraya */}
-                </div>
-              </div>
+              <ArticleBanners location="article-sidebar-right" />
             </div>
           </aside>
         </div>

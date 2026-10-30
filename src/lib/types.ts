@@ -2100,3 +2100,83 @@ export type EjournalStats = {
   /** Ortalama qiymət. */
   avgPrice: number;
 };
+
+/* ======================================================================
+   Advanced Ad Banner Management
+   ====================================================================== */
+
+/** Reklam banner yerləşməsi. */
+export type AdBannerLocation = 
+  | "article-sidebar-left"
+  | "article-sidebar-right"
+  | "article-inline"
+  | "article-header"
+  | "article-between-h2"
+  | "article-between-h3"
+  | "home-hero"
+  | "category-top";
+
+export const adBannerLocationLabels: Record<AdBannerLocation, string> = {
+  "article-sidebar-left":   "Məqalə - Sol Sidebar",
+  "article-sidebar-right":  "Məqalə - Sağ Sidebar",
+  "article-inline":         "Məqalə - Mətn Ortası",
+  "article-header":         "Məqalə - Başlıq Altı",
+  "article-between-h2":     "Məqalə - H2 Başlıqlar Arası",
+  "article-between-h3":     "Məqalə - H3 Başlıqlar Arası",
+  "home-hero":              "Ana səhifə - Hero",
+  "category-top":           "Kateqoriya - Üst",
+};
+
+/** Yeni reklam banner sistemi. */
+export type AdvancedAdBanner = {
+  id: string;
+  /** Banner adı (admin üçün). */
+  name: string;
+  /** Banner rəsminin URL-i. */
+  imageUrl: string;
+  /** Reklam linki. */
+  linkUrl: string;
+  /** Alt mətn. */
+  altText: string;
+  /** Banner yerləşmələri (çoxlu seçim). */
+  locations: AdBannerLocation[];
+  /** Aktiv/Deaktiv. */
+  active: boolean;
+  /** Hansı device-da göstərilsin. */
+  showOn: {
+    desktop: boolean;
+    tablet: boolean;
+    mobile: boolean;
+  };
+  /** Banner ölçüləri. */
+  dimensions: {
+    width: number;
+    height: number;
+  };
+  /** Başlama tarixi (opsional). */
+  startsAt?: string;
+  /** Bitmə tarixi (opsional). */
+  endsAt?: string;
+  /** Click sayı. */
+  clicks: number;
+  /** Görüntülənmə sayı. */
+  impressions: number;
+  /** Prioritet (1-10, yüksək öncelikli). */
+  priority: number;
+  /** Custom CSS class. */
+  customClass?: string;
+  /** Animasiya effekti. */
+  animation?: "none" | "fade" | "slide" | "pulse" | "bounce";
+  createdAt: string;
+  updatedAt?: string;
+  createdBy: string;
+};
+
+export type AdvancedAdBannerInput = Omit<AdvancedAdBanner, "id" | "clicks" | "impressions" | "createdAt" | "updatedAt">;
+
+/** Default placeholder banner. */
+export const DEFAULT_BANNER_TEXT = {
+  title: "Burada sizin reklamınız ola bilər",
+  contact: "WhatsApp: 0503807787",
+  animation: "pulse" as const,
+};
