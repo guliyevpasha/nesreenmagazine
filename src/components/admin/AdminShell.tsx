@@ -16,6 +16,7 @@ import type { Notification, NotificationPriority } from "@/lib/types";
 import { notificationTypeLabels } from "@/lib/types";
 
 import LoginScreen from "./LoginScreen";
+import { RoleGuard } from "./RoleGuard";
 import SetupNotice from "./SetupNotice";
 
 /* -------------------------------- ikonlar ------------------------------- */
@@ -387,139 +388,159 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           />
         ))}
 
-        {/* SEO Alətləri */}
-        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-          SEO Alətləri
-        </p>
-        <NavLink
-          href="/admin/seo"
-          label="SEO İdarəçisi"
-          icon={ICONS.seo}
-          active={pathname.startsWith("/admin/seo")}
-        />
-        <NavLink
-          href="/admin/astrology"
-          label="Astrologiya"
-          icon={ICONS.stars}
-          active={pathname.startsWith("/admin/astrology")}
-        />
-
-        {/* Alətlər */}
-        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-          Alətlər
-        </p>
-        <NavLink
-          href="/admin/translations"
-          label="Tərcümə İdarəçisi"
-          icon={ICONS.site}
-          active={pathname.startsWith("/admin/translations")}
-        />
-        <NavLink
-          href="/admin/categories"
-          label="Kateqoriyalar"
-          icon={ICONS.site}
-          active={pathname.startsWith("/admin/categories")}
-        />
-        <NavLink
-          href="/admin/tags"
-          label="Tag İdarəçisi"
-          icon={ICONS.site}
-          active={pathname.startsWith("/admin/tags")}
-        />
-        <NavLink
-          href="/admin/files"
-          label="Fayl İdarəetməsi"
-          icon={ICONS.media}
-          active={pathname.startsWith("/admin/files")}
-        />
-        <NavLink
-          href="/admin/content-plan"
-          label="Kontent Planı"
-          icon={ICONS.contentplan}
-          active={pathname.startsWith("/admin/content-plan")}
-        />
-
-        {/* Marketinq */}
-        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-          Marketinq
-        </p>
-        <NavLink
-          href="/admin/advanced-banners"
-          label="Reklam Bannerləri"
-          icon={ICONS.banner}
-          active={pathname.startsWith("/admin/advanced-banners")}
-        />
-        <NavLink
-          href="/admin/ejournals"
-          label="E-Jurnallar"
-          icon={ICONS.ejournal}
-          active={pathname.startsWith("/admin/ejournals")}
-        />
-        <NavLink
-          href="/admin/subscriptions"
-          label="Üzvlük Planları"
-          icon={ICONS.crm}
-          active={pathname.startsWith("/admin/subscriptions")}
-        />
-        <NavLink
-          href="/admin/push-notifications"
-          label="Push Bildirişlər"
-          icon={ICONS.mail}
-          active={pathname.startsWith("/admin/push-notifications")}
-        />
-        <NavLink
-          href="/admin/subscribers"
-          label="Abunəçilər"
-          icon={ICONS.subscribers}
-          active={pathname.startsWith("/admin/subscribers")}
-        />
-
-        {/* CRM bölməsi */}
-        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-          CRM
-        </p>
-        <NavLink
-          href="/admin/crm"
-          label="Müştərilər"
-          icon={ICONS.crm}
-          active={pathname.startsWith("/admin/crm")}
-        />
-        <NavLink
-          href="/admin/ad-orders"
-          label="Reklam Sifarişləri"
-          icon={ICONS.adorders}
-          active={pathname.startsWith("/admin/ad-orders")}
-        />
-        <NavLink
-          href="/admin/sales-forecast"
-          label="Satış Proqnozu"
-          icon={ICONS.analytics}
-          active={pathname.startsWith("/admin/sales-forecast")}
-        />
-
-        {/* Bildirişlər */}
-        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-          Bildirişlər
-        </p>
-        <NavLink
-          href="/admin/messages"
-          label="Mesajlar"
-          icon={ICONS.mail}
-          active={pathname.startsWith("/admin/messages")}
-        />
-
-        {/* Parametrlər */}
-        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-          Parametrlər
-        </p>
-        <NavLink
-          href="/admin/site-settings"
-          label="Sayt Parametrləri"
-          icon={ICONS.settings}
-          active={pathname.startsWith("/admin/site-settings")}
-        />
-        {canManage && (
+        {/* SEO Alətləri - yalnız admin və editor */}
+        {['admin', 'editor', 'seo'].includes(userRole) && (
           <>
+            <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
+              SEO Alətləri
+            </p>
+            <NavLink
+              href="/admin/seo"
+              label="SEO İdarəçisi"
+              icon={ICONS.seo}
+              active={pathname.startsWith("/admin/seo")}
+            />
+            <NavLink
+              href="/admin/astrology"
+              label="Astrologiya"
+              icon={ICONS.stars}
+              active={pathname.startsWith("/admin/astrology")}
+            />
+          </>
+        )}
+
+        {/* Alətlər - yalnız admin və editor */}
+        {['admin', 'editor'].includes(userRole) && (
+          <>
+            <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
+              Alətlər
+            </p>
+            <NavLink
+              href="/admin/translations"
+              label="Tərcümə İdarəçisi"
+              icon={ICONS.site}
+              active={pathname.startsWith("/admin/translations")}
+            />
+            <NavLink
+              href="/admin/categories"
+              label="Kateqoriyalar"
+              icon={ICONS.site}
+              active={pathname.startsWith("/admin/categories")}
+            />
+            <NavLink
+              href="/admin/tags"
+              label="Tag İdarəçisi"
+              icon={ICONS.site}
+              active={pathname.startsWith("/admin/tags")}
+            />
+            <NavLink
+              href="/admin/files"
+              label="Fayl İdarəetməsi"
+              icon={ICONS.media}
+              active={pathname.startsWith("/admin/files")}
+            />
+            <NavLink
+              href="/admin/content-plan"
+              label="Kontent Planı"
+              icon={ICONS.contentplan}
+              active={pathname.startsWith("/admin/content-plan")}
+            />
+          </>
+        )}
+
+        {/* Marketinq - yalnız admin */}
+        {canSeeBanners && (
+          <>
+            <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
+              Marketinq
+            </p>
+            <NavLink
+              href="/admin/advanced-banners"
+              label="Reklam Bannerləri"
+              icon={ICONS.banner}
+              active={pathname.startsWith("/admin/advanced-banners")}
+            />
+            <NavLink
+              href="/admin/ejournals"
+              label="E-Jurnallar"
+              icon={ICONS.ejournal}
+              active={pathname.startsWith("/admin/ejournals")}
+            />
+            <NavLink
+              href="/admin/subscriptions"
+              label="Üzvlük Planları"
+              icon={ICONS.crm}
+              active={pathname.startsWith("/admin/subscriptions")}
+            />
+            <NavLink
+              href="/admin/push-notifications"
+              label="Push Bildirişlər"
+              icon={ICONS.mail}
+              active={pathname.startsWith("/admin/push-notifications")}
+            />
+            <NavLink
+              href="/admin/subscribers"
+              label="Abunəçilər"
+              icon={ICONS.subscribers}
+              active={pathname.startsWith("/admin/subscribers")}
+            />
+          </>
+        )}
+
+        {/* CRM bölməsi - yalnız admin, sales, finance */}
+        {canSeeCRM && (
+          <>
+            <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
+              CRM
+            </p>
+            <NavLink
+              href="/admin/crm"
+              label="Müştərilər"
+              icon={ICONS.crm}
+              active={pathname.startsWith("/admin/crm")}
+            />
+            <NavLink
+              href="/admin/ad-orders"
+              label="Reklam Sifarişləri"
+              icon={ICONS.adorders}
+              active={pathname.startsWith("/admin/ad-orders")}
+            />
+            <NavLink
+              href="/admin/sales-forecast"
+              label="Satış Proqnozu"
+              icon={ICONS.analytics}
+              active={pathname.startsWith("/admin/sales-forecast")}
+            />
+          </>
+        )}
+
+        {/* Bildirişlər - yalnız admin və moderator */}
+        {['admin', 'moderator'].includes(userRole) && (
+          <>
+            <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
+              Bildirişlər
+            </p>
+            <NavLink
+              href="/admin/messages"
+              label="Mesajlar"
+              icon={ICONS.mail}
+              active={pathname.startsWith("/admin/messages")}
+            />
+          </>
+        )}
+
+        {/* Parametrlər - yalnız admin */}
+        {canSeeSettings && (
+          <>
+            <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
+              Parametrlər
+            </p>
+            <NavLink
+              href="/admin/site-settings"
+              label="Sayt Parametrləri"
+              icon={ICONS.settings}
+              active={pathname.startsWith("/admin/site-settings")}
+            />
             <NavLink
               href="/admin/staff"
               label="İşçilər"
@@ -614,7 +635,9 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           </div>
         </div>
 
-        <main className="min-w-0 flex-1 bg-slate-50">{children}</main>
+        <main className="min-w-0 flex-1 bg-slate-50">
+          <RoleGuard>{children}</RoleGuard>
+        </main>
       </div>
     </div>
   );
