@@ -6,7 +6,7 @@ const defaultBanners: AdvancedAdBannerInput[] = [
   // Sidebar Banner - Maqalə Sol Sidebar
   {
     name: "Default Sidebar Banner",
-    imageUrl: "/banners/sidebar-banner.html",
+    imageUrl: "/banners/sidebar-banner-v2.html",
     mediaType: "image",
     linkUrl: "https://wa.me/994503807787",
     altText: "Burada sizin reklamınız ola bilər - WhatsApp: 0503807787",
@@ -21,7 +21,7 @@ const defaultBanners: AdvancedAdBannerInput[] = [
   // Sidebar Banner - Maqalə Sağ Sidebar
   {
     name: "Default Right Sidebar Banner",
-    imageUrl: "/banners/sidebar-banner.html",
+    imageUrl: "/banners/sidebar-banner-v2.html",
     mediaType: "image",
     linkUrl: "https://wa.me/994503807787",
     altText: "Burada sizin reklamınız ola bilər - WhatsApp: 0503807787",
@@ -36,7 +36,7 @@ const defaultBanners: AdvancedAdBannerInput[] = [
   // Inline H2 Banner
   {
     name: "Default H2 Inline Banner",
-    imageUrl: "/banners/leaderboard-banner.html",
+    imageUrl: "/banners/leaderboard-banner-v2.html",
     mediaType: "image",
     linkUrl: "https://wa.me/994503807787",
     altText: "Burada sizin reklamınız ola bilər - WhatsApp: 0503807787",
@@ -51,7 +51,7 @@ const defaultBanners: AdvancedAdBannerInput[] = [
   // Inline H3 Banner
   {
     name: "Default H3 Inline Banner",
-    imageUrl: "/banners/leaderboard-banner.html",
+    imageUrl: "/banners/leaderboard-banner-v2.html",
     mediaType: "image",
     linkUrl: "https://wa.me/994503807787",
     altText: "Burada sizin reklamınız ola bilər - WhatsApp: 0503807787",
@@ -66,7 +66,7 @@ const defaultBanners: AdvancedAdBannerInput[] = [
   // Header Banner
   {
     name: "Default Header Banner",
-    imageUrl: "/banners/leaderboard-banner.html",
+    imageUrl: "/banners/leaderboard-banner-v2.html",
     mediaType: "image",
     linkUrl: "https://wa.me/994503807787",
     altText: "Burada sizin reklamınız ola bilər - WhatsApp: 0503807787",
@@ -81,7 +81,7 @@ const defaultBanners: AdvancedAdBannerInput[] = [
   // Footer Banner
   {
     name: "Default Footer Banner",
-    imageUrl: "/banners/leaderboard-banner.html",
+    imageUrl: "/banners/leaderboard-banner-v2.html",
     mediaType: "image",
     linkUrl: "https://wa.me/994503807787",
     altText: "Burada sizin reklamınız ola bilər - WhatsApp: 0503807787",
@@ -96,7 +96,7 @@ const defaultBanners: AdvancedAdBannerInput[] = [
   // Mobile Header Banner
   {
     name: "Default Mobile Header Banner",
-    imageUrl: "/banners/sidebar-banner.html",
+    imageUrl: "/banners/sidebar-banner-v2.html",
     mediaType: "image",
     linkUrl: "https://wa.me/994503807787",
     altText: "Burada sizin reklamınız ola bilər - WhatsApp: 0503807787",
@@ -111,7 +111,7 @@ const defaultBanners: AdvancedAdBannerInput[] = [
   // Mobile Inline Banner
   {
     name: "Default Mobile Inline Banner",
-    imageUrl: "/banners/sidebar-banner.html",
+    imageUrl: "/banners/sidebar-banner-v2.html",
     mediaType: "image",
     linkUrl: "https://wa.me/994503807787",
     altText: "Burada sizin reklamınız ola bilər - WhatsApp: 0503807787",

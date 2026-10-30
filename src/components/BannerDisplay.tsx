@@ -108,7 +108,7 @@ export default function BannerDisplay({
           />
         ) : banner.imageUrl.endsWith(".html") ? (
           <iframe
-            src={banner.imageUrl}
+            src={`${banner.imageUrl}?v=${Date.now()}`}
             className="h-full w-full border-0"
             title={banner.altText}
             loading="lazy"
