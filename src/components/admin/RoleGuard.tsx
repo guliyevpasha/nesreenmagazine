@@ -1,9 +1,9 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { canAccessPath, FORBIDDEN_MESSAGE } from '@/middleware/roleGuard';
+import { useAuth } from '@/lib/firebase/auth';
 
 interface RoleGuardProps {
   children: React.ReactNode;
@@ -14,14 +14,14 @@ interface RoleGuardProps {
  * Yazarları icazəsiz səhifələrə daxil olmaqdan qoruyur
  */
 export function RoleGuard({ children }: RoleGuardProps) {
-  const { data: session, status } = useSession();
+  const { session, loading } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const [hasAccess, setHasAccess] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    if (status === 'loading') {
+    if (loading) {
       return;
     }
 
@@ -32,13 +32,13 @@ export function RoleGuard({ children }: RoleGuardProps) {
     }
 
     // İstifadəçi staff deyilsə
-    if (!session.user?.isStaff || !session.user?.role) {
+    if (!session.role) {
       router.push('/');
       return;
     }
 
     // Rol yoxlaması
-    const role = session.user.role;
+    const role = session.role;
     const canAccess = canAccessPath(role, pathname);
 
     if (!canAccess) {
@@ -49,10 +49,10 @@ export function RoleGuard({ children }: RoleGuardProps) {
 
     setHasAccess(true);
     setIsChecking(false);
-  }, [session, status, pathname, router]);
+  }, [session, loading, pathname, router]);
 
   // Loading zamanı
-  if (isChecking || status === 'loading') {
+  if (isChecking || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
