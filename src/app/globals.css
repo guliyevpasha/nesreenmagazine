@@ -348,8 +348,12 @@
   }
 
   /* Məqalə mətni */
-  .prose-mag { font-size: 1.0625rem; line-height: 1.85; color: var(--color-ink-soft); }
-  .prose-mag > * + * { margin-top: 1.35em; }
+  .prose-mag { 
+    font-size: 1.0625rem; 
+    line-height: 1.85; 
+    color: var(--color-ink-soft);
+  }
+  .prose-mag > * + * { margin-top: 1.5em; }
   .prose-mag h2 {
     font-size: 1.75rem;
     color: var(--color-ink);
@@ -421,7 +425,8 @@
     border-radius: 4px;
   }
   .prose-mag p {
-    margin-block: 1em;
+    margin-block: 1.2em;
+    line-height: 1.85;
   }
   .prose-mag p:first-of-type {
     margin-top: 0;
@@ -429,15 +434,34 @@
   .prose-mag p:last-of-type {
     margin-bottom: 0;
   }
-  /* İlk abzasda buraxılmış baş hərf */
+  /* İlk abzasda buraxılmış baş hərf - təkmilləşdirilmiş və responsive */
   .prose-mag > p:first-of-type::first-letter {
     font-family: var(--font-display);
     float: inline-start;
-    font-size: 3.9rem;
-    line-height: 0.82;
-    padding-inline-end: 0.09em;
-    padding-top: 0.08em;
+    font-size: 3.5rem;
+    line-height: 0.85;
+    padding-inline-end: 0.1em;
+    padding-top: 0.05em;
+    margin-inline-end: 0.05em;
     color: var(--color-bordo);
+    font-weight: 400;
+  }
+  
+  @media (max-width: 640px) {
+    .prose-mag > p:first-of-type::first-letter {
+      font-size: 2.8rem;
+      line-height: 0.9;
+      padding-inline-end: 0.08em;
+      padding-top: 0.03em;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .prose-mag > p:first-of-type::first-letter {
+      font-size: 4.2rem;
+      line-height: 0.82;
+      padding-inline-end: 0.12em;
+    }
   }
 
   /* Sətir kəsmə */

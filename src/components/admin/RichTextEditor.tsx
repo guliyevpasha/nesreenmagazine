@@ -205,6 +205,32 @@ export default function RichTextEditor({
             </select>
           </div>
 
+          {/* Line Height - Sətr Hizalama */}
+          <div className="flex gap-1 border-r-2 border-slate-300 pr-2">
+            <select
+              className="px-3 py-1.5 border border-slate-300 rounded-md bg-white text-sm font-medium hover:bg-slate-50 cursor-pointer"
+              onChange={(e) => {
+                const selection = window.getSelection();
+                if (selection && selection.rangeCount > 0) {
+                  const range = selection.getRangeAt(0);
+                  const selectedText = range.toString();
+                  if (selectedText) {
+                    const span = document.createElement('span');
+                    span.style.lineHeight = e.target.value;
+                    range.surroundContents(span);
+                  }
+                }
+              }}
+              defaultValue="1.85"
+            >
+              <option value="1.2">Sıx (1.2)</option>
+              <option value="1.5">Normal (1.5)</option>
+              <option value="1.85">Rahat (1.85)</option>
+              <option value="2.0">Geniş (2.0)</option>
+              <option value="2.5">Çox geniş (2.5)</option>
+            </select>
+          </div>
+
           {/* Text Color & Highlight */}
           <div className="flex gap-1 border-r-2 border-slate-300 pr-2">
             <ToolbarButton onClick={() => {
