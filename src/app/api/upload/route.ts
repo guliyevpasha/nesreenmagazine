@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getStorage } from 'firebase-admin/storage';
-import { getFirebaseAdmin } from '@/lib/firebase/admin';
 import { staffRateLimiter, getClientIp } from '@/lib/rate-limit';
 
 // İcazəli fayl növləri və magic bytes
@@ -27,7 +25,7 @@ const ALLOWED_TYPES: Record<string, { mime: string; magic: number[][] }> = {
   },
 };
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB (Firestore limit)
 
 /**
  * Magic bytes ilə fayl növünü yoxla
@@ -48,16 +46,6 @@ function validateFileType(buffer: Buffer): boolean {
   return false;
 }
 
-/**
- * Fayl adını sanitize et
- */
-function sanitizeFilename(filename: string): string {
-  return filename
-    .replace(/[^a-zA-Z0-9.-]/g, '_')
-    .replace(/_{2,}/g, '_')
-    .substring(0, 100);
-}
-
 export async function POST(request: NextRequest) {
   // Rate limiting
   const ip = getClientIp(request);
@@ -73,7 +61,6 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const folder = (formData.get('folder') as string || 'uploads').replace(/[^a-zA-Z0-9-_]/g, '');
 
     if (!file) {
       return NextResponse.json(
@@ -85,14 +72,10 @@ export async function POST(request: NextRequest) {
     // File size yoxla
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: 'Fayl ölçüsü maksimum 10MB ola bilər' },
+        { error: 'Fayl ölçüsü maksimum 5MB ola bilər' },
         { status: 400 }
       );
     }
-
-    // File name sanitize et
-    const timestamp = Date.now();
-    const safeName = `${timestamp}-${sanitizeFilename(file.name)}`;
 
     // File-ı buffer-ə çevir
     const bytes = await file.arrayBuffer();
@@ -101,46 +84,21 @@ export async function POST(request: NextRequest) {
     // Magic bytes ilə file type yoxla
     if (!validateFileType(buffer)) {
       return NextResponse.json(
-        { error: 'Yalnız şəkil faylları qəbul edilir' },
+        { error: 'Yalnız şəkil faylları qəbul edilir (JPG, PNG, WebP, GIF)' },
         { status: 400 }
       );
     }
 
-    // Firebase Admin SDK
-    const admin = getFirebaseAdmin();
-    if (!admin) {
-      return NextResponse.json(
-        { error: 'Firebase konfiqurasiya edilməyib' },
-        { status: 500 }
-      );
-    }
+    // Base64 data URI yarat
+    const base64 = buffer.toString('base64');
+    const dataUri = `data:${file.type};base64,${base64}`;
 
-    const storage = getStorage(admin);
-    const bucket = storage.bucket();
-    
-    // Firebase Storage-a yüklə
-    const filePath = `${folder}/${safeName}`;
-    const fileUpload = bucket.file(filePath);
-    
-    await fileUpload.save(buffer, {
-      metadata: {
-        contentType: file.type,
-      },
-      public: true,
-    });
-
-    // Public URL al
-    const [url] = await fileUpload.getSignedUrl({
-      action: 'read',
-      expires: '03-01-2500', // Uzun müddətli URL
-    });
-
-    // Və ya public URL (əgər bucket public-dirsə)
-    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
-
+    // Data URI-ni qaytır (frontend Firestore-a saxlayacaq və ya birbaşa istifadə edəcək)
     return NextResponse.json({
-      url: publicUrl,
-      path: filePath,
+      url: dataUri,
+      size: file.size,
+      type: file.type,
+      name: file.name,
     });
   } catch (error) {
     console.error('Upload xətası:', error);
