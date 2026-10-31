@@ -20,16 +20,21 @@ export default function RichTextEditor({
   const [imageAlt, setImageAlt] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastContentRef = useRef<string>(content);
 
   useEffect(() => {
-    if (editorRef.current && content && !editorRef.current.innerHTML) {
-      editorRef.current.innerHTML = content;
+    // Yalnız xaricdən content dəyişərsə (məsələn, dil dəyişəndə) yenilə
+    if (editorRef.current && content !== lastContentRef.current && !isFocused) {
+      editorRef.current.innerHTML = content || '';
+      lastContentRef.current = content;
     }
-  }, [content]);
+  }, [content, isFocused]);
 
   const handleInput = () => {
     if (editorRef.current) {
-      onChange(editorRef.current.innerHTML);
+      const newContent = editorRef.current.innerHTML;
+      lastContentRef.current = newContent;
+      onChange(newContent);
     }
   };
 
