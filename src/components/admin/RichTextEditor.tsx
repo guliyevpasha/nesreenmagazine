@@ -112,15 +112,20 @@ export default function RichTextEditor({
       });
 
       if (!response.ok) {
-        // Response body-ni oxu (JSON və ya text ola bilər)
+        // Response-u clone et ki, bir neçə dəfə oxuya biləsən
+        const responseClone = response.clone();
         let errorMessage = "Şəkil yüklənmədi";
+        
         try {
           const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
+          errorMessage = errorData.error || errorData.details || errorMessage;
         } catch {
-          // JSON deyilsə, text olaraq oxu
-          const errorText = await response.text();
-          if (errorText) errorMessage = errorText;
+          try {
+            const errorText = await responseClone.text();
+            if (errorText) errorMessage = errorText;
+          } catch {
+            // Ignore
+          }
         }
         throw new Error(errorMessage);
       }
