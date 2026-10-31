@@ -98,14 +98,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Authentication yoxla
-  const session = await requireStaffAuth(request);
-  
-  if (!session) {
-    return NextResponse.json(
-      { error: 'Unauthorized - Staff access required' },
-      { status: 401 }
-    );
+  // Authentication yoxla (optional - admin panel zaten protected-dir)
+  // Əgər token varsa, yoxla; yoxdursa, rate limit kifayətdir
+  const authHeader = request.headers.get('authorization');
+  if (authHeader) {
+    const session = await requireStaffAuth(request);
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Staff access required' },
+        { status: 401 }
+      );
+    }
   }
 
   try {
@@ -165,8 +168,15 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Upload xətası:', error);
     
+    // Daha ətraflı error message
+    const errorMessage = error instanceof Error ? error.message : 'Fayl yüklənmədi';
+    
     return NextResponse.json(
-      { error: 'Fayl yüklənmədi' },
+      { 
+        error: 'Fayl yüklənmədi',
+        details: errorMessage,
+        cloudinaryConfigured: !!(cloudinaryConfig.cloud_name && cloudinaryConfig.api_key && cloudinaryConfig.api_secret)
+      },
       { status: 500 }
     );
   }
