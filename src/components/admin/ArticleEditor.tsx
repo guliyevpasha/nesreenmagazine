@@ -210,8 +210,15 @@ export default function ArticleEditor({ article }: { article?: Article }) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Yükləmə uğursuz oldu');
+        let errorMessage = 'Yükləmə uğursuz oldu';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          const errorText = await response.text();
+          if (errorText) errorMessage = errorText;
+        }
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
@@ -241,8 +248,15 @@ export default function ArticleEditor({ article }: { article?: Article }) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Yükləmə uğursuz oldu');
+        let errorMessage = 'Yükləmə uğursuz oldu';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          const errorText = await response.text();
+          if (errorText) errorMessage = errorText;
+        }
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();

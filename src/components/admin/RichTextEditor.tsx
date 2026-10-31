@@ -112,7 +112,17 @@ export default function RichTextEditor({
       });
 
       if (!response.ok) {
-        throw new Error("Şəkil yüklənmədi");
+        // Response body-ni oxu (JSON və ya text ola bilər)
+        let errorMessage = "Şəkil yüklənmədi";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // JSON deyilsə, text olaraq oxu
+          const errorText = await response.text();
+          if (errorText) errorMessage = errorText;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
