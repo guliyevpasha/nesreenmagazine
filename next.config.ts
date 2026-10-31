@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
   // Agent rules-ı deaktiv et
   agentRules: false,
   
+  // Turbopack-i disable et (Next.js 16 font loading bug)
+  turbo: undefined,
+  
   // TypeScript build xətalarını production-da yoxla
   typescript: {
     // Development-də xətalara baxmayaraq davam et, production-da yoxla
