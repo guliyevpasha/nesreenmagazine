@@ -69,7 +69,7 @@ function emptyArticle(): ArticleInput {
     slug: "",
     category: "gundem",
     subcategory: "",
-    status: "published", // Default: published (dərc edilmiş)
+    status: "draft", // Default: draft (qaralama)
     featured: false,
     trending: false,
     coverImage: "",
