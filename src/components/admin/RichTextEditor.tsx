@@ -21,6 +21,7 @@ export default function RichTextEditor({
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastContentRef = useRef<string>(content);
+  const [currentBlockFormat, setCurrentBlockFormat] = useState<string>("p");
 
   useEffect(() => {
     // Yalnız xaricdən content dəyişərsə (məsələn, dil dəyişəndə) yenilə
@@ -30,11 +31,32 @@ export default function RichTextEditor({
     }
   }, [content, isFocused]);
 
+  const updateCurrentFormat = () => {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      let node = selection.anchorNode;
+      
+      // Traverse up to find the block-level element
+      while (node && node !== editorRef.current) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const tagName = (node as Element).tagName.toLowerCase();
+          if (['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote'].includes(tagName)) {
+            setCurrentBlockFormat(tagName);
+            return;
+          }
+        }
+        node = node.parentNode;
+      }
+    }
+    setCurrentBlockFormat("p");
+  };
+
   const handleInput = () => {
     if (editorRef.current) {
       const newContent = editorRef.current.innerHTML;
       lastContentRef.current = newContent;
       onChange(newContent);
+      updateCurrentFormat();
     }
   };
 
@@ -272,7 +294,7 @@ export default function RichTextEditor({
             <select
               className="px-3 py-1.5 border border-slate-300 rounded-md bg-white text-sm font-medium hover:bg-slate-50 cursor-pointer"
               onChange={(e) => formatBlock(e.target.value)}
-              defaultValue="p"
+              value={currentBlockFormat}
             >
               <option value="p">Normal</option>
               <option value="h1">Başlıq 1</option>
@@ -351,6 +373,8 @@ export default function RichTextEditor({
             onInput={handleInput}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
+            onKeyUp={updateCurrentFormat}
+            onClick={updateCurrentFormat}
             className="min-h-[450px] outline-none prose prose-slate max-w-none focus:outline-none"
             style={{
               caretColor: "#7b2233",

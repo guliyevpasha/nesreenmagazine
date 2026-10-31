@@ -815,7 +815,6 @@ export default function ArticleEditor({ article }: { article?: Article }) {
             >
               <option value="draft">📝 Qaralama</option>
               <option value="scheduled">⏰ Planlaşdırılmış</option>
-              <option value="published">✅ Dərc edilmiş</option>
             </select>
           </div>
 
@@ -839,6 +838,13 @@ export default function ArticleEditor({ article }: { article?: Article }) {
           )}
 
           <div className="flex gap-3 ml-auto">
+            <Button 
+              variant="ghost" 
+              onClick={() => router.back()} 
+              disabled={busy}
+            >
+              Ləğv et
+            </Button>
             <Button variant="ghost" onClick={() => void handleSave("draft")} disabled={busy}>
               Qaralama saxla
             </Button>
@@ -851,11 +857,9 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                 {busy ? "Saxlanılır…" : "Planlaşdır"}
               </Button>
             )}
-            {draft.status === "published" && (
-              <Button onClick={() => void handleSave("published")} disabled={busy}>
-                {busy ? "Saxlanılır…" : "İndi dərc et"}
-              </Button>
-            )}
+            <Button onClick={() => void handleSave("published")} disabled={busy}>
+              {busy ? "Saxlanılır…" : "Dərc et"}
+            </Button>
           </div>
         </div>
       </div>
