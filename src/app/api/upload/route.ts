@@ -1,30 +1,19 @@
-/**
- * File Upload API - Cloudinary inteqrasiyası
- * 
- * Developed by Cradex Agency
- * https://cradexagency.com
- */
 import { NextRequest, NextResponse } from 'next/server';
 import { v2 as cloudinary } from 'cloudinary';
 import { requireStaffAuth } from '@/lib/auth/middleware';
 import { staffRateLimiter, getClientIp } from '@/lib/rate-limit';
 
-// Cloudinary konfiqurasiyası - bütün açarlar environment variable-lardan
-if (!process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME) {
-  throw new Error('NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is required');
-}
-if (!process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY) {
-  throw new Error('NEXT_PUBLIC_CLOUDINARY_API_KEY is required');
-}
-if (!process.env.CLOUDINARY_API_SECRET) {
-  throw new Error('CLOUDINARY_API_SECRET is required');
-}
+// Cloudinary konfiqurasiyası - runtime-da yoxlanır
+const cloudinaryConfig = {
+  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '',
+  api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '',
+  api_secret: process.env.CLOUDINARY_API_SECRET || '',
+};
 
-cloudinary.config({
-  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+// Yalnız runtime-da konfiqurasiya et
+if (typeof window === 'undefined' && cloudinaryConfig.cloud_name) {
+  cloudinary.config(cloudinaryConfig);
+}
 
 // İcazəli fayl növləri və magic bytes
 const ALLOWED_TYPES: Record<string, { mime: string; magic: number[][] }> = {
@@ -90,13 +79,21 @@ function sanitizeFilename(filename: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  // Cloudinary konfiqurasiyasını yoxla
+  if (!cloudinaryConfig.cloud_name || !cloudinaryConfig.api_key || !cloudinaryConfig.api_secret) {
+    return NextResponse.json(
+      { error: 'Cloudinary konfiqurasiyası tapılmadı' },
+      { status: 500 }
+    );
+  }
+
   // Rate limiting
   const ip = getClientIp(request);
   const rateLimitResult = await staffRateLimiter.limit(ip);
   
   if (!rateLimitResult.success) {
     return NextResponse.json(
-      { error: 'Çox çox sorğu göndərilir. Bir az gözləyin.' },
+      { error: 'Çox sorğu göndərilir. Bir az gözləyin.' },
       { status: 429 }
     );
   }

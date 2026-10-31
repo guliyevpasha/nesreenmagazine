@@ -12,21 +12,18 @@ import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getAuth, type Auth } from "firebase/auth";
 import { logger } from "@/lib/logger";
 
-/** Environment variable-ı yoxlayır, yoxdursa error verir */
-const getEnvValue = (envVar: string | undefined, name: string): string => {
-  if (!envVar || envVar.trim().length === 0) {
-    throw new Error(`${name} environment variable is required but not set`);
-  }
-  return envVar.trim();
+/** Environment variable-ı yoxlayır, yoxdursa boş string qaytarır */
+const getEnvValue = (envVar: string | undefined): string => {
+  return envVar?.trim() || '';
 };
 
 export const firebaseConfig = {
-  apiKey: getEnvValue(process.env.NEXT_PUBLIC_FIREBASE_API_KEY, 'NEXT_PUBLIC_FIREBASE_API_KEY'),
-  authDomain: getEnvValue(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'),
-  projectId: getEnvValue(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID, 'NEXT_PUBLIC_FIREBASE_PROJECT_ID'),
-  storageBucket: getEnvValue(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET, 'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'),
-  messagingSenderId: getEnvValue(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID, 'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'),
-  appId: getEnvValue(process.env.NEXT_PUBLIC_FIREBASE_APP_ID, 'NEXT_PUBLIC_FIREBASE_APP_ID'),
+  apiKey: getEnvValue(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
+  authDomain: getEnvValue(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN),
+  projectId: getEnvValue(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
+  storageBucket: getEnvValue(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET),
+  messagingSenderId: getEnvValue(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID),
+  appId: getEnvValue(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
 };
 
 // Debug log (development only)
