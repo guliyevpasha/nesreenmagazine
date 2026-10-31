@@ -10,9 +10,10 @@ const nextConfig: NextConfig = {
   // Layihədə belə köməkçi fayllara ehtiyac yoxdur.
   agentRules: false,
   
-  // TypeScript build xətalarını ignore et (development zamanı hələ yoxlanılır)
+  // TypeScript build xətalarını production-da yoxla
   typescript: {
-    ignoreBuildErrors: true,
+    // Development-də xətalara baxmayaraq davam et, production-da yoxla
+    ignoreBuildErrors: process.env.NODE_ENV === 'development',
   },
 
   images: {

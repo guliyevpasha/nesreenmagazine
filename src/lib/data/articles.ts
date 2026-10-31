@@ -12,6 +12,7 @@ import { seedArticles } from "@/lib/content";
 import { COLLECTIONS, isFirebaseConfigured } from "@/lib/firebase/config";
 import { getDb } from "@/lib/firebase/client";
 import type { Article } from "@/lib/types";
+import { logger } from "@/lib/logger";
 
 /**
  * Məqalələrin mənbəyi.
@@ -30,7 +31,7 @@ function publishedSeed(): Article[] {
 }
 
 async function fetchFromFirestore(db: Firestore): Promise<Article[]> {
-  console.log('[DEBUG] Fetching articles from Firestore...');
+  logger.debug('Fetching articles from Firestore...');
   const snapshot = await getDocs(
     query(
       collection(db, COLLECTIONS.articles),
@@ -38,10 +39,10 @@ async function fetchFromFirestore(db: Firestore): Promise<Article[]> {
       orderBy("publishedAt", "desc"),
     ),
   );
-  console.log('[DEBUG] Found', snapshot.docs.length, 'published articles');
+  logger.debug('Found', snapshot.docs.length, 'published articles');
   const articles = snapshot.docs.map((doc) => {
     const data = doc.data() as Omit<Article, "id">;
-    console.log('[DEBUG] Article:', doc.id, 'status:', data.status, 'publishedAt:', data.publishedAt);
+    logger.debug('Article:', doc.id, 'status:', data.status, 'publishedAt:', data.publishedAt);
     return { ...data, id: doc.id };
   });
   return articles;
@@ -59,7 +60,7 @@ export async function getAllArticles(): Promise<Article[]> {
     // Firestore boşdursa (məsələn seed hələ yüklənməyibsə) hazır məzmuna qayıdırıq.
     return articles.length > 0 ? articles : publishedSeed();
   } catch (error) {
-    console.error("[nesreen] Firestore-dan oxumaq alınmadı, seed məzmuna keçilir:", error);
+    logger.error("Firestore-dan oxumaq alınmadı, seed məzmuna keçilir:", error);
     return publishedSeed();
   }
 }
@@ -112,7 +113,7 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
     const doc = snapshot.docs[0];
     return { ...(doc.data() as Omit<Article, "id">), id: doc.id };
   } catch (error) {
-    console.error("[nesreen] Məqalə oxumaq alınmadı, seed-ə baxılır:", error);
+    logger.error("Məqalə oxumaq alınmadı, seed-ə baxılır:", error);
     return seedArticles.find((article) => article.slug === slug) ?? null;
   }
 }

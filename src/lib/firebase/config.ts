@@ -7,6 +7,7 @@ import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getAuth, type Auth } from "firebase/auth";
+import { logger } from "@/lib/logger";
 
 // Properly handle empty strings from environment variables
 const getEnvValue = (envVar: string | undefined, fallback: string): string => {
@@ -42,8 +43,8 @@ export const firebaseConfig = {
 };
 
 // Debug log (development only)
-if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-  console.log("🔍 Firebase Config:", {
+if (typeof window !== "undefined") {
+  logger.debug("Firebase Config:", {
     apiKeyPresent: firebaseConfig.apiKey.length > 0,
     projectId: firebaseConfig.projectId,
   });

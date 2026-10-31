@@ -78,30 +78,53 @@ service cloud.firestore {
     //  Kontent kolleksiyaları
     // ═══════════════════════════════════════════
 
-    /** Məqalələr — DEVELOPMENT MODE: TAM AÇIQ */
+    /** Məqalələr — hamı dərc olunmuşları oxuyur, yalnız staff yazır */
     match /articles/{articleId} {
-      allow read, write: if true; // Development: allow all operations
+      // Hamı published məqalələri oxuya bilər, staff hamısını görə bilər
+      allow read: if resource.data.status == 'published' || isStaff();
+      // Yazmaq yalnız staff üçün
+      allow create, update: if isStaff();
+      // Silmək yalnız admin üçün
+      allow delete: if isAdmin();
     }
 
     /**
-     * Analytics kolleksiyaları - tracking üçün hamıya açıq
+     * Analytics kolleksiyaları - tracking üçün açıq amma validate edilir
+     * Rate limiting və data validation tətbiq olunur
      */
     match /analytics_daily/{docId} {
-      allow read, write: if true; // Allow tracking from client
+      allow read: if isStaff();
+      // Yazma yalnız valid data ilə
+      allow create: if request.resource.data.date is string
+                    && request.resource.data.pageViews is number
+                    && request.resource.data.pageViews >= 0
+                    && request.resource.data.pageViews < 1000000;
+      allow update: if isStaff();
+      allow delete: if false; // Immutable
     }
 
     match /analytics_totals/{docId} {
-      allow read, write: if true; // Allow tracking from client
+      allow read: if isStaff();
+      allow create: if request.resource.data.count is number
+                    && request.resource.data.count >= 0;
+      allow update: if isStaff();
+      allow delete: if false;
     }
 
     match /analytics_visitors/{docId} {
-      allow read, write: if true; // Allow tracking from client
+      allow read: if isStaff();
+      allow create: if request.resource.data.timestamp is timestamp
+                    && request.resource.data.path is string
+                    && request.resource.data.path.size() < 500;
+      allow update: if false; // Append only
+      allow delete: if false;
     }
 
-    /** Bürc şərhləri — hamı oxuya bilər */
+    /** Bürc şərhləri — hamı oxuya bilər, yalnız staff yazır */
     match /horoscopes/{sign} {
       allow read:  if true;
-      allow write: if true; // Development: allow seed script
+      // Yalnız staff üzvləri (müəlliflər) yaza bilər
+      allow write: if isStaff();
     }
 
     /** E-jurnallar — hamı dərc olunmuşları görür */
@@ -123,8 +146,10 @@ service cloud.firestore {
 
     /** Təkmilləşdirilmiş reklam banner sistemi */
     match /advancedBanners/{bannerId} {
+      // Hamı oxuya bilər (aktiv bannerləri göstərmək üçün)
       allow read:  if true;
-      allow write: if true; // Development: allow seed and testing
+      // Yalnız admin yazır
+      allow write: if isAdmin();
     }
 
     /** E-kitab bannerləri */
@@ -137,9 +162,14 @@ service cloud.firestore {
     //  İstifadəçilər
     // ═══════════════════════════════════════════
 
-    /** Redaksiya heyəti — DEVELOPMENT MODE: TAM AÇIQ */
+    /** Redaksiya heyəti — yalnız staff oxuya bilər, yalnız admin yazır */
     match /staff/{memberEmail} {
-      allow read, write: if true;  // Development: allow all operations
+      // Yalnız daxil olan staff üzvləri siyahını görə bilər
+      allow read: if isStaff();
+      // Yalnız admin yeni staff əlavə edə və ya dəyişdirə bilər
+      allow create, update: if isAdmin();
+      // Silmək yalnız admin üçün
+      allow delete: if isAdmin();
     }
 
     // ═══════════════════════════════════════════

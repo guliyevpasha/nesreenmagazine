@@ -1,193 +1,99 @@
-import { NextRequest, NextResponse } from "next/server";
-
-/**
- * Google Translate API v3 Integration
- * https://cloud.google.com/translate/docs/reference/rest
- */
-
-interface TranslateRequest {
-  text: string;
-  sourceLanguage: string;
-  targetLanguage: string;
-}
-
-interface TranslateResponse {
-  translatedText: string;
-  detectedLanguage?: string;
-}
+import { NextRequest, NextResponse } from 'next/server';
+import { translateArticle, translateText, translateToAllLanguages, type LanguageCode } from '@/lib/translate';
 
 export async function POST(request: NextRequest) {
   try {
-    const body: TranslateRequest = await request.json();
-    const { text, sourceLanguage, targetLanguage } = body;
+    const body = await request.json();
+    const { type, data, sourceLanguage } = body;
 
-    if (!text || !targetLanguage) {
+    // Type yoxlaması
+    if (!type || !data) {
       return NextResponse.json(
-        { error: "text və targetLanguage mütləqdir" },
+        { error: 'Type and data are required' },
         { status: 400 }
       );
     }
 
-    const apiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
-    
-    if (!apiKey) {
-      return NextResponse.json(
-        {
-          error: "Google Translate API key konfiqurasiya edilməyib",
-          hint: "GOOGLE_TRANSLATE_API_KEY environment variable-ı .env.local-da əlavə edin",
-        },
-        { status: 500 }
-      );
+    const sourceLang = (sourceLanguage || 'az') as LanguageCode;
+
+    // Tərcümə növünə görə müxtəlif əməliyyatlar
+    switch (type) {
+      case 'article': {
+        // Tam məqalə tərcüməsi (başlıq, xülasə, mətn, etiketlər)
+        const { title, excerpt, content, tags } = data;
+        
+        if (!title || !excerpt || !content) {
+          return NextResponse.json(
+            { error: 'Title, excerpt, and content are required for article translation' },
+            { status: 400 }
+          );
+        }
+
+        const translations = await translateArticle(
+          { title, excerpt, content, tags },
+          sourceLang
+        );
+
+        return NextResponse.json({
+          success: true,
+          translations,
+        });
+      }
+
+      case 'text': {
+        // Sadə mətn tərcüməsi
+        const { text } = data;
+        
+        if (!text) {
+          return NextResponse.json(
+            { error: 'Text is required' },
+            { status: 400 }
+          );
+        }
+
+        const translations = await translateToAllLanguages(text, sourceLang);
+
+        return NextResponse.json({
+          success: true,
+          translations,
+        });
+      }
+
+      case 'single': {
+        // Bir dilə tərcümə
+        const { text, targetLanguage } = data;
+        
+        if (!text || !targetLanguage) {
+          return NextResponse.json(
+            { error: 'Text and targetLanguage are required' },
+            { status: 400 }
+          );
+        }
+
+        const translation = await translateText(text, targetLanguage, sourceLang);
+
+        return NextResponse.json({
+          success: true,
+          translation,
+          targetLanguage,
+        });
+      }
+
+      default:
+        return NextResponse.json(
+          { error: 'Invalid translation type. Use "article", "text", or "single"' },
+          { status: 400 }
+        );
     }
-
-    // Language code mapping - Google Translate istifadə edilən kodlar
-    const langMap: Record<string, string> = {
-      az: "az", // Azerbaijani
-      en: "en", // English
-      ru: "ru", // Russian
-      tr: "tr", // Turkish
-      ar: "ar", // Arabic
-    };
-
-    const sourceLang = sourceLanguage ? langMap[sourceLanguage] || sourceLanguage : undefined;
-    const targetLang = langMap[targetLanguage] || targetLanguage;
-
-    // Google Translate API v3 REST call
-    const translateUrl = `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`;
-    
-    const response = await fetch(translateUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        q: text,
-        source: sourceLang,
-        target: targetLang,
-        format: "text",
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-      console.error("Google Translate API error:", errorData);
-      
-      return NextResponse.json(
-        {
-          error: "Tərcümə xətası",
-          details: errorData.error?.message || response.statusText,
-        },
-        { status: response.status }
-      );
-    }
-
-    const data = await response.json();
-    const translation = data.data?.translations?.[0];
-
-    if (!translation) {
-      return NextResponse.json(
-        { error: "Tərcümə cavabı boşdur" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      translatedText: translation.translatedText,
-      detectedLanguage: translation.detectedSourceLanguage,
-    });
   } catch (error) {
-    console.error("Translate API error:", error);
-    return NextResponse.json(
-      {
-        error: "Server xətası",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
-  }
-}
-
-/**
- * Batch translation - bir neçə mətn eyni anda
- */
-export async function PUT(request: NextRequest) {
-  try {
-    const body: {
-      texts: string[];
-      sourceLanguage: string;
-      targetLanguage: string;
-    } = await request.json();
-
-    const { texts, sourceLanguage, targetLanguage } = body;
-
-    if (!texts || texts.length === 0 || !targetLanguage) {
-      return NextResponse.json(
-        { error: "texts və targetLanguage mütləqdir" },
-        { status: 400 }
-      );
-    }
-
-    const apiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
+    console.error('Translation API error:', error);
     
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "Google Translate API key konfiqurasiya edilməyib" },
-        { status: 500 }
-      );
-    }
-
-    const langMap: Record<string, string> = {
-      az: "az",
-      en: "en",
-      ru: "ru",
-      tr: "tr",
-      ar: "ar",
-    };
-
-    const sourceLang = sourceLanguage ? langMap[sourceLanguage] || sourceLanguage : undefined;
-    const targetLang = langMap[targetLanguage] || targetLanguage;
-
-    const translateUrl = `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`;
+    const errorMessage = error instanceof Error ? error.message : 'Translation failed';
     
-    const response = await fetch(translateUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        q: texts,
-        source: sourceLang,
-        target: targetLang,
-        format: "text",
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return NextResponse.json(
-        {
-          error: "Batch tərcümə xətası",
-          details: errorData.error?.message || response.statusText,
-        },
-        { status: response.status }
-      );
-    }
-
-    const data = await response.json();
-    const translations = data.data?.translations || [];
-
-    return NextResponse.json({
-      translations: translations.map((t: any) => ({
-        translatedText: t.translatedText,
-        detectedLanguage: t.detectedSourceLanguage,
-      })),
-    });
-  } catch (error) {
-    console.error("Batch translate error:", error);
     return NextResponse.json(
-      {
-        error: "Server xətası",
-        details: error instanceof Error ? error.message : "Unknown error",
+      { 
+        error: 'Translation failed', 
+        details: errorMessage 
       },
       { status: 500 }
     );
