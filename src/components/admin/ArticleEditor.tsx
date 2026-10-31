@@ -494,10 +494,16 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                     Formatlaşdırma məsləhətləri
                   </summary>
                   <div className="mt-2 border border-line bg-cream-deep/40 p-3 font-ui text-[12px] leading-relaxed text-ink-soft">
-                    <p>• Başlıqlar üçün H1-H6 düymələrindən istifadə edin</p>
+                    <p className="font-semibold mb-1">⚠️ Başlıqlar haqqında:</p>
+                    <p>• Başlıqlar (H1-H6) bütün sətirə tətbiq olunur, tək sözə deyil</p>
+                    <p>• Hər sətirdə yalnız 1 başlıq olmalıdır</p>
+                    <p>• Başlıq 1 ən böyük (40px), Başlıq 6 ən kiçik (17px)</p>
+                    <hr className="my-2 border-line" />
+                    <p className="font-semibold mb-1">📝 Necə istifadə edək:</p>
                     <p>• Şəkil əlavə etmək üçün 🖼️ düyməsinə basın</p>
                     <p>• Link əlavə etmək üçün mətni seçib 🔗 düyməsinə basın</p>
-                    <p>• Mətn düzəlişi üçün qalın (B), maili (I), altdan xətt (U) istifadə edin</p>
+                    <p>• Tək sözü böyütmək üçün "Font Size" seçin</p>
+                    <p>• Mətn düzəlişi: qalın (B), maili (I), altdan xətt (U)</p>
                   </div>
                 </details>
               </div>

@@ -369,6 +369,75 @@ export default function RichTextEditor({
               {placeholder}
             </div>
           )}
+          <style dangerouslySetInnerHTML={{__html: `
+            .editor-content h1 {
+              font-size: 2.5em !important;
+              font-weight: 800 !important;
+              line-height: 1.2 !important;
+              margin-top: 0.5em !important;
+              margin-bottom: 0.5em !important;
+              color: #1a1a1a !important;
+              display: block !important;
+            }
+            .editor-content h2 {
+              font-size: 2em !important;
+              font-weight: 700 !important;
+              line-height: 1.3 !important;
+              margin-top: 0.5em !important;
+              margin-bottom: 0.4em !important;
+              color: #1a1a1a !important;
+              display: block !important;
+            }
+            .editor-content h3 {
+              font-size: 1.75em !important;
+              font-weight: 700 !important;
+              line-height: 1.35 !important;
+              margin-top: 0.5em !important;
+              margin-bottom: 0.4em !important;
+              color: #1a1a1a !important;
+              display: block !important;
+            }
+            .editor-content h4 {
+              font-size: 1.5em !important;
+              font-weight: 600 !important;
+              line-height: 1.4 !important;
+              margin-top: 0.5em !important;
+              margin-bottom: 0.3em !important;
+              color: #2a2a2a !important;
+              display: block !important;
+            }
+            .editor-content h5 {
+              font-size: 1.25em !important;
+              font-weight: 600 !important;
+              line-height: 1.5 !important;
+              margin-top: 0.4em !important;
+              margin-bottom: 0.3em !important;
+              color: #2a2a2a !important;
+              display: block !important;
+            }
+            .editor-content h6 {
+              font-size: 1.1em !important;
+              font-weight: 600 !important;
+              line-height: 1.5 !important;
+              margin-top: 0.4em !important;
+              margin-bottom: 0.3em !important;
+              color: #3a3a3a !important;
+              display: block !important;
+            }
+            .editor-content p {
+              font-size: 16px !important;
+              line-height: 1.7 !important;
+              margin-top: 0.5em !important;
+              margin-bottom: 0.5em !important;
+            }
+            .editor-content blockquote {
+              border-left: 4px solid #7b2233 !important;
+              padding-left: 1em !important;
+              margin-left: 0 !important;
+              font-style: italic !important;
+              color: #555 !important;
+            }
+          `}} />
           <div
             ref={editorRef}
             contentEditable
@@ -377,76 +446,13 @@ export default function RichTextEditor({
             onBlur={() => setIsFocused(false)}
             onKeyUp={updateCurrentFormat}
             onClick={updateCurrentFormat}
-            className="min-h-[450px] outline-none prose prose-slate max-w-none focus:outline-none editor-content"
+            className="min-h-[450px] outline-none max-w-none focus:outline-none editor-content"
             style={{
               caretColor: "#7b2233",
               fontSize: "16px",
               lineHeight: "1.7",
             }}
           />
-          <style jsx>{`
-            .editor-content h1 {
-              font-size: 2.5em;
-              font-weight: 800;
-              line-height: 1.2;
-              margin-top: 0.5em;
-              margin-bottom: 0.5em;
-              color: #1a1a1a;
-            }
-            .editor-content h2 {
-              font-size: 2em;
-              font-weight: 700;
-              line-height: 1.3;
-              margin-top: 0.5em;
-              margin-bottom: 0.4em;
-              color: #1a1a1a;
-            }
-            .editor-content h3 {
-              font-size: 1.75em;
-              font-weight: 700;
-              line-height: 1.35;
-              margin-top: 0.5em;
-              margin-bottom: 0.4em;
-              color: #1a1a1a;
-            }
-            .editor-content h4 {
-              font-size: 1.5em;
-              font-weight: 600;
-              line-height: 1.4;
-              margin-top: 0.5em;
-              margin-bottom: 0.3em;
-              color: #2a2a2a;
-            }
-            .editor-content h5 {
-              font-size: 1.25em;
-              font-weight: 600;
-              line-height: 1.5;
-              margin-top: 0.4em;
-              margin-bottom: 0.3em;
-              color: #2a2a2a;
-            }
-            .editor-content h6 {
-              font-size: 1.1em;
-              font-weight: 600;
-              line-height: 1.5;
-              margin-top: 0.4em;
-              margin-bottom: 0.3em;
-              color: #3a3a3a;
-            }
-            .editor-content p {
-              font-size: 16px;
-              line-height: 1.7;
-              margin-top: 0.5em;
-              margin-bottom: 0.5em;
-            }
-            .editor-content blockquote {
-              border-left: 4px solid #7b2233;
-              padding-left: 1em;
-              margin-left: 0;
-              font-style: italic;
-              color: #555;
-            }
-          `}</style>
         </div>
       </div>
 
