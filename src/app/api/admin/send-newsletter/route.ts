@@ -1,13 +1,30 @@
+/**
+ * Newsletter göndərmə API
+ * 
+ * Developed by Cradex Agency
+ * https://cradexagency.com
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { sendNewsletter } from '@/lib/email/mailer';
 import { getDb } from '@/lib/firebase/client';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { requireAdminAuth } from '@/lib/auth/middleware';
 
 /**
- * Admin newsletter göndərir
+ * Admin newsletter göndərir - yalnız admin rolu
  * POST /api/admin/send-newsletter
  */
 export async function POST(request: NextRequest) {
+  // Yalnız admin icazəsi var
+  const session = await requireAdminAuth(request);
+  
+  if (!session) {
+    return NextResponse.json(
+      { error: 'Unauthorized - Admin access required' },
+      { status: 401 }
+    );
+  }
+
   try {
     const body = await request.json();
     const { subject, html } = body;
@@ -19,7 +36,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Aktiv abunəçiləri tap (client SDK)
+    // Subject və HTML-i sanitize et
+    const sanitizedSubject = subject.substring(0, 200);
+    
+    // Aktiv abunəçiləri tap
     const db = getDb();
     if (!db) {
       return NextResponse.json(
@@ -48,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Newsletter göndər
-    const results = await sendNewsletter(subscriberEmails, subject, html);
+    const results = await sendNewsletter(subscriberEmails, sanitizedSubject, html);
 
     return NextResponse.json({
       success: true,
@@ -58,7 +78,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[send-newsletter] Xəta:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Server xətası' },
+      { error: 'Newsletter göndərilmədi' },
       { status: 500 }
     );
   }

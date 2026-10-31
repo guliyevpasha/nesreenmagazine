@@ -1,7 +1,10 @@
 /**
- * Firebase konfiqurasiyası .env.local faylından oxunur.
- * Açarlar hələ əlavə edilməyibsə, sayt `src/lib/content` qovluğundakı
- * hazır məqalələrlə (seed) işləyir — heç nə sınmır.
+ * Firebase konfiqurasiyası
+ * 
+ * Developed by Cradex Agency
+ * https://cradexagency.com
+ * 
+ * Bütün açarlar .env.local faylında olmalıdır
  */
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore } from "firebase/firestore";
@@ -9,37 +12,21 @@ import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getAuth, type Auth } from "firebase/auth";
 import { logger } from "@/lib/logger";
 
-// Properly handle empty strings from environment variables
-const getEnvValue = (envVar: string | undefined, fallback: string): string => {
-  // Return fallback if envVar is undefined, null, empty string, or whitespace
-  return envVar && envVar.trim().length > 0 ? envVar : fallback;
+/** Environment variable-ı yoxlayır, yoxdursa error verir */
+const getEnvValue = (envVar: string | undefined, name: string): string => {
+  if (!envVar || envVar.trim().length === 0) {
+    throw new Error(`${name} environment variable is required but not set`);
+  }
+  return envVar.trim();
 };
 
 export const firebaseConfig = {
-  apiKey: getEnvValue(
-    process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    "AIzaSyCh3o8aCIY-56kK1CjvD6-rkDYCm4UNl4E"
-  ),
-  authDomain: getEnvValue(
-    process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    "nesreen-magazine.firebaseapp.com"
-  ),
-  projectId: getEnvValue(
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    "nesreen-magazine"
-  ),
-  storageBucket: getEnvValue(
-    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    "nesreen-magazine.firebasestorage.app"
-  ),
-  messagingSenderId: getEnvValue(
-    process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    "186112409519"
-  ),
-  appId: getEnvValue(
-    process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-    "1:186112409519:web:9f29a447aef08927c0795a"
-  ),
+  apiKey: getEnvValue(process.env.NEXT_PUBLIC_FIREBASE_API_KEY, 'NEXT_PUBLIC_FIREBASE_API_KEY'),
+  authDomain: getEnvValue(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'),
+  projectId: getEnvValue(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID, 'NEXT_PUBLIC_FIREBASE_PROJECT_ID'),
+  storageBucket: getEnvValue(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET, 'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: getEnvValue(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID, 'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'),
+  appId: getEnvValue(process.env.NEXT_PUBLIC_FIREBASE_APP_ID, 'NEXT_PUBLIC_FIREBASE_APP_ID'),
 };
 
 // Debug log (development only)

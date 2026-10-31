@@ -31,46 +31,56 @@ service firebase.storage {
         && request.resource.size < 8 * 1024 * 1024;
     }
 
-    // Məqalə üz qabıqları
+    function isVideo() {
+      return request.resource.contentType.matches('video/.*')
+        && request.resource.size < 50 * 1024 * 1024;
+    }
+
+    function isPDF() {
+      return request.resource.contentType == 'application/pdf'
+        && request.resource.size < 60 * 1024 * 1024;
+    }
+
+    // Məqalə üz qabıqları - yalnız staff
     match /covers/{fileName} {
       allow read: if true;
-      allow write: if true; // Development: allow all uploads
+      allow write: if isStaff() && isImage();
     }
 
-    // Reklam bannerləri
+    // Reklam bannerləri - yalnız staff
     match /banners/{fileName} {
       allow read: if true;
-      allow write: if true; // Development: allow all uploads
+      allow write: if isStaff() && (isImage() || isVideo());
     }
 
-    // Məqalə mətnindəki şəkillər - inline-images qovluğu
+    // Məqalə mətnindəki şəkillər - yalnız staff
     match /inline-images/{fileName} {
       allow read: if true;
-      allow write: if true; // Development: allow all uploads
+      allow write: if isStaff() && isImage();
     }
 
-    // Məqalə mətnindəki şəkillər - inline qovluğu (köhnə)
+    // Köhnə inline qovluğu - yalnız staff
     match /inline/{fileName} {
       allow read: if true;
-      allow write: if true; // Development: allow all uploads
+      allow write: if isStaff() && isImage();
     }
 
-    // Articles qovluğu (yeni məqalə editor üçün)
+    // Articles qovluğu - yalnız staff
     match /articles/{fileName} {
       allow read: if true;
-      allow write: if true; // Development: allow all uploads
+      allow write: if isStaff() && isImage();
     }
 
-    // E-jurnalın üz qabıqları
+    // E-jurnalın üz qabıqları - yalnız staff
     match /ejournal-covers/{fileName} {
       allow read: if true;
-      allow write: if true; // Development: allow all uploads
+      allow write: if isStaff() && isImage();
     }
 
-    // E-jurnalın PDF nömrələri — 60 MB-a qədər
+    // E-jurnalın PDF nömrələri - yalnız staff
     match /ejournals/{fileName} {
       allow read: if true;
-      allow write: if true; // Development: allow all uploads
+      allow write: if isStaff() && isPDF();
     }
 
     match /{allPaths=**} {

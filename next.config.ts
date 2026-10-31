@@ -6,8 +6,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Next.js standart olaraq kök qovluqda AGENTS.md / CLAUDE.md faylları yaradır.
-  // Layihədə belə köməkçi fayllara ehtiyac yoxdur.
+  // Agent rules-ı deaktiv et
   agentRules: false,
   
   // TypeScript build xətalarını production-da yoxla

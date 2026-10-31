@@ -1,6 +1,13 @@
+/**
+ * Məqalə bannerlər sistemi
+ * 
+ * Developed by Cradex Agency
+ * https://cradexagency.com
+ */
 "use client";
 
 import { useEffect, useState } from "react";
+import DOMPurify from 'isomorphic-dompurify';
 import BannerDisplay from "./BannerDisplay";
 import type { AdvancedAdBanner, AdBannerLocation } from "@/lib/types";
 
@@ -35,7 +42,7 @@ export default function ArticleBanners({ location, className = "" }: ArticleBann
   }
 
   if (loading) {
-    return null; // Yüklənərkən boşluq
+    return null;
   }
 
   return <BannerDisplay banner={banner || undefined} showPlaceholder={true} className={className} />;
@@ -45,7 +52,7 @@ export default function ArticleBanners({ location, className = "" }: ArticleBann
  * H2 və H3 başlıqlar arasında banner yerləşdirən komponent
  */
 export function InjectBannersIntoContent({ html, location }: { html: string; location: AdBannerLocation }) {
-  const [processedHtml, setProcessedHtml] = useState(html);
+  const [processedHtml, setProcessedHtml] = useState('');
   const [banners, setBanners] = useState<AdvancedAdBanner[]>([]);
 
   useEffect(() => {
@@ -60,13 +67,23 @@ export function InjectBannersIntoContent({ html, location }: { html: string; loc
         const banner = data.banner;
         
         if (banner) {
-          // HTML-ə banner əlavə et
+          // HTML-ə banner əlavə et və sanitize et
           const injected = injectBanners(html, banner, location);
-          setProcessedHtml(injected);
+          const sanitized = DOMPurify.sanitize(injected, {
+            ALLOWED_TAGS: ['div', 'p', 'a', 'img', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'strong', 'em', 'br', 'span'],
+            ALLOWED_ATTR: ['class', 'href', 'src', 'alt', 'style', 'target', 'rel'],
+            ALLOW_DATA_ATTR: false,
+          });
+          setProcessedHtml(sanitized);
+        } else {
+          const sanitized = DOMPurify.sanitize(html);
+          setProcessedHtml(sanitized);
         }
       }
     } catch (err) {
       console.error("Banner injection failed:", err);
+      const sanitized = DOMPurify.sanitize(html);
+      setProcessedHtml(sanitized);
     }
   }
 
@@ -80,18 +97,23 @@ function injectBanners(html: string, banner: AdvancedAdBanner, location: AdBanne
   const tag = location === "article-between-h2" ? "h2" : "h3";
   const regex = new RegExp(`(</${tag}>)`, "gi");
   
+  // URL və text-i sanitize et
+  const safeLink = encodeURI(banner.linkUrl);
+  const safeAlt = banner.altText.replace(/"/g, '&quot;');
+  const safeImageUrl = encodeURI(banner.imageUrl);
+  
   let count = 0;
   const bannerHtml = `
     <div class="my-8 flex justify-center">
       <div class="banner-injected w-full max-w-3xl">
         <div class="border border-line bg-cream-deep/30 p-4 text-center">
           <p class="text-[9px] uppercase tracking-wider text-muted mb-3">Reklam</p>
-          <a href="${banner.linkUrl}" target="_blank" rel="noopener noreferrer" class="block">
+          <a href="${safeLink}" target="_blank" rel="noopener noreferrer" class="block">
             <img 
-              src="${banner.imageUrl}" 
-              alt="${banner.altText}"
+              src="${safeImageUrl}" 
+              alt="${safeAlt}"
               class="w-full h-auto mx-auto"
-              style="max-width: ${banner.dimensions.width}px; max-height: ${banner.dimensions.height}px;"
+              style="max-width: ${Math.abs(Number(banner.dimensions.width))}px; max-height: ${Math.abs(Number(banner.dimensions.height))}px;"
             />
           </a>
         </div>
