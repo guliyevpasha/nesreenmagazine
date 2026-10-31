@@ -16,6 +16,7 @@ const defaultBanners: AdvancedAdBannerInput[] = [
     showOn: { desktop: true, tablet: true, mobile: false },
     priority: 1,
     animation: "fade",
+    createdBy: "system",
   },
   
   // Sidebar Banner - Maqalə Sağ Sidebar
@@ -31,6 +32,7 @@ const defaultBanners: AdvancedAdBannerInput[] = [
     showOn: { desktop: true, tablet: true, mobile: false },
     priority: 1,
     animation: "fade",
+    createdBy: "system",
   },
   
   // Inline H2 Banner
@@ -40,12 +42,13 @@ const defaultBanners: AdvancedAdBannerInput[] = [
     mediaType: "image",
     linkUrl: "https://wa.me/994503807787",
     altText: "Burada sizin reklamınız ola bilər - WhatsApp: 0503807787",
-    locations: ["article-inline-h2"],
+    locations: ["article-between-h2"],
     dimensions: { width: 728, height: 90 },
     active: true,
     showOn: { desktop: true, tablet: true, mobile: false },
     priority: 1,
     animation: "fade",
+    createdBy: "system",
   },
   
   // Inline H3 Banner
@@ -55,12 +58,13 @@ const defaultBanners: AdvancedAdBannerInput[] = [
     mediaType: "image",
     linkUrl: "https://wa.me/994503807787",
     altText: "Burada sizin reklamınız ola bilər - WhatsApp: 0503807787",
-    locations: ["article-inline-h3"],
+    locations: ["article-between-h3"],
     dimensions: { width: 728, height: 90 },
     active: true,
     showOn: { desktop: true, tablet: true, mobile: false },
     priority: 1,
     animation: "fade",
+    createdBy: "system",
   },
   
   // Header Banner
@@ -76,6 +80,7 @@ const defaultBanners: AdvancedAdBannerInput[] = [
     showOn: { desktop: true, tablet: true, mobile: false },
     priority: 1,
     animation: "slide",
+    createdBy: "system",
   },
   
   // Footer Banner
@@ -85,12 +90,13 @@ const defaultBanners: AdvancedAdBannerInput[] = [
     mediaType: "image",
     linkUrl: "https://wa.me/994503807787",
     altText: "Burada sizin reklamınız ola bilər - WhatsApp: 0503807787",
-    locations: ["article-footer"],
+    locations: ["article-inline"],
     dimensions: { width: 728, height: 90 },
     active: true,
     showOn: { desktop: true, tablet: true, mobile: false },
     priority: 1,
     animation: "fade",
+    createdBy: "system",
   },
   
   // Mobile Header Banner
@@ -106,6 +112,7 @@ const defaultBanners: AdvancedAdBannerInput[] = [
     showOn: { desktop: false, tablet: false, mobile: true },
     priority: 1,
     animation: "fade",
+    createdBy: "system",
   },
   
   // Mobile Inline Banner
@@ -115,12 +122,13 @@ const defaultBanners: AdvancedAdBannerInput[] = [
     mediaType: "image",
     linkUrl: "https://wa.me/994503807787",
     altText: "Burada sizin reklamınız ola bilər - WhatsApp: 0503807787",
-    locations: ["article-inline-h2", "article-inline-h3"],
+    locations: ["article-between-h2", "article-between-h3"],
     dimensions: { width: 320, height: 100 },
     active: true,
     showOn: { desktop: false, tablet: false, mobile: true },
     priority: 1,
     animation: "fade",
+    createdBy: "system",
   },
 ];
 

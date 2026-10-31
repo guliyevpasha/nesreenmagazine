@@ -110,7 +110,7 @@ export default function NewslettersPage() {
     <div className="space-y-8 p-8">
       <PageHeader
         title="Email Bülten"
-        subtitle="Abunəçilərə email göndər"
+        description="Abunəçilərə email göndər"
       />
 
       {message && (
@@ -120,17 +120,18 @@ export default function NewslettersPage() {
       )}
 
       <div className="max-w-4xl space-y-6">
-        <Field label="Başlıq" required>
+        <Field label="Başlıq">
           <input
             type="text"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             placeholder="Yeni məqalələr, təkliflər..."
             className={inputClass}
+            required
           />
         </Field>
 
-        <Field label="Məzmun" required>
+        <Field label="Məzmun">
           <div className="border border-line rounded-lg overflow-hidden">
             <MdEditor
               value={content}

@@ -34,6 +34,7 @@ export default function NewBannerPage() {
     },
     priority: 5,
     animation: "none",
+    createdBy: "system",
   });
 
   const [uploading, setUploading] = useState(false);

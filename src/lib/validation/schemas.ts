@@ -129,7 +129,7 @@ export function safeValidate<T>(
   }
   
   // Format Zod errors into a readable string
-  const errorMessage = result.error.errors
+  const errorMessage = result.error.issues
     .map((err) => `${err.path.join('.')}: ${err.message}`)
     .join(', ');
   

@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     // Path-ları revalidate et
     if (Array.isArray(allPaths) && allPaths.length > 0) {
       for (const path of allPaths) {
-        revalidatePath(path, "page");
+        revalidatePath(path);
         console.log("✅ Revalidated:", path);
       }
     }
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     // Tag-ları revalidate et
     if (Array.isArray(tags)) {
       for (const tag of tags) {
-        revalidateTag(tag);
+        revalidateTag(tag, "default");
         console.log("✅ Revalidated tag:", tag);
       }
     }

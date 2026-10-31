@@ -129,11 +129,11 @@ export default function EditBannerPage({
         mediaType = "video";
       }
 
-      setBanner({ 
+      setBanner(banner ? { 
         ...banner, 
         imageUrl: data.url,
         mediaType: mediaType
-      });
+      } : null);
       setMessage({ tone: "success", text: "Fayl uğurla yükləndi" });
     } catch (err) {
       setMessage({

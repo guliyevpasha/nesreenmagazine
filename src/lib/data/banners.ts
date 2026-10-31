@@ -46,13 +46,13 @@ export async function getActiveBanners(): Promise<AdvancedAdBanner[]> {
     .map((doc) => ({
       id: doc.id,
       ...doc.data(),
-    }))
-    .filter((banner: AdvancedAdBanner) => {
+    } as AdvancedAdBanner))
+    .filter((banner) => {
       // Tarix yoxlaması
       if (banner.startsAt && banner.startsAt > now) return false;
       if (banner.endsAt && banner.endsAt < now) return false;
       return true;
-    }) as AdvancedAdBanner[];
+    });
 }
 
 /**
@@ -128,7 +128,7 @@ export async function duplicateBanner(
   const original = await getBanner(id);
   if (!original) throw new Error("Banner tapılmadı");
   
-  const { id: _, clicks, impressions, createdAt, updatedAt, createdBy: __, ...rest } = original;
+  const { id: _, clicks, impressions, createdAt, updatedAt, ...rest } = original;
   
   return createBanner(
     {
