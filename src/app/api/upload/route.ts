@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { v2 as cloudinary } from 'cloudinary';
-import { requireStaffAuth } from '@/lib/auth/middleware';
+import { getStorage } from 'firebase-admin/storage';
+import { getFirebaseAdmin } from '@/lib/firebase/admin';
 import { staffRateLimiter, getClientIp } from '@/lib/rate-limit';
-
-// Cloudinary konfiqurasiyası - runtime-da yoxlanır
-const cloudinaryConfig = {
-  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '',
-  api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '',
-  api_secret: process.env.CLOUDINARY_API_SECRET || '',
-};
-
-// Yalnız runtime-da konfiqurasiya et
-if (typeof window === 'undefined' && cloudinaryConfig.cloud_name) {
-  cloudinary.config(cloudinaryConfig);
-}
 
 // İcazəli fayl növləri və magic bytes
 const ALLOWED_TYPES: Record<string, { mime: string; magic: number[][] }> = {
@@ -37,17 +25,9 @@ const ALLOWED_TYPES: Record<string, { mime: string; magic: number[][] }> = {
     mime: 'image/gif',
     magic: [[0x47, 0x49, 0x46, 0x38]]
   },
-  mp4: { 
-    mime: 'video/mp4',
-    magic: [[0x00, 0x00, 0x00]]
-  },
-  webm: { 
-    mime: 'video/webm',
-    magic: [[0x1A, 0x45, 0xDF, 0xA3]]
-  },
 };
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 /**
  * Magic bytes ilə fayl növünü yoxla
@@ -79,14 +59,6 @@ function sanitizeFilename(filename: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  // Cloudinary konfiqurasiyasını yoxla
-  if (!cloudinaryConfig.cloud_name || !cloudinaryConfig.api_key || !cloudinaryConfig.api_secret) {
-    return NextResponse.json(
-      { error: 'Cloudinary konfiqurasiyası tapılmadı' },
-      { status: 500 }
-    );
-  }
-
   // Rate limiting
   const ip = getClientIp(request);
   const rateLimitResult = await staffRateLimiter.limit(ip);
@@ -96,19 +68,6 @@ export async function POST(request: NextRequest) {
       { error: 'Çox sorğu göndərilir. Bir az gözləyin.' },
       { status: 429 }
     );
-  }
-
-  // Authentication yoxla (optional - admin panel zaten protected-dir)
-  // Əgər token varsa, yoxla; yoxdursa, rate limit kifayətdir
-  const authHeader = request.headers.get('authorization');
-  if (authHeader) {
-    const session = await requireStaffAuth(request);
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Staff access required' },
-        { status: 401 }
-      );
-    }
   }
 
   try {
@@ -126,56 +85,72 @@ export async function POST(request: NextRequest) {
     // File size yoxla
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: 'Fayl ölçüsü maksimum 50MB ola bilər' },
+        { error: 'Fayl ölçüsü maksimum 10MB ola bilər' },
         { status: 400 }
       );
     }
 
     // File name sanitize et
-    const safeName = sanitizeFilename(file.name);
+    const timestamp = Date.now();
+    const safeName = `${timestamp}-${sanitizeFilename(file.name)}`;
 
     // File-ı buffer-ə çevir
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Magic bytes ilə file type yoxla (MIME type-a güvənmə)
+    // Magic bytes ilə file type yoxla
     if (!validateFileType(buffer)) {
       return NextResponse.json(
-        { error: 'Yalnız şəkil və video faylları qəbul edilir' },
+        { error: 'Yalnız şəkil faylları qəbul edilir' },
         { status: 400 }
       );
     }
 
-    // Base64-ə çevir
-    const base64 = buffer.toString('base64');
-    const dataURI = `data:${file.type};base64,${base64}`;
+    // Firebase Admin SDK
+    const admin = getFirebaseAdmin();
+    if (!admin) {
+      return NextResponse.json(
+        { error: 'Firebase konfiqurasiya edilməyib' },
+        { status: 500 }
+      );
+    }
 
-    // Cloudinary-a yüklə
-    const result = await cloudinary.uploader.upload(dataURI, {
-      folder: `nesreen-magazine/${folder}`,
-      resource_type: 'auto',
-      allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'webm'],
-      max_file_size: MAX_FILE_SIZE,
-      filename_override: safeName,
+    const storage = getStorage(admin);
+    const bucket = storage.bucket();
+    
+    // Firebase Storage-a yüklə
+    const filePath = `${folder}/${safeName}`;
+    const fileUpload = bucket.file(filePath);
+    
+    await fileUpload.save(buffer, {
+      metadata: {
+        contentType: file.type,
+      },
+      public: true,
     });
 
+    // Public URL al
+    const [url] = await fileUpload.getSignedUrl({
+      action: 'read',
+      expires: '03-01-2500', // Uzun müddətli URL
+    });
+
+    // Və ya public URL (əgər bucket public-dirsə)
+    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+
     return NextResponse.json({
-      url: result.secure_url,
-      publicId: result.public_id,
-      width: result.width,
-      height: result.height,
+      url: publicUrl,
+      path: filePath,
     });
   } catch (error) {
     console.error('Upload xətası:', error);
     
-    // Daha ətraflı error message
     const errorMessage = error instanceof Error ? error.message : 'Fayl yüklənmədi';
     
     return NextResponse.json(
       { 
         error: 'Fayl yüklənmədi',
         details: errorMessage,
-        cloudinaryConfigured: !!(cloudinaryConfig.cloud_name && cloudinaryConfig.api_key && cloudinaryConfig.api_secret)
       },
       { status: 500 }
     );
