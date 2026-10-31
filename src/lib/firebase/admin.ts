@@ -31,12 +31,25 @@ export function getFirebaseAdmin(): App | null {
     // Service account credentials environment variable-dan oxu
     const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
     
-    if (!serviceAccount) {
-      console.warn('FIREBASE_SERVICE_ACCOUNT_KEY not set - Admin SDK disabled');
+    if (!serviceAccount || !serviceAccount.trim()) {
+      console.error('FIREBASE_SERVICE_ACCOUNT_KEY is empty or not set');
       return null;
     }
 
-    const serviceAccountJson = JSON.parse(serviceAccount);
+    let serviceAccountJson;
+    try {
+      serviceAccountJson = JSON.parse(serviceAccount);
+    } catch (parseError) {
+      console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY JSON:', parseError);
+      console.error('First 100 characters:', serviceAccount.substring(0, 100));
+      return null;
+    }
+
+    // Lazımi field-ləri yoxla
+    if (!serviceAccountJson.project_id || !serviceAccountJson.private_key || !serviceAccountJson.client_email) {
+      console.error('Invalid service account JSON - missing required fields');
+      return null;
+    }
 
     adminApp = initializeApp({
       credential: cert(serviceAccountJson),
