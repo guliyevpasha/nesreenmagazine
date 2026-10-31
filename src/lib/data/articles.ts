@@ -85,36 +85,60 @@ export async function getArticlesBySubcategory(
   return typeof limit === "number" ? articles.slice(0, limit) : articles;
 }
 
-export async function getArticleBySlug(slug: string): Promise<Article | null> {
+export async function getArticleBySlug(slug: string, locale: string = "az"): Promise<Article | null> {
   // Admin paneldən fərqli olaraq, saytda BÜTÜN məqalələri yoxlayırıq
   // (draft, scheduled, published) və sonra səhifədə status yoxlayırıq
   if (!isFirebaseConfigured) {
-    return seedArticles.find((article) => article.slug === slug) ?? null;
+    return seedArticles.find((article) => {
+      // Köhnə format - string slug
+      if (typeof article.slug === "string") {
+        return article.slug === slug;
+      }
+      // Yeni format - LocalizedText slug
+      return article.slug?.[locale as keyof typeof article.slug] === slug;
+    }) ?? null;
   }
 
   const db = getDb();
   if (!db) {
-    return seedArticles.find((article) => article.slug === slug) ?? null;
+    return seedArticles.find((article) => {
+      if (typeof article.slug === "string") {
+        return article.slug === slug;
+      }
+      return article.slug?.[locale as keyof typeof article.slug] === slug;
+    }) ?? null;
   }
 
   try {
+    // Firestore-da `slug.az`, `slug.en` kimi field-lərdə axtarış
+    const fieldPath = `slug.${locale}`;
     const snapshot = await getDocs(
       query(
         collection(db, COLLECTIONS.articles),
-        where("slug", "==", slug),
+        where(fieldPath, "==", slug),
       ),
     );
     
     if (snapshot.empty) {
       // Firestore-da yoxdursa seed-də yoxlayırıq
-      return seedArticles.find((article) => article.slug === slug) ?? null;
+      return seedArticles.find((article) => {
+        if (typeof article.slug === "string") {
+          return article.slug === slug;
+        }
+        return article.slug?.[locale as keyof typeof article.slug] === slug;
+      }) ?? null;
     }
     
     const doc = snapshot.docs[0];
     return { ...(doc.data() as Omit<Article, "id">), id: doc.id };
   } catch (error) {
     logger.error("Məqalə oxumaq alınmadı, seed-ə baxılır:", error);
-    return seedArticles.find((article) => article.slug === slug) ?? null;
+    return seedArticles.find((article) => {
+      if (typeof article.slug === "string") {
+        return article.slug === slug;
+      }
+      return article.slug?.[locale as keyof typeof article.slug] === slug;
+    }) ?? null;
   }
 }
 
@@ -139,7 +163,29 @@ export async function getRelatedArticles(article: Article, limit = 3): Promise<A
   return [...sameCategory, ...others].slice(0, limit);
 }
 
-/** Statik yolların yaradılması üçün bütün slug-lar. */
-export async function getAllSlugs(): Promise<string[]> {
-  return (await getAllArticles()).map((article) => article.slug);
+/** Statik yolların yaradılması üçün bütün slug-lar (hər dil üçün). */
+export async function getAllSlugs(): Promise<Array<{locale: string; slug: string; category: string}>> {
+  const articles = await getAllArticles();
+  const locales = ["az", "en", "ru", "tr", "ar"];
+  const slugs: Array<{locale: string; slug: string; category: string}> = [];
+  
+  for (const article of articles) {
+    for (const locale of locales) {
+      let slug: string;
+      
+      // Köhnə format - string slug
+      if (typeof article.slug === "string") {
+        slug = article.slug;
+      } else {
+        // Yeni format - LocalizedText slug
+        slug = article.slug?.[locale as keyof typeof article.slug] || "";
+      }
+      
+      if (slug) {
+        slugs.push({ locale, slug, category: article.category });
+      }
+    }
+  }
+  
+  return slugs;
 }

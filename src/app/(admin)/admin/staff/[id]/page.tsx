@@ -10,6 +10,7 @@ import { categories } from "@/lib/categories";
 import { formatDate } from "@/lib/i18n/config";
 import type { Article, StaffMember, StaffRole } from "@/lib/types";
 import { roleLabels } from "@/lib/firebase/auth";
+import { getArticleSlug } from "@/lib/article-helpers";
 import {
   Alert,
   Button,
@@ -194,7 +195,7 @@ export default function StaffProfilePage() {
                 >
                   <div className="min-w-0 flex-1">
                     <p className="font-display text-[15px] line-clamp-1">
-                      {article.title.az || article.title.en || article.slug}
+                      {article.title.az || article.title.en || getArticleSlug(article, "az")}
                     </p>
                     <p className="font-ui text-[11px] text-muted mt-0.5">
                       {categories.find((c) => c.slug === article.category)?.name.az} ·{" "}

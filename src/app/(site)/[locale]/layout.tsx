@@ -13,6 +13,7 @@ import Header from "@/components/Header";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
 import type { SearchItem } from "@/components/SearchOverlay";
 import { AGENCY } from "@/lib/agency";
+import { getArticleSlug } from "@/lib/article-helpers";
 import { categoryName } from "@/lib/categories";
 import { getAllArticles } from "@/lib/data/articles";
 import { siteUrl } from "@/lib/firebase/config";
@@ -94,7 +95,7 @@ export default async function LocaleLayout({
     title: pick(article.title, locale),
     excerpt: pick(article.excerpt, locale),
     section: categoryName(article.category, locale),
-    href: routes.article(locale, article.category, article.slug),
+    href: routes.article(locale, article.category, getArticleSlug(article, locale)),
     tags: pickTags(article.tags, locale),
   }));
 

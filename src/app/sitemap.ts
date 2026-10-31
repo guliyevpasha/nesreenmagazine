@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 
+import { getArticleSlug } from "@/lib/article-helpers";
 import { categories } from "@/lib/categories";
 import { getAllArticles } from "@/lib/data/articles";
 import { siteUrl } from "@/lib/firebase/config";
@@ -67,7 +68,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     for (const article of articles) {
       entries.push({
-        url: `${siteUrl}${routes.article(locale, article.category, article.slug)}`,
+        url: `${siteUrl}${routes.article(locale, article.category, getArticleSlug(article, locale))}`,
         lastModified: new Date(article.updatedAt ?? article.publishedAt),
         changeFrequency: "weekly",
         priority: 0.7,

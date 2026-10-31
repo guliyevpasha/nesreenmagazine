@@ -14,7 +14,13 @@ import type { Locale } from "./i18n/config";
  * yeni formatlarda LocalizedText obyektidir.
  */
 export function getArticleTitle(article: Article, locale: Locale = "az"): string {
-  if (!article.title) return article.slug || "Başlıqsız";
+  if (!article.title) {
+    // Slug da LocalizedText ola bilər
+    if (typeof article.slug === "string") {
+      return article.slug || "Başlıqsız";
+    }
+    return article.slug?.[locale] || article.slug?.az || "Başlıqsız";
+  }
   
   // Type guard - string yoxsa LocalizedText?
   if (typeof article.title === "string") {
@@ -22,7 +28,7 @@ export function getArticleTitle(article: Article, locale: Locale = "az"): string
   }
   
   // LocalizedText obyektindən oxu
-  return article.title[locale] || article.title.az || article.title.en || article.slug || "Başlıqsız";
+  return article.title[locale] || article.title.az || article.title.en || "Başlıqsız";
 }
 
 /**
@@ -53,12 +59,20 @@ export function getArticleBody(article: Article, locale: Locale = "az"): string 
 
 /**
  * Məqalənin slug-unu oxu (type-safe)
+ * 
+ * Köhnə formatlı məqalələrdə slug string-dir,
+ * yeni formatlarda LocalizedText obyektidir.
  */
 export function getArticleSlug(article: Article, locale: Locale = "az"): string {
   if (!article.slug) return "";
   
-  // slug həmişə string olmalıdır Article type-ında
-  return String(article.slug);
+  // Type guard - string yoxsa LocalizedText?
+  if (typeof article.slug === "string") {
+    return article.slug;
+  }
+  
+  // LocalizedText obyektindən oxu
+  return article.slug[locale] || article.slug.az || article.slug.en || "";
 }
 
 /**

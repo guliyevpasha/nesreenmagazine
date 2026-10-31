@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { getArticle, listArticleVersions } from "@/lib/data/admin";
 import type { Article, ArticleVersion } from "@/lib/types";
+import { getArticleSlug } from "@/lib/article-helpers";
 import {
   Alert,
   Button,
@@ -82,7 +83,7 @@ export default function ArticleVersionsPage() {
         title="Versiya Tarixçəsi"
         description={
           article
-            ? `${article.title.az || article.slug} — ${versions.length} versiya`
+            ? `${article.title.az || getArticleSlug(article, "az")} — ${versions.length} versiya`
             : "Məqalənin bütün versiyaları."
         }
         actions={

@@ -9,6 +9,7 @@ import { RoseMark } from "@/components/Logo";
 import SectionHeading from "@/components/SectionHeading";
 import ShareButtons from "@/components/ShareButtons";
 import ViewTracker from "@/components/ViewTracker";
+import { getArticleSlug } from "@/lib/article-helpers";
 import { categoryName, isCategorySlug } from "@/lib/categories";
 import { getArticleBySlug, getRelatedArticles } from "@/lib/data/articles";
 import { siteUrl } from "@/lib/firebase/config";
@@ -36,13 +37,13 @@ export async function generateMetadata({
   if (!isLocale(rawLocale)) return {};
 
   const locale = rawLocale as Locale;
-  const article = await getArticleBySlug(slug);
+  const article = await getArticleBySlug(slug, locale);
   if (!article) return {};
 
   const title = pick(article.title, locale);
   const description =
     pick(article.excerpt, locale) || markdownToPlainText(pick(article.body, locale));
-  const url = `${siteUrl}${routes.article(locale, article.category, article.slug)}`;
+  const url = `${siteUrl}${routes.article(locale, article.category, getArticleSlug(article, locale))}`;
 
   return {
     title,
@@ -52,7 +53,7 @@ export async function generateMetadata({
       languages: Object.fromEntries(
         locales.map((code) => [
           code,
-          `${siteUrl}${routes.article(code, article.category, article.slug)}`,
+          `${siteUrl}${routes.article(code, article.category, getArticleSlug(article, code))}`,
         ]),
       ),
     },
@@ -85,7 +86,7 @@ export default async function ArticlePage({
   const locale = rawLocale as Locale;
   const dict = getDictionary(locale);
 
-  const article = await getArticleBySlug(slug);
+  const article = await getArticleBySlug(slug, locale);
   
   // Məqalə yoxdursa, kateqoriya uyğun gəlmirsə və ya draft statusundadırsa, "Coming Soon" göstər
   // Published və scheduled məqalələr aktiv göstərilir
@@ -138,14 +139,14 @@ export default async function ArticlePage({
       name: "Nesreen Magazine",
       logo: { "@type": "ImageObject", url: `${siteUrl}/icon.svg` },
     },
-    mainEntityOfPage: `${siteUrl}${routes.article(locale, article.category, article.slug)}`,
+    mainEntityOfPage: `${siteUrl}${routes.article(locale, article.category, getArticleSlug(article, locale))}`,
     ...(article.coverImage ? { image: [article.coverImage] } : {}),
   };
 
   return (
     <article>
       {/* View tracking - görünməz komponent */}
-      <ViewTracker articleId={article.id} slug={article.slug} category={article.category} />
+      <ViewTracker articleId={article.id} slug={getArticleSlug(article, locale)} category={article.category} />
       
       <script
         type="application/ld+json"
@@ -200,7 +201,7 @@ export default async function ArticlePage({
             src={article.coverImage}
             alt={alt}
             category={article.category}
-            seed={article.slug}
+            seed={getArticleSlug(article, locale)}
             priority
             sizes="100vw"
             className="object-cover"

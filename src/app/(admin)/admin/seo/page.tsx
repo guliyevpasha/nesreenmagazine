@@ -11,6 +11,7 @@ import {
   inputClass,
 } from "@/components/admin/ui";
 import { useAuth } from "@/lib/firebase/auth";
+import { getArticleSlug } from "@/lib/article-helpers";
 import {
   listSeoRedirects,
   addSeoRedirect,
@@ -187,7 +188,7 @@ function generateSitemap(articles: any[]): string {
     .forEach((article) => {
       locales.forEach((locale) => {
         xml += `  <url>
-    <loc>${baseUrl}/${locale}/${article.category}/${article.slug}</loc>
+    <loc>${baseUrl}/${locale}/${article.category}/${getArticleSlug(article, locale as any)}</loc>
     <lastmod>${article.updatedAt || article.publishedAt}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>

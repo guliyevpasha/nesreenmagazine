@@ -8,7 +8,7 @@ import { Alert, Empty, PageHeader } from "@/components/admin/ui";
 import { getCategory } from "@/lib/categories";
 import { getArticle } from "@/lib/data/admin";
 import type { Article } from "@/lib/types";
-import { getArticleTitle } from "@/lib/article-helpers";
+import { getArticleTitle, getArticleSlug } from "@/lib/article-helpers";
 
 export default function EditArticlePage({
   params,
@@ -69,14 +69,14 @@ export default function EditArticlePage({
     );
   }
 
-  const publicHref = `/az/${article.category}/${article.slug}`;
+  const publicHref = `/az/${article.category}/${getArticleSlug(article, "az")}`;
   const displayTitle = getArticleTitle(article, "az");
 
   return (
     <>
       <PageHeader
         title={displayTitle}
-        description={`${getCategory(article.category)?.name.az || article.category} · /${article.slug}`}
+        description={`${getCategory(article.category)?.name.az || article.category} · /${getArticleSlug(article, "az")}`}
         actions={
           <div className="flex gap-2">
             <Link

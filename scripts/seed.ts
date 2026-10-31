@@ -56,7 +56,11 @@ async function seed() {
   const idBySlug = new Map<string, string>();
   for (const item of existing.docs) {
     const data = item.data() as Article;
-    if (data.slug) idBySlug.set(data.slug, item.id);
+    if (data.slug) {
+      // Slug LocalizedText və ya string ola bilər
+      const slugValue = typeof data.slug === "string" ? data.slug : data.slug.az;
+      idBySlug.set(slugValue, item.id);
+    }
   }
 
   const batch = writeBatch(db);
@@ -65,7 +69,8 @@ async function seed() {
 
   for (const article of seedArticles) {
     const { id: seedId, ...rest } = article;
-    const existingId = idBySlug.get(article.slug);
+    const slugValue = typeof article.slug === "string" ? article.slug : (article.slug as any).az;
+    const existingId = idBySlug.get(slugValue);
     const target = doc(db, "articles", existingId ?? seedId);
 
     batch.set(target, { ...rest, updatedAt: new Date().toISOString() });

@@ -15,6 +15,7 @@ import {
   type BarChartDataPoint,
 } from "@/components/admin/analytics";
 import { useAuth } from "@/lib/firebase/auth";
+import { getArticleSlug } from "@/lib/article-helpers";
 import {
   listArticles,
   getArticleAnalytics,
@@ -342,7 +343,7 @@ export default function ArticleAnalyticsPage() {
                     {selectedArticle.title.az}
                   </h3>
                   <p className="mt-1 font-ui text-[12px] text-muted">
-                    {selectedArticle.category} · {selectedArticle.slug}
+                    {selectedArticle.category} · {getArticleSlug(selectedArticle, "az")}
                   </p>
                 </div>
 

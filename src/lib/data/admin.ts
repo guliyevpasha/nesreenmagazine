@@ -104,12 +104,17 @@ export async function listArticles(): Promise<Article[]> {
             : (data.coverAlt || { az: '', en: '', ru: '', tr: '' });
           
           const normalizedTags = typeof data.tags === 'string'
-            ? { az: [data.tags], en: [], ru: [], tr: [] }
-            : (data.tags || { az: [], en: [], ru: [], tr: [] });
+            ? { az: [data.tags], en: [], ru: [], tr: [], ar: [] }
+            : (data.tags || { az: [], en: [], ru: [], tr: [], ar: [] });
+          
+          // Normalize slug
+          const normalizedSlug = typeof data.slug === 'string'
+            ? { az: data.slug, en: '', ru: '', tr: '', ar: '' }
+            : (data.slug || { az: '', en: '', ru: '', tr: '', ar: '' });
           
           return {
             id: item.id,
-            slug: String(data.slug || item.id),
+            slug: normalizedSlug,
             category: String(data.category || 'gundem'),
             subcategory: data.subcategory ? String(data.subcategory) : undefined,
             status: String(data.status || 'draft'),
@@ -139,13 +144,27 @@ export async function listArticles(): Promise<Article[]> {
     // 2. Seed articles (hard-coded) - fəqət Firestore-da olmayan
     // Import seed articles dynamically to avoid circular dependency
     const { seedArticles } = await import('@/lib/content');
-    const firestoreSlugs = new Set(firestoreArticles.map(a => a.slug));
+    // Firestore-dakı slug-ları topla (hər dildə)
+    const firestoreSlugs = new Set(
+      firestoreArticles.flatMap(a => {
+        if (typeof a.slug === "string") return [a.slug];
+        return Object.values(a.slug);
+      })
+    );
+    
     const uniqueSeedArticles = seedArticles
-      .filter(article => !firestoreSlugs.has(article.slug))
+      .filter(article => {
+        // Seed article-ın slug-ları Firestore-da yoxdur?
+        const articleSlug = article.slug as any;
+        if (typeof articleSlug === "string") {
+          return !firestoreSlugs.has(articleSlug);
+        }
+        return !Object.values(articleSlug).some((s: unknown) => firestoreSlugs.has(s as string));
+      })
       .map(article => ({
         ...article,
         // Ensure all fields are properly formatted
-        id: article.id || `seed-${article.slug}`,
+        id: article.id || `seed-${typeof article.slug === "string" ? article.slug : (article.slug as any).az || "unknown"}`,
       }));
     
     // 3. Birləşdir və tarixə görə sort et
@@ -160,7 +179,7 @@ export async function listArticles(): Promise<Article[]> {
       const { seedArticles } = await import('@/lib/content');
       return seedArticles.map(article => ({
         ...article,
-        id: article.id || `seed-${article.slug}`,
+        id: article.id || `seed-${typeof article.slug === "string" ? article.slug : (article.slug as any).az || "unknown"}`,
       }));
     } catch {
       return [];
@@ -242,9 +261,13 @@ function normalizeArticleData(id: string, data: any): Article {
     ? { az: [data.tags], en: [], ru: [], tr: [], ar: [] }
     : (data.tags || { az: [], en: [], ru: [], tr: [], ar: [] });
   
+  const normalizedSlug = typeof data.slug === 'string'
+    ? { az: data.slug, en: '', ru: '', tr: '', ar: '' }
+    : (data.slug || { az: id, en: '', ru: '', tr: '', ar: '' });
+  
   return {
     id,
-    slug: String(data.slug || id),
+    slug: normalizedSlug,
     category: String(data.category || 'gundem'),
     subcategory: data.subcategory ? String(data.subcategory) : undefined,
     status: String(data.status || 'draft'),
@@ -2952,7 +2975,7 @@ export async function upsertArticleTranslation(article: Article): Promise<void> 
 
   const data = {
     articleId: article.id,
-    articleSlug: article.slug,
+    articleSlug: typeof article.slug === "string" ? article.slug : article.slug.az,
     progress,
     lastUpdatedAt: new Date().toISOString(),
   };
@@ -3056,7 +3079,7 @@ export async function findMissingTranslations(
     if (emptyFields.length > 0) {
       missing.push({
         articleId: article.id,
-        articleSlug: article.slug,
+        articleSlug: typeof article.slug === "string" ? article.slug : article.slug.az,
         emptyFields,
       });
     }

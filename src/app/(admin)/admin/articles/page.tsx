@@ -10,12 +10,12 @@ import { listArticles, removeArticle, saveArticle } from "@/lib/data/admin";
 import { isAdmin, useAuth } from "@/lib/firebase/auth";
 import { formatDate, locales, localeShort, type Locale } from "@/lib/i18n/config";
 import type { Article } from "@/lib/types";
-import { getArticleTitle, isArticleComplete } from "@/lib/article-helpers";
+import { getArticleTitle, getArticleSlug, isArticleComplete } from "@/lib/article-helpers";
 import { getArticleViews, type ArticleViews } from "@/lib/analytics/track-views";
 
 /* ── CSV ixrac köməkçisi ─────────────────────────────────────────────────── */
 function exportCsv(articles: Article[]) {
-  const header = "ID,Başlıq (AZ),Bölmə,Status,Tarix,Slug";
+  const header = "ID,Başlıq (AZ),Bölmə,Status,Tarix,Slug (AZ)";
   const rows = articles.map((a) => {
     const title = getArticleTitle(a, "az");
     return [
@@ -24,7 +24,7 @@ function exportCsv(articles: Article[]) {
       a.category,
       a.status,
       a.publishedAt.slice(0, 10),
-      a.slug,
+      getArticleSlug(a, "az"),
     ]
       .map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`)
       .join(",");
@@ -77,7 +77,13 @@ function ArticleActionsMenu({ article, onDelete }: { article: Article; onDelete:
       // Create a copy without id
       const copy = {
         ...article,
-        slug: `${article.slug}-kopyası-${Date.now()}`,
+        slug: {
+          az: `${getArticleSlug(article, "az")}-kopyası-${Date.now()}`,
+          en: `${getArticleSlug(article, "en")}-copy-${Date.now()}`,
+          ru: `${getArticleSlug(article, "ru")}-копия-${Date.now()}`,
+          tr: `${getArticleSlug(article, "tr")}-kopyası-${Date.now()}`,
+          ar: `${getArticleSlug(article, "ar")}-نسخة-${Date.now()}`,
+        },
         status: "draft" as const,
         publishedAt: new Date().toISOString(),
       };
@@ -205,9 +211,15 @@ export default function ArticlesListPage() {
       if (statusFilter !== "all" && article.status !== statusFilter) return false;
       if (!needle) return true;
       
-      if (article.slug.includes(needle)) return true;
+      // Slug-da axtarış (hər dildə)
+      const slugMatch = locales.some((code) => {
+        const slug = getArticleSlug(article, code);
+        return slug.toLowerCase().includes(needle);
+      });
       
-      // Check all locales
+      if (slugMatch) return true;
+      
+      // Check all locales for title
       return locales.some((code) => {
         const title = getArticleTitle(article, code);
         return title.toLowerCase().includes(needle);
@@ -526,7 +538,7 @@ export default function ArticlesListPage() {
                         >
                           {getArticleTitle(article, "az")}
                         </Link>
-                        <p className="mt-1 font-mono text-[11px] text-muted">/{article.slug}</p>
+                        <p className="mt-1 font-mono text-[11px] text-muted">/{getArticleSlug(article, "az")}</p>
                         {article.scheduledAt && (
                           <p className="mt-0.5 font-ui text-[10px] text-blue-600">
                             ⏰ {new Date(article.scheduledAt).toLocaleString("az-AZ")}

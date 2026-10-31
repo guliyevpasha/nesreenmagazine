@@ -6,6 +6,7 @@ import { formatDate, type Locale } from "@/lib/i18n/config";
 import { getDictionary, interpolate } from "@/lib/i18n/dictionaries";
 import { routes } from "@/lib/routes";
 import { pick, type Article } from "@/lib/types";
+import { getArticleSlug } from "@/lib/article-helpers";
 
 type Variant = "hero" | "feature" | "compact" | "row" | "numbered";
 
@@ -24,7 +25,7 @@ export default function ArticleCard({
   priority?: boolean;
 }) {
   const dict = getDictionary(locale);
-  const href = routes.article(locale, article.category, article.slug);
+  const href = routes.article(locale, article.category, getArticleSlug(article, locale));
   const title = pick(article.title, locale);
   const excerpt = pick(article.excerpt, locale);
   const alt = pick(article.coverAlt, locale) || title;
@@ -50,7 +51,7 @@ export default function ArticleCard({
             src={article.coverImage}
             alt={alt}
             category={article.category}
-            seed={article.slug}
+            seed={getArticleSlug(article, locale)}
             priority={priority}
             sizes="(max-width: 1024px) 100vw, 58vw"
           />
@@ -97,7 +98,7 @@ export default function ArticleCard({
             src={article.coverImage}
             alt={alt}
             category={article.category}
-            seed={article.slug}
+            seed={getArticleSlug(article, locale)}
             sizes="120px"
           />
         </Link>
@@ -152,7 +153,7 @@ export default function ArticleCard({
             src={article.coverImage}
             alt={alt}
             category={article.category}
-            seed={article.slug}
+            seed={getArticleSlug(article, locale)}
             sizes="(max-width: 640px) 100vw, 33vw"
           />
         </Link>
@@ -177,7 +178,7 @@ export default function ArticleCard({
           src={article.coverImage}
           alt={alt}
           category={article.category}
-          seed={article.slug}
+          seed={getArticleSlug(article, locale)}
           priority={priority}
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
         />

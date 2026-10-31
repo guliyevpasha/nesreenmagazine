@@ -14,8 +14,8 @@ export type ArticleStatus = "draft" | "published" | "scheduled";
 
 export type Article = {
   id: string;
-  /** URL-də görünən ünvan — bütün dillərdə eynidir. */
-  slug: string;
+  /** URL-də görünən ünvan — hər dil üçün ayrı (yeni format) və ya tək string (köhnə format). */
+  slug: LocalizedText | string;
   category: CategorySlug;
   /** Bölmə daxilindəki alt bölmə (menyudakı açılan siyahı). Boş ola bilər. */
   subcategory?: string;

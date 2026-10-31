@@ -42,31 +42,59 @@ import {
 import AIContentAssistant from "./AIContentAssistant";
 import RichTextEditor from "./RichTextEditor";
 
-/** Başlıqdan URL üçün ünvan düzəldir: "Payız 2026" → "payiz-2026". */
-function slugify(value: string): string {
-  const map: Record<string, string> = {
+/** Başlıqdan URL üçün ünvan düzəldir - bütün 5 dili dəstəkləyir */
+function slugify(value: string, locale: Locale = "az"): string {
+  // Azərbaycan hərfləri
+  const azMap: Record<string, string> = {
     ə: "e", ı: "i", ö: "o", ü: "u", ğ: "g", ş: "s", ç: "c",
+    Ə: "e", I: "i", Ö: "o", Ü: "u", Ğ: "g", Ş: "s", Ç: "c",
+  };
+  
+  // Rus hərfləri (Kiril)
+  const ruMap: Record<string, string> = {
     а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh",
     з: "z", и: "i", й: "y", к: "k", л: "l", м: "m", н: "n", о: "o",
     п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f", х: "h", ц: "ts",
-    ч: "ch", ш: "sh", щ: "sch", ы: "y", э: "e", ю: "yu", я: "ya",
+    ч: "ch", ш: "sh", щ: "sch", ъ: "", ы: "y", ь: "", э: "e", ю: "yu", я: "ya",
+    А: "a", Б: "b", В: "v", Г: "g", Д: "d", Е: "e", Ё: "e", Ж: "zh",
+    З: "z", И: "i", Й: "y", К: "k", Л: "l", М: "m", Н: "n", О: "o",
+    П: "p", Р: "r", С: "s", Т: "t", У: "u", Ф: "f", Х: "h", Ц: "ts",
+    Ч: "ch", Ш: "sh", Щ: "sch", Ъ: "", Ы: "y", Ь: "", Э: "e", Ю: "yu", Я: "ya",
   };
+  
+  // Türk hərfləri
+  const trMap: Record<string, string> = {
+    ı: "i", ğ: "g", ü: "u", ş: "s", ö: "o", ç: "c",
+    İ: "i", Ğ: "g", Ü: "u", Ş: "s", Ö: "o", Ç: "c",
+  };
+  
+  // Ərəb hərfləri (sadələşdirilmiş transliterasiya)
+  const arMap: Record<string, string> = {
+    ا: "a", أ: "a", إ: "i", آ: "aa", ب: "b", ت: "t", ث: "th", ج: "j",
+    ح: "h", خ: "kh", د: "d", ذ: "dh", ر: "r", ز: "z", س: "s", ش: "sh",
+    ص: "s", ض: "d", ط: "t", ظ: "dh", ع: "a", غ: "gh", ف: "f", ق: "q",
+    ك: "k", ل: "l", م: "m", ن: "n", ه: "h", و: "w", ي: "y", ى: "a",
+    ة: "h", ئ: "", ء: "", ؤ: "w",
+  };
+  
+  // Bütün map-ləri birləşdir
+  const combinedMap = { ...azMap, ...ruMap, ...trMap, ...arMap };
 
   return value
     .toLowerCase()
     .split("")
-    .map((char) => map[char] ?? char)
+    .map((char) => combinedMap[char] ?? char)
     .join("")
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
+    .replace(/[̀-ͯ]/g, "") // Aksent işarələrini sil
+    .replace(/[^a-z0-9]+/g, "-") // Latın hərfləri və rəqəmlər istisna, qalanını - ilə əvəz et
+    .replace(/^-+|-+$/g, "") // Əvvəl və sondakı - sil
+    .slice(0, 80); // Maksimum 80 simvol
 }
 
 function emptyArticle(): ArticleInput {
   return {
-    slug: "",
+    slug: emptyLocalized(),
     category: "gundem",
     subcategory: "",
     status: "draft", // Default: draft (qaralama)
@@ -146,6 +174,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
     
     return {
       ...article,
+      slug: normalizeLocalizedText(article.slug),
       title: normalizeLocalizedText(article.title),
       body: normalizeLocalizedText(article.body),
       excerpt: normalizeLocalizedText(article.excerpt),
@@ -177,7 +206,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
     [draft.title, draft.body],
   );
 
-  function setLocalized(field: "title" | "excerpt" | "body" | "coverAlt", value: string) {
+  function setLocalized(field: "title" | "excerpt" | "body" | "coverAlt" | "slug", value: string) {
     setDraft((current) => ({
       ...current,
       [field]: { ...(current[field] as LocalizedText), [activeLocale]: value },
@@ -303,9 +332,19 @@ export default function ArticleEditor({ article }: { article?: Article }) {
       return;
     }
 
-    const slug = draft.slug.trim() || slugify(draft.title.az);
-    if (!slug) {
-      setMessage({ tone: "error", text: "Ünvan (slug) yaradıla bilmədi." });
+    // Hər dil üçün slug yaradırıq
+    const currentSlug = typeof draft.slug === "string" ? { az: draft.slug, en: "", ru: "", tr: "", ar: "" } : draft.slug;
+    
+    const slugs: LocalizedText = {
+      az: currentSlug.az.trim() || slugify(draft.title.az, "az"),
+      en: currentSlug.en.trim() || slugify(draft.title.en || draft.title.az, "en"),
+      ru: currentSlug.ru.trim() || slugify(draft.title.ru || draft.title.az, "ru"),
+      tr: currentSlug.tr.trim() || slugify(draft.title.tr || draft.title.az, "tr"),
+      ar: currentSlug.ar.trim() || slugify(draft.title.ar || draft.title.az, "ar"),
+    };
+    
+    if (!slugs.az) {
+      setMessage({ tone: "error", text: "Azərbaycan dilində ünvan (slug) yaradıla bilmədi." });
       return;
     }
 
@@ -323,7 +362,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
 
     const payload: ArticleInput = {
       ...draft,
-      slug,
+      slug: slugs,
       status: nextStatus ?? draft.status,
       publishedAt: finalPublishedAt,
       readingMinutes:
@@ -356,7 +395,8 @@ export default function ArticleEditor({ article }: { article?: Article }) {
         
         // Məqalə published statusuna keçdisə, cache-i təmizlə
         if (nextStatus === "published" || payload.status === "published") {
-          await revalidateArticleCache(article.slug, article.category);
+          const articleSlugAz = typeof article.slug === "string" ? article.slug : article.slug.az;
+          await revalidateArticleCache(articleSlugAz, article.category);
         }
         
         setMessage({ tone: "success", text: "Dəyişikliklər yadda saxlanıldı." });
@@ -373,7 +413,8 @@ export default function ArticleEditor({ article }: { article?: Article }) {
         
         // Yeni məqalə published statusundadırsa, cache-i təmizlə
         if (payload.status === "published") {
-          await revalidateArticleCache(payload.slug, payload.category);
+          const payloadSlugAz = typeof payload.slug === "string" ? payload.slug : payload.slug.az;
+          await revalidateArticleCache(payloadSlugAz, payload.category);
         }
         
         setMessage({ tone: "success", text: "Məqalə yaradıldı." });
@@ -519,6 +560,31 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                   className={inputClass}
                 />
               </Field>
+
+              <Field
+                label={`Ünvan (slug) - ${activeLocale.toUpperCase()}`}
+                hint={`Sayt ünvanı: /${activeLocale}/${draft.category}/${
+                  typeof draft.slug === "string" 
+                    ? draft.slug 
+                    : (draft.slug[activeLocale] || slugify(draft.title[activeLocale] || draft.title.az, activeLocale) || "…")
+                }`}
+              >
+                <input
+                  type="text"
+                  value={typeof draft.slug === "string" ? draft.slug : draft.slug[activeLocale]}
+                  onChange={(event) => setLocalized("slug", event.target.value)}
+                  onBlur={() => {
+                    // Boşdursa avtomatik slug yaradırıq
+                    const currentValue = typeof draft.slug === "string" ? draft.slug : draft.slug[activeLocale];
+                    if (!currentValue.trim()) {
+                      const autoSlug = slugify(draft.title[activeLocale] || draft.title.az, activeLocale);
+                      setLocalized("slug", autoSlug);
+                    }
+                  }}
+                  className={`${inputClass} font-mono !text-[13px]`}
+                  placeholder="avtomatik yaranır"
+                />
+              </Field>
             </div>
           </Panel>
         </div>
@@ -563,29 +629,6 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                     </option>
                   ))}
                 </select>
-              </Field>
-
-              <Field
-                label="Ünvan (slug)"
-                hint={`Sayt ünvanı: /az/${draft.category}/${
-                  draft.slug || slugify(draft.title.az) || "…"
-                }`}
-              >
-                <input
-                  type="text"
-                  value={draft.slug}
-                  onChange={(event) =>
-                    setDraft((current) => ({ ...current, slug: event.target.value }))
-                  }
-                  onBlur={() =>
-                    setDraft((current) => ({
-                      ...current,
-                      slug: current.slug.trim() || slugify(current.title.az),
-                    }))
-                  }
-                  className={`${inputClass} font-mono !text-[13px]`}
-                  placeholder="avtomatik yaranır"
-                />
               </Field>
 
               <Field label="Dərc tarixi">
