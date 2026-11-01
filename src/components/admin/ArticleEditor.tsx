@@ -125,7 +125,7 @@ const MARKDOWN_HELP = `## Başlıq      ### Alt başlıq
 /**
  * Məqalə cache-ini təmizlə
  */
-async function revalidateArticleCache(slug: string, category: string) {
+async function revalidateArticleCache(slug: string, category: string): Promise<{ success: boolean; error?: string }> {
   try {
     const response = await fetch("/api/revalidate", {
       method: "POST",
@@ -140,13 +140,16 @@ async function revalidateArticleCache(slug: string, category: string) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Cache revalidation failed:", errorText);
+      console.error("❌ Cache revalidation failed:", errorText);
+      return { success: false, error: errorText };
     } else {
       const result = await response.json();
       console.log("✅ Cache successfully revalidated:", result);
+      return { success: true };
     }
   } catch (error) {
-    console.error("Cache revalidation error:", error);
+    console.error("❌ Cache revalidation error:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
 }
 
@@ -396,10 +399,16 @@ export default function ArticleEditor({ article }: { article?: Article }) {
         // Məqalə published statusuna keçdisə, cache-i təmizlə
         if (nextStatus === "published" || payload.status === "published") {
           const articleSlugAz = typeof article.slug === "string" ? article.slug : article.slug.az;
-          await revalidateArticleCache(articleSlugAz, article.category);
+          const revalidateResult = await revalidateArticleCache(articleSlugAz, article.category);
+          
+          if (revalidateResult.success) {
+            setMessage({ tone: "success", text: "✅ Məqalə dərc edildi və saytda görünür." });
+          } else {
+            setMessage({ tone: "success", text: "Məqalə yadda saxlanıldı. ⚠️ Cache təmizlənmədi - səhifəni yeniləyin." });
+          }
+        } else {
+          setMessage({ tone: "success", text: "Dəyişikliklər yadda saxlanıldı." });
         }
-        
-        setMessage({ tone: "success", text: "Dəyişikliklər yadda saxlanıldı." });
       } else {
         const id = await createArticle(payload);
         // Yeni məqalə üçün ilk versiya
@@ -414,10 +423,17 @@ export default function ArticleEditor({ article }: { article?: Article }) {
         // Yeni məqalə published statusundadırsa, cache-i təmizlə
         if (payload.status === "published") {
           const payloadSlugAz = typeof payload.slug === "string" ? payload.slug : payload.slug.az;
-          await revalidateArticleCache(payloadSlugAz, payload.category);
+          const revalidateResult = await revalidateArticleCache(payloadSlugAz, payload.category);
+          
+          if (revalidateResult.success) {
+            setMessage({ tone: "success", text: "✅ Məqalə yaradıldı və saytda görünür." });
+          } else {
+            setMessage({ tone: "success", text: "Məqalə yaradıldı. ⚠️ Cache təmizlənmədi - səhifəni yeniləyin." });
+          }
+        } else {
+          setMessage({ tone: "success", text: "Məqalə yaradıldı." });
         }
         
-        setMessage({ tone: "success", text: "Məqalə yaradıldı." });
         router.push(`/admin/articles/${id}`);
       }
       router.refresh();

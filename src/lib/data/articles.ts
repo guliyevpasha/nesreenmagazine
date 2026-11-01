@@ -31,7 +31,7 @@ function publishedSeed(): Article[] {
 }
 
 async function fetchFromFirestore(db: Firestore): Promise<Article[]> {
-  logger.debug('Fetching articles from Firestore...');
+  logger.debug('📖 Fetching published articles from Firestore...');
   const snapshot = await getDocs(
     query(
       collection(db, COLLECTIONS.articles),
@@ -39,10 +39,10 @@ async function fetchFromFirestore(db: Firestore): Promise<Article[]> {
       orderBy("publishedAt", "desc"),
     ),
   );
-  logger.debug('Found', snapshot.docs.length, 'published articles');
+  logger.debug(`✅ Found ${snapshot.docs.length} published articles in Firestore`);
   const articles = snapshot.docs.map((doc) => {
     const data = doc.data() as Omit<Article, "id">;
-    logger.debug('Article:', doc.id, 'status:', data.status, 'publishedAt:', data.publishedAt);
+    logger.debug(`  📄 Article: ${doc.id} | status: ${data.status} | publishedAt: ${data.publishedAt}`);
     return { ...data, id: doc.id };
   });
   return articles;

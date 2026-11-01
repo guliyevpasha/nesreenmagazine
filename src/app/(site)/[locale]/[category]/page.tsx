@@ -15,7 +15,7 @@ import { isLocale, locales, type Locale } from "@/lib/i18n/config";
 import { getDictionary, interpolate } from "@/lib/i18n/dictionaries";
 import { zodiac } from "@/lib/zodiac";
 
-export const revalidate = 3600; // 1 saat
+export const revalidate = 60; // 60 saniyə - yeni məqalələr tez görünsün
 
 export function generateStaticParams() {
   return locales.flatMap((locale) =>

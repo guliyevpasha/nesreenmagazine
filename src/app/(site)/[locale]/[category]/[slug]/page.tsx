@@ -19,7 +19,7 @@ import { markdownToHtml, markdownToPlainText } from "@/lib/markdown";
 import { routes } from "@/lib/routes";
 import { pick, pickTags } from "@/lib/types";
 
-export const revalidate = 3600; // 1 saat
+export const revalidate = 60; // 60 saniyə - dərc edildikdən sonra tez görünsün
 export const dynamicParams = true; // bilinməyən slug-lar runtime-da render olsun
 
 // Build zamanı Firestore-a qoşulmaq əvəzinə səhifələr
