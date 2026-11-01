@@ -47,7 +47,7 @@ function slugify(value: string, locale: Locale = "az"): string {
   // Azərbaycan hərfləri
   const azMap: Record<string, string> = {
     ə: "e", ı: "i", ö: "o", ü: "u", ğ: "g", ş: "s", ç: "c",
-    Ə: "e", I: "i", Ö: "o", Ü: "u", Ğ: "g", Ş: "s", Ç: "c",
+    Ə: "e", I: "i", İ: "i", Ö: "o", Ü: "u", Ğ: "g", Ş: "s", Ç: "c",
   };
   
   // Rus hərfləri (Kiril)
@@ -80,11 +80,12 @@ function slugify(value: string, locale: Locale = "az"): string {
   // Bütün map-ləri birləşdir
   const combinedMap = { ...azMap, ...ruMap, ...trMap, ...arMap };
 
+  // ƏVVƏLCƏ hər hərfi map-dən yoxla, SONRA toLowerCase
   return value
-    .toLowerCase()
     .split("")
     .map((char) => combinedMap[char] ?? char)
     .join("")
+    .toLowerCase()
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "") // Aksent işarələrini sil
     .replace(/[^a-z0-9]+/g, "-") // Latın hərfləri və rəqəmlər istisna, qalanını - ilə əvəz et
