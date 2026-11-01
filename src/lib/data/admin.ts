@@ -300,7 +300,20 @@ export async function createArticle(input: ArticleInput): Promise<string> {
       }
     }
     
-    console.log('[DEBUG createArticle] Cleaned input:', JSON.stringify(cleanedInput, null, 2));
+    // Check payload size (Firestore limit is ~1MB per document)
+    const payloadSize = JSON.stringify(cleanedInput).length;
+    const maxSize = 1048576; // 1 MB in bytes
+    
+    if (payloadSize > maxSize) {
+      const sizeMB = (payloadSize / 1048576).toFixed(2);
+      console.error('[ERROR createArticle] Payload too large:', sizeMB, 'MB');
+      throw new Error(
+        `Məqalə çox böyükdür (${sizeMB} MB). Firestore limiti 1 MB-dır. ` +
+        `Şəkilləri mətn içinə base64 formatında deyil, Cloudinary-ə yükləyib URL istifadə edin.`
+      );
+    }
+    
+    console.log('[DEBUG createArticle] Payload size:', (payloadSize / 1024).toFixed(2), 'KB');
     
     const created = await addDoc(collection(db(), COLLECTIONS.articles), {
       ...cleanedInput,
@@ -326,7 +339,20 @@ export async function saveArticle(id: string, input: ArticleInput): Promise<void
       }
     }
     
-    console.log('[DEBUG saveArticle] ID:', id, 'Cleaned input keys:', Object.keys(cleanedInput));
+    // Check payload size (Firestore limit is ~1MB per document)
+    const payloadSize = JSON.stringify(cleanedInput).length;
+    const maxSize = 1048576; // 1 MB in bytes
+    
+    if (payloadSize > maxSize) {
+      const sizeMB = (payloadSize / 1048576).toFixed(2);
+      console.error('[ERROR saveArticle] Payload too large:', sizeMB, 'MB');
+      throw new Error(
+        `Məqalə çox böyükdür (${sizeMB} MB). Firestore limiti 1 MB-dır. ` +
+        `Şəkilləri mətn içinə base64 formatında deyil, Cloudinary-ə yükləyib URL istifadə edin.`
+      );
+    }
+    
+    console.log('[DEBUG saveArticle] ID:', id, 'Payload size:', (payloadSize / 1024).toFixed(2), 'KB');
     
     await updateDoc(doc(db(), COLLECTIONS.articles, id), {
       ...cleanedInput,
