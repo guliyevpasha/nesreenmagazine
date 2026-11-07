@@ -65,9 +65,79 @@ export type Ejournal = {
   publishedAt: string;
   /** Səhifə sayı. 0 olarsa göstərilmir. */
   pages: number;
+  /**
+   * Qiymət (AZN). 0 və ya boş = pulsuz e-jurnal (/e-jurnal səhifəsində PDF açıqdır).
+   * > 0 = satışdakı nəşr (/jurnallar kataloqu, «Sifariş et»). Pullu nömrənin PDF
+   * linki açıq sənəddə saxlanılmır — `ejournalFiles/{id}` (yalnız staff) içindədir.
+   */
+  price?: number;
+  /** Nəşrin mövzusu — saytın bölmə slug-ı (moda, gozellik …) və ya "xususi". */
+  category?: string;
+  /** «Bu nömrədə»: nömrənin içindəkilərin qısa xülasəsi (hər sətir bir başlıq). */
+  highlights?: LocalizedText;
 };
 
 export type EjournalInput = Omit<Ejournal, "id">;
+
+/** Nəşr kateqoriyası «xüsusi buraxılış» üçün slug */
+export const SPECIAL_ISSUE_CATEGORY = "xususi";
+
+/* ───────────────────────── E-jurnal yaradıcısı (A4) ───────────────────────── */
+
+export type EjFont = "display" | "serif" | "sans";
+export type EjAlign = "left" | "center" | "right" | "justify";
+
+export type EjTextStyle = {
+  font: EjFont;
+  /** pt ölçüsü */
+  size: number;
+  color: string;
+  align: EjAlign;
+  bold?: boolean;
+  italic?: boolean;
+  /** Sətir hündürlüyü (məs. 1.5) */
+  lineHeight?: number;
+  /** Hərf aralığı, em (məs. 0.1) */
+  letterSpacing?: number;
+  uppercase?: boolean;
+};
+
+export type EjBlock =
+  | { id: string; type: "heading"; text: string; style: EjTextStyle }
+  | { id: string; type: "text"; html: string; columns: 1 | 2; style: EjTextStyle }
+  | {
+      id: string;
+      type: "image";
+      url: string;
+      caption: string;
+      /** Blokun hündürlüyü — səhifə hündürlüyünün faizi */
+      height: number;
+      fit: "cover" | "contain";
+    }
+  | { id: string; type: "quote"; text: string; author: string; style: EjTextStyle }
+  | { id: string; type: "divider"; color: string }
+  | { id: string; type: "spacer"; height: number };
+
+export type EjPage = {
+  id: string;
+  /** Səhifə fonu */
+  background: string;
+  /** Tam səhifəlik fon şəkli (üz qabığı, açılış səhifəsi) */
+  backgroundImage?: string;
+  /** Fon şəklinin üstündə qaralma, 0–0.8 */
+  overlay?: number;
+  /** Daxili kənar boşluq, mm */
+  padding: number;
+  blocks: EjBlock[];
+};
+
+/** `ejournalLayouts/{issueId}` — yalnız staff oxuyur/yazır */
+export type EjLayout = {
+  issueId: string;
+  pages: EjPage[];
+  updatedAt: string;
+  updatedBy?: string;
+};
 
 export type DeletionRequest = {
   id: string;

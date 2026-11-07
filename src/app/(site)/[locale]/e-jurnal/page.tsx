@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import ComingSoon from "@/components/ComingSoon";
 import { RoseMark } from "@/components/Logo";
-import { getPublishedEjournals } from "@/lib/data/ejournals";
+import { getFreeEjournals } from "@/lib/data/ejournals";
 import { siteUrl } from "@/lib/firebase/config";
 import {
   formatDate,
@@ -69,7 +69,7 @@ export default async function EjournalPage({
 
   const locale = raw as Locale;
   const dict = getDictionary(locale);
-  const issues = await getPublishedEjournals();
+  const issues = await getFreeEjournals();
 
   // Hələ nömrə dərc olunmayıbsa oxucuya «tezliklə» səhifəsi göstərilir.
   if (issues.length === 0) {
@@ -99,6 +99,10 @@ export default async function EjournalPage({
           {issues.map((issue) => {
             const title = pick(issue.title, locale);
             const description = pick(issue.description, locale);
+            const highlights = pick(issue.highlights, locale)
+              .split("\n")
+              .map((line) => line.trim())
+              .filter(Boolean);
 
             return (
               <article key={issue.id} className="flex flex-col">
@@ -140,6 +144,19 @@ export default async function EjournalPage({
                   <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink-soft">
                     {description}
                   </p>
+                )}
+                {highlights.length > 0 && (
+                  <div className="mt-4 border-t border-line pt-4">
+                    <p className="eyebrow text-muted">{dict.editions.inThisIssue}</p>
+                    <ul className="mt-2 space-y-1.5">
+                      {highlights.map((line) => (
+                        <li key={line} className="flex gap-2 text-[0.9rem] leading-snug text-ink-soft">
+                          <span className="mt-[0.45em] h-1 w-1 shrink-0 bg-gold" aria-hidden />
+                          <span>{line}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
 
                 <div className="mt-5 flex flex-wrap items-center gap-3">

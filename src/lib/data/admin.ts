@@ -34,6 +34,7 @@ import type {
   CrmClientInput,
   Ejournal,
   EjournalInput,
+  EjLayout,
   LocalizedText,
   Notification,
   NotificationInput,
@@ -465,6 +466,42 @@ export async function saveEjournal(
 
 export async function removeEjournal(id: string): Promise<void> {
   await deleteDoc(doc(db(), COLLECTIONS.ejournals, id));
+  // Pullu nəşrin gizli PDF linki və yaradıcı layout-u da silinir (yoxdursa xəta vermir)
+  await Promise.allSettled([
+    deleteDoc(doc(db(), "ejournalFiles", id)),
+    deleteDoc(doc(db(), "ejournalLayouts", id)),
+  ]);
+}
+
+/**
+ * Pullu nəşrin PDF linki açıq `ejournals` sənədində saxlanılmır (onu hər kəs
+ * oxuya bilər), staff-a məxsus `ejournalFiles/{id}` sənədində saxlanılır.
+ */
+export async function getEjournalPrivatePdf(id: string): Promise<string> {
+  const snapshot = await getDoc(doc(db(), "ejournalFiles", id));
+  return snapshot.exists() ? String(snapshot.data().pdfUrl ?? "") : "";
+}
+
+export async function setEjournalPrivatePdf(id: string, pdfUrl: string): Promise<void> {
+  await setDoc(doc(db(), "ejournalFiles", id), { pdfUrl, updatedAt: new Date().toISOString() });
+}
+
+/** Yaradıcı (A4 səhifələr) — `ejournalLayouts/{issueId}` */
+export async function getEjournalLayout(issueId: string): Promise<EjLayout | null> {
+  const snapshot = await getDoc(doc(db(), "ejournalLayouts", issueId));
+  return snapshot.exists() ? (snapshot.data() as EjLayout) : null;
+}
+
+export async function saveEjournalLayout(layout: EjLayout): Promise<void> {
+  const json = JSON.stringify(layout);
+  const bytes = new TextEncoder().encode(json).length;
+  if (bytes > 950_000) {
+    throw new Error(
+      `Layout çox böyükdür (${Math.round(bytes / 1024)} KB, limit ~930 KB). Mətni bir neçə nömrəyə bölün.`,
+    );
+  }
+  // undefined sahələr Firestore-da qəbul olunmur — JSON ilə təmizlənir
+  await setDoc(doc(db(), "ejournalLayouts", layout.issueId), JSON.parse(json));
 }
 
 /* ------------------------------ Bürc şərhləri --------------------------- */
