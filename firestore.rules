@@ -53,8 +53,11 @@ service cloud.firestore {
      * 4) active == true
      */
     function isStaff() {
+      // email_verified: başqasının e-poçtu ilə qeydiyyatdan keçən şəxs (poçt qutusuna
+      // girişi olmadan) staff icazəsi ala bilməsin
       return signedIn()
           && request.auth.token.email != null
+          && request.auth.token.email_verified == true
           && exists(/databases/$(database)/documents/staff/$(staffId()))
           && staffDoc().data.active == true;
     }

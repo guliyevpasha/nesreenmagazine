@@ -12,6 +12,7 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
+  sendEmailVerification,
   sendPasswordResetEmail,
   type User,
 } from "firebase/auth";
@@ -60,6 +61,12 @@ type AuthState = {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  /** E-poçt təsdiqlənibmi. Firestore qaydaları təsdiqlənməmiş hesabı rədd edir. */
+  emailVerified: boolean;
+  /** Təsdiq məktubunu göndərir */
+  sendVerification: () => Promise<void>;
+  /** Məktubdakı linkə kliklədikdən sonra yoxlayır; təsdiqlənibsə true */
+  recheckVerification: () => Promise<boolean>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -175,6 +182,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const auth = getFirebaseAuth();
         if (!auth) throw new Error("Firebase qoşulmayıb.");
         await sendPasswordResetEmail(auth, email.trim());
+      },
+      emailVerified: Boolean(user?.emailVerified),
+      async sendVerification() {
+        const current = getFirebaseAuth()?.currentUser;
+        if (!current) throw new Error("Əvvəlcə daxil olun.");
+        await sendEmailVerification(current, {
+          url: `${window.location.origin}/admin`,
+        });
+      },
+      async recheckVerification() {
+        const current = getFirebaseAuth()?.currentUser;
+        if (!current) return false;
+        await current.reload();
+        if (!current.emailVerified) return false;
+        // Yeni token «email_verified: true» daşısın — Firestore qaydaları bunu yoxlayır
+        await current.getIdToken(true);
+        window.location.reload();
+        return true;
       },
     }),
     [loading, user, session, unauthorized],

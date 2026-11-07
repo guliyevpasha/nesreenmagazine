@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { requireStaffAuth } from "@/lib/auth/middleware";
+
 // Google Analytics Data API v1
 // https://developers.google.com/analytics/devguides/reporting/data/v1
 
@@ -10,6 +12,10 @@ interface GA4Request {
 }
 
 export async function GET(request: NextRequest) {
+  // Sayt statistikası yalnız redaksiyaya açıqdır
+  if (!(await requireStaffAuth(request))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const searchParams = request.nextUrl.searchParams;
     const range = searchParams.get("range") || "30days";
