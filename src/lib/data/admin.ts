@@ -13,7 +13,7 @@ import {
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
 import type { HoroscopePeriod } from "@/lib/content/horoscopes";
-import { getDb, getFirebaseStorage } from "@/lib/firebase/client";
+import { getDb } from "@/lib/firebase/client";
 import { COLLECTIONS } from "@/lib/firebase/config";
 import type {
   AdBanner,
@@ -520,23 +520,14 @@ export async function countSubscribers(): Promise<number> {
 
 /* --------------------------------- Fayl --------------------------------- */
 
-/** Faylı (şəkil və ya PDF) Firebase Storage-a yükləyir və açıq URL qaytarır. */
+/**
+ * Faylı (şəkil, video və ya PDF) yükləyir və açıq URL qaytarır.
+ * Bütün yükləmələr eyni yoldan keçir: brauzerdə sıxılma + Cloudinary (src/lib/upload-client.ts).
+ */
 export async function uploadFile(file: File, folder = "covers"): Promise<string> {
-  const storage = getFirebaseStorage();
-  if (!storage) {
-    throw new Error("Firebase Storage qoşulmayıb.");
-  }
-
-  const safeName = file.name
-    .toLowerCase()
-    .replace(/[^a-z0-9.]+/g, "-")
-    .replace(/^-|-$/g, "");
-  const path = `${folder}/${Date.now()}-${safeName}`;
-
-  const snapshot = await uploadBytes(ref(storage, path), file, {
-    contentType: file.type,
-  });
-  return getDownloadURL(snapshot.ref);
+  const { uploadMedia } = await import("@/lib/upload-client");
+  const result = await uploadMedia(file, folder);
+  return result.url;
 }
 
 /** Köhnə ad — şəkil yükləyən yerlər bunu çağırır. */
