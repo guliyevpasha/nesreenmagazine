@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import ComingSoon from "@/components/ComingSoon";
 import { RoseMark } from "@/components/Logo";
-import { getFreeEjournals } from "@/lib/data/ejournals";
+import { getPublishedEjournals } from "@/lib/data/ejournals";
 import { siteUrl } from "@/lib/firebase/config";
 import {
   formatDate,
@@ -69,7 +69,7 @@ export default async function EjournalPage({
 
   const locale = raw as Locale;
   const dict = getDictionary(locale);
-  const issues = await getFreeEjournals();
+  const issues = await getPublishedEjournals();
 
   // Hələ nömrə dərc olunmayıbsa oxucuya «tezliklə» səhifəsi göstərilir.
   if (issues.length === 0) {

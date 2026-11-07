@@ -351,10 +351,16 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       ],
     },
     {
+      title: "Jurnal",
+      items: [
+        { href: "/admin/ejournals", label: "E-jurnal (PDF)", icon: ICONS.ejournal, active: startsWith("/admin/ejournals") },
+        { href: "/admin/print-editions", label: "Çap nəşrləri", icon: ICONS.ejournal, active: startsWith("/admin/print-editions") },
+      ],
+    },
+    {
       title: "Marketinq",
       items: [
         { href: "/admin/advanced-banners", label: "Reklam Bannerləri", icon: ICONS.banner, active: startsWith("/admin/advanced-banners") },
-        { href: "/admin/ejournals", label: "E-Jurnallar", icon: ICONS.ejournal, active: startsWith("/admin/ejournals") },
         { href: "/admin/subscriptions", label: "Üzvlük Planları", icon: ICONS.crm, active: startsWith("/admin/subscriptions") },
         { href: "/admin/push-notifications", label: "Push Bildirişlər", icon: ICONS.mail, active: startsWith("/admin/push-notifications") },
         { href: "/admin/subscribers", label: "Abunəçilər", icon: ICONS.subscribers, active: startsWith("/admin/subscribers") },

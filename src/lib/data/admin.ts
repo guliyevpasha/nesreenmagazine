@@ -35,6 +35,8 @@ import type {
   Ejournal,
   EjournalInput,
   EjLayout,
+  PrintEdition,
+  PrintEditionInput,
   LocalizedText,
   Notification,
   NotificationInput,
@@ -466,24 +468,35 @@ export async function saveEjournal(
 
 export async function removeEjournal(id: string): Promise<void> {
   await deleteDoc(doc(db(), COLLECTIONS.ejournals, id));
-  // Pullu nəşrin gizli PDF linki və yaradıcı layout-u da silinir (yoxdursa xəta vermir)
-  await Promise.allSettled([
-    deleteDoc(doc(db(), "ejournalFiles", id)),
-    deleteDoc(doc(db(), "ejournalLayouts", id)),
-  ]);
+  // Yaradıcı layout-u da silinir (yoxdursa xəta vermir)
+  await Promise.allSettled([deleteDoc(doc(db(), "ejournalLayouts", id))]);
 }
 
-/**
- * Pullu nəşrin PDF linki açıq `ejournals` sənədində saxlanılmır (onu hər kəs
- * oxuya bilər), staff-a məxsus `ejournalFiles/{id}` sənədində saxlanılır.
- */
-export async function getEjournalPrivatePdf(id: string): Promise<string> {
-  const snapshot = await getDoc(doc(db(), "ejournalFiles", id));
-  return snapshot.exists() ? String(snapshot.data().pdfUrl ?? "") : "";
+/* ---------------------- Çap nəşrləri (fiziki jurnal) ---------------------- */
+
+const PRINT_EDITIONS = "printEditions";
+
+export async function listPrintEditions(): Promise<PrintEdition[]> {
+  const snapshot = await getDocs(collection(db(), PRINT_EDITIONS));
+  return snapshot.docs
+    .map((item) => ({ ...(item.data() as Omit<PrintEdition, "id">), id: item.id }))
+    .sort((a, b) => (b.releaseDate ?? "").localeCompare(a.releaseDate ?? ""));
 }
 
-export async function setEjournalPrivatePdf(id: string, pdfUrl: string): Promise<void> {
-  await setDoc(doc(db(), "ejournalFiles", id), { pdfUrl, updatedAt: new Date().toISOString() });
+export async function addPrintEdition(input: PrintEditionInput): Promise<string> {
+  const created = await addDoc(collection(db(), PRINT_EDITIONS), {
+    ...input,
+    updatedAt: new Date().toISOString(),
+  });
+  return created.id;
+}
+
+export async function savePrintEdition(id: string, input: Partial<PrintEditionInput>): Promise<void> {
+  await updateDoc(doc(db(), PRINT_EDITIONS, id), { ...input, updatedAt: new Date().toISOString() });
+}
+
+export async function removePrintEdition(id: string): Promise<void> {
+  await deleteDoc(doc(db(), PRINT_EDITIONS, id));
 }
 
 /** Yaradıcı (A4 səhifələr) — `ejournalLayouts/{issueId}` */

@@ -23,6 +23,7 @@ export type CatalogIssue = {
   year: string;
   dateLabel: string;
   pagesLabel: string;
+  inStock: boolean;
 };
 
 export default function EditionsCatalog({ locale, issues }: { locale: Locale; issues: CatalogIssue[] }) {
@@ -129,7 +130,13 @@ export default function EditionsCatalog({ locale, issues }: { locale: Locale; is
               )}
 
               <div className="mt-auto pt-6">
-                <IssueOrderButton locale={locale} issueId={issue.id} issueTitle={issue.title} price={issue.price} />
+                {issue.inStock ? (
+                  <IssueOrderButton locale={locale} issueId={issue.id} issueTitle={issue.title} price={issue.price} />
+                ) : (
+                  <span className="inline-block border border-line px-5 py-3 font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
+                    {t.outOfStock}
+                  </span>
+                )}
               </div>
             </article>
           ))}

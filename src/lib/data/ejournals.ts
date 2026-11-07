@@ -2,7 +2,7 @@ import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
 
 import { COLLECTIONS, isFirebaseConfigured } from "@/lib/firebase/config";
 import { getDb } from "@/lib/firebase/client";
-import type { Ejournal } from "@/lib/types";
+import type { Ejournal, PrintEdition } from "@/lib/types";
 
 /**
  * E-jurnal nömrələrinin mənbəyi.
@@ -35,17 +35,24 @@ export async function getPublishedEjournals(): Promise<Ejournal[]> {
   }
 }
 
-/** Pullu olub-olmaması: qiymət > 0 → satışdakı nəşr */
-export function isPaidIssue(issue: Pick<Ejournal, "price">): boolean {
-  return (issue.price ?? 0) > 0;
-}
-
-/** /e-jurnal — pulsuz PDF nömrələri */
-export async function getFreeEjournals(): Promise<Ejournal[]> {
-  return (await getPublishedEjournals()).filter((issue) => !isPaidIssue(issue));
-}
-
-/** /jurnallar — satışdakı nəşrlər (PDF linki açıq sənəddə yoxdur) */
-export async function getEditions(): Promise<Ejournal[]> {
-  return (await getPublishedEjournals()).filter(isPaidIssue);
+/**
+ * Saytda satışdakı çap nəşrləri (/jurnallar). Qaydalar anonim oxucuya yalnız
+ * dərc olunmuşları açır, ona görə sorğuda status filtri mütləqdir; sıralama
+ * yaddaşda edilir (əlavə Firestore indeksi tələb olunmur).
+ */
+export async function getPrintEditions(): Promise<PrintEdition[]> {
+  if (!isFirebaseConfigured) return [];
+  const db = getDb();
+  if (!db) return [];
+  try {
+    const snapshot = await getDocs(
+      query(collection(db, "printEditions"), where("status", "==", "published")),
+    );
+    return snapshot.docs
+      .map((item) => ({ ...(item.data() as Omit<PrintEdition, "id">), id: item.id }))
+      .sort((a, b) => (b.releaseDate ?? "").localeCompare(a.releaseDate ?? ""));
+  } catch (error) {
+    console.error("[nesreen] Çap nəşrləri oxunmadı:", error);
+    return [];
+  }
 }

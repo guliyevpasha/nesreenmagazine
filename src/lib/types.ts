@@ -65,22 +65,44 @@ export type Ejournal = {
   publishedAt: string;
   /** Səhifə sayı. 0 olarsa göstərilmir. */
   pages: number;
-  /**
-   * Qiymət (AZN). 0 və ya boş = pulsuz e-jurnal (/e-jurnal səhifəsində PDF açıqdır).
-   * > 0 = satışdakı nəşr (/jurnallar kataloqu, «Sifariş et»). Pullu nömrənin PDF
-   * linki açıq sənəddə saxlanılmır — `ejournalFiles/{id}` (yalnız staff) içindədir.
-   */
-  price?: number;
-  /** Nəşrin mövzusu — saytın bölmə slug-ı (moda, gozellik …) və ya "xususi". */
-  category?: string;
   /** «Bu nömrədə»: nömrənin içindəkilərin qısa xülasəsi (hər sətir bir başlıq). */
   highlights?: LocalizedText;
 };
 
+/** E-jurnal həmişə pulsuzdur: PDF /e-jurnal səhifəsində hər kəs üçün açıqdır. */
 export type EjournalInput = Omit<Ejournal, "id">;
 
 /** Nəşr kateqoriyası «xüsusi buraxılış» üçün slug */
 export const SPECIAL_ISSUE_CATEGORY = "xususi";
+
+/**
+ * Çap nəşri — fiziki (kağız) jurnal, saytda satışa çıxarılır (/jurnallar).
+ * PDF yoxdur; oxucu «Sifariş et» ilə sifariş göndərir (admin → Mesajlar).
+ * Kolleksiya: `printEditions`.
+ */
+export type PrintEdition = {
+  id: string;
+  status: ArticleStatus;
+  title: LocalizedText;
+  /** Kartda başlığın altındakı 1–2 cümlə */
+  description: LocalizedText;
+  /** «Bu nömrədə» — hər sətir bir mövzu */
+  highlights: LocalizedText;
+  coverImage: string;
+  /** Qiymət, AZN */
+  price: number;
+  /** Saytın bölmə slug-ı (moda, gozellik …) və ya SPECIAL_ISSUE_CATEGORY */
+  category: string;
+  /** Satışa çıxma tarixi, ISO "2026-12-01" */
+  releaseDate: string;
+  /** Səhifə sayı (0 = göstərilmir) */
+  pages: number;
+  /** Stokda varmı — yoxdursa kartda «Tükənib» yazılır, sifariş bağlanır */
+  inStock: boolean;
+  updatedAt?: string;
+};
+
+export type PrintEditionInput = Omit<PrintEdition, "id">;
 
 /* ───────────────────────── E-jurnal yaradıcısı (A4) ───────────────────────── */
 
