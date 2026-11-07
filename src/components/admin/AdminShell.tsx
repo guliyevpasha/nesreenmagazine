@@ -330,7 +330,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             label: category.name.az,
             active: pathname === "/admin/articles" && activeCategory === category.slug,
           })),
-        { href: "/admin/media", label: "Media", icon: ICONS.media, active: startsWith("/admin/media") },
         { href: "/admin/comments", label: "Şərhlər", icon: ICONS.mail, active: startsWith("/admin/comments") },
       ],
     },
