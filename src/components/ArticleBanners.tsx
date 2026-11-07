@@ -7,7 +7,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import DOMPurify from 'isomorphic-dompurify';
+// Yalnız brauzer versiyası: sanitize yalnız useEffect içində (client-də) çağırılır.
+// `isomorphic-dompurify` serverdə jsdom yükləyir və Vercel-də məqalə səhifəsini 500 ilə çökdürürdü.
+import DOMPurify from "dompurify";
 import BannerDisplay from "./BannerDisplay";
 import type { AdvancedAdBanner, AdBannerLocation } from "@/lib/types";
 
