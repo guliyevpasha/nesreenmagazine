@@ -12,6 +12,7 @@ import {
   Panel,
   inputClass,
 } from "@/components/admin/ui";
+import { provisionStaffLogin } from "@/lib/auth/staff-account";
 import { categories, type CategorySlug } from "@/lib/categories";
 import { addStaff, listStaff, removeStaff, saveStaff } from "@/lib/data/admin";
 import { isAdmin, roleLabels, useAuth } from "@/lib/firebase/auth";
@@ -30,9 +31,14 @@ const SUBCATEGORIES: Partial<Record<CategorySlug, string[]>> = {
   biznes: ["texnologiya", "karyera", "maliyyə", "startap"],
 };
 
+/** Bölmə məhdudiyyəti tətbiq olunan rollar (Firestore qaydası canWriteArticle ilə eyni) */
+function usesCategories(role: StaffRole): boolean {
+  return role === "author" || role === "editor";
+}
+
 const ROLE_HINTS: Record<StaffRole, string> = {
   admin:     "🔑 Tam icazə: işçilər, parametrlər, silmə, everything",
-  editor:    "✍️ Bütün bölmələrdə məqalə yazar, redaktə edir",
+  editor:    "✍️ Seçilmiş bölmələrdə (boş qalsa hamısında) məqalə yazar və redaktə edir",
   author:    "📝 Yalnız təyin edilmiş bölmələrdə məqalə yazar",
   seo:       "🔍 SEO parametrləri, sitemap, redirects",
   sales:     "💼 CRM müştəriləri, reklam sifarişləri",
@@ -121,12 +127,26 @@ export default function StaffPage() {
         name: name.trim(),
         email: email.trim().toLowerCase(),
         role,
-        categories: role === "author" ? allowed : [],
-        subcategories: role === "author" ? selectedSubcategories : {},
+        categories: usesCategories(role) ? allowed : [],
+        subcategories: usesCategories(role) ? selectedSubcategories : {},
         active: true,
         createdAt: new Date().toISOString(),
         invitedBy: session?.email,
       });
+      // Giriş hesabı panelin özündə yaradılır; işçiyə «şifrə təyin et» məktubu gedir
+      let loginNote: string;
+      try {
+        const login = await provisionStaffLogin(normalizedEmail);
+        loginNote =
+          login === "created"
+            ? `Giriş hesabı yaradıldı və ${normalizedEmail} ünvanına «şifrə təyin et» məktubu göndərildi.`
+            : `Bu e-poçtla giriş hesabı artıq var — ${normalizedEmail} ünvanına şifrə yeniləmə məktubu göndərildi.`;
+      } catch (loginError) {
+        loginNote =
+          "İşçi siyahıya əlavə olundu, amma giriş hesabı yaradılmadı: " +
+          (loginError instanceof Error ? loginError.message : "naməlum xəta") +
+          ". Siyahıdakı «Şifrə sıfırlama linki göndər» düyməsini sınayın.";
+      }
       setName("");
       setEmail("");
       setRole("author");
@@ -134,7 +154,7 @@ export default function StaffPage() {
       setSelectedSubcategories({});
       setMessage({
         tone: "success",
-        text: "Yazar əlavə olundu. İndi Firebase → Authentication → Users bölməsində həmin e-poçt üçün hesab yaradın və şifrəni ona göndərin.",
+        text: `İşçi əlavə olundu. ${loginNote} Məktubdakı linklə şifrə qoyduqdan sonra daxil ola bilər.`,
       });
       await refresh();
     } catch (caught) {
@@ -174,8 +194,8 @@ export default function StaffPage() {
       await saveStaff(editingId, {
         name: name.trim(),
         role,
-        categories: role === "author" ? allowed : [],
-        subcategories: role === "author" ? selectedSubcategories : {},
+        categories: usesCategories(role) ? allowed : [],
+        subcategories: usesCategories(role) ? selectedSubcategories : {},
       });
       setMessage({ tone: "success", text: "Dəyişikliklər yadda saxlanıldı." });
       cancelEdit();
@@ -276,7 +296,7 @@ export default function StaffPage() {
     try {
       await saveStaff(member.id, {
         role: nextRole,
-        categories: nextRole === "author" ? member.categories : [],
+        categories: usesCategories(nextRole) ? member.categories : [],
       });
       await refresh();
     } catch (caught) {
@@ -356,7 +376,7 @@ export default function StaffPage() {
                   </select>
                 </Field>
 
-                {role === "author" && (
+                {usesCategories(role) && (
                   <div className="space-y-4">
                     <Field
                       label="Hansı bölmələrdə yaza bilər"
@@ -481,7 +501,7 @@ export default function StaffPage() {
                             </div>
                           )}
                           
-                          {(!member.categories || member.categories.length === 0) && member.role === "author" && (
+                          {(!member.categories || member.categories.length === 0) && usesCategories(member.role) && (
                             <p className="mt-2 font-ui text-[11.5px] text-muted">
                               Bütün bölmələr və kateqoriyalar
                             </p>

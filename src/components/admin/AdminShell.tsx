@@ -20,6 +20,7 @@ import type { Notification, NotificationPriority } from "@/lib/types";
 import { notificationTypeLabels } from "@/lib/types";
 
 import LoginScreen from "./LoginScreen";
+import VerifyEmailScreen from "./VerifyEmailScreen";
 import { RoleGuard } from "./RoleGuard";
 import SetupNotice from "./SetupNotice";
 
@@ -276,7 +277,7 @@ function NavLink({
 }
 
 export default function AdminShell({ children }: { children: ReactNode }) {
-  const { loading, configured, session, unauthorized, signOut } = useAuth();
+  const { loading, configured, session, unauthorized, signOut, user, emailVerified } = useAuth();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const activeCategory = searchParams.get("category");
@@ -296,6 +297,9 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       </div>
     );
   }
+
+  // Daxil olub, amma e-poçtu təsdiqlənməyib → əvvəlcə təsdiq (təhlükəsizlik)
+  if (user && !emailVerified) return <VerifyEmailScreen />;
 
   if (!session) return <LoginScreen unauthorized={unauthorized} />;
 
