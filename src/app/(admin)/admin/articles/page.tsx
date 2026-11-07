@@ -40,8 +40,10 @@ function exportCsv(articles: Article[]) {
 }
 
 /* ── Status pill — scheduled dəstəyi ilə ────────────────────────────────── */
-function ArticleStatusPill({ status }: { status: string }) {
-  if (status === "scheduled") {
+function ArticleStatusPill({ status, publishedAt }: { status: string; publishedAt?: string }) {
+  // Gələcək tarixli «published» = planlaşdırılıb (vaxtı çatanda saytda avtomatik görünür)
+  const future = Boolean(publishedAt) && Date.parse(publishedAt ?? "") > Date.now();
+  if (status === "scheduled" || (status === "published" && future)) {
     return (
       <span className="inline-block border border-blue-300 bg-blue-50 px-2.5 py-1 font-ui text-[10px] uppercase tracking-[0.14em] text-blue-700">
         Planlaşdırılıb
@@ -621,7 +623,7 @@ export default function ArticlesListPage() {
                         )}
                       </td>
                       <td className="px-5 py-4">
-                        <ArticleStatusPill status={article.status} />
+                        <ArticleStatusPill status={article.status} publishedAt={article.publishedAt} />
                       </td>
                       <td className="px-5 py-4">
                         <ArticleActionsMenu article={article} onDelete={load} canDelete={canManage} />

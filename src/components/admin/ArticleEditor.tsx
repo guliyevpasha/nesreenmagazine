@@ -163,6 +163,39 @@ async function revalidateArticleCache(locations: ArticleLocation[]): Promise<boo
   }
 }
 
+/** ISO tarix gələcəkdədirmi */
+function isFutureDate(iso: string | undefined): boolean {
+  if (!iso) return false;
+  const time = Date.parse(iso);
+  return Number.isFinite(time) && time > Date.now();
+}
+
+/** ISO → <input type="datetime-local"> dəyəri (yerli vaxt, "YYYY-MM-DDTHH:mm") */
+function toLocalInput(iso: string | undefined): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+const AZ_MONTHS = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avqust", "sentyabr", "oktyabr", "noyabr", "dekabr"];
+
+/** «7 noyabr 2026» */
+function formatLocalDate(value: string | undefined): string {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return "—";
+  return `${date.getDate()} ${AZ_MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+/** «7 noyabr 2026, 09:30» */
+function formatLocalDateTime(value: string | undefined): string {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return "—";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${formatLocalDate(value)}, ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 function saveResultMessage(status: ArticleStatus, wasPublished: boolean, cacheCleared: boolean): string {
   const cacheNote = cacheCleared ? "" : " Sayt keşi təmizlənmədi — dəyişiklik 1 dəqiqə ərzində görünəcək.";
   if (status === "published") {
@@ -216,8 +249,24 @@ export default function ArticleEditor({ article }: { article?: Article }) {
   );
   const [uploading, setUploading] = useState(false);
   const [uploadingInline, setUploadingInline] = useState(false);
-  /** Məqalə hazırda saytda dərc olunubmu (status yalnız saxlama ilə dəyişir) */
-  const isLive = Boolean(article) && draft.status === "published";
+  /**
+   * Dərc modeli (cron tələb etmir):
+   *   • Saytda      = status "published" və publishedAt ≤ indi
+   *   • Planlaşdırılıb = status "published" və publishedAt > indi (sayt vaxtı çatana qədər göstərmir)
+   *     (köhnə "scheduled" statuslu məqalələr də planlaşdırılmış sayılır)
+   *   • Qaralama    = status "draft"
+   * Status yalnız saxlama ilə dəyişir, ona görə draft.status saxlanmış vəziyyəti əks etdirir.
+   */
+  const savedIsFuture = isFutureDate(draft.publishedAt);
+  const isScheduled =
+    Boolean(article) &&
+    (draft.status === "scheduled" || (draft.status === "published" && savedIsFuture));
+  const isLive = Boolean(article) && draft.status === "published" && !savedIsFuture;
+
+  const [publishMode, setPublishMode] = useState<"now" | "schedule">(() => (isScheduled ? "schedule" : "now"));
+  const [scheduleLocal, setScheduleLocal] = useState<string>(() =>
+    isScheduled ? toLocalInput(draft.scheduledAt ?? draft.publishedAt) : "",
+  );
 
   /** «Saytda yerləşmə» paneli üçün sadə dildə xülasə */
   const placementSummary = useMemo(() => {
@@ -389,26 +438,30 @@ export default function ArticleEditor({ article }: { article?: Article }) {
       return;
     }
 
-    // Planlaşdırılmış dərc yoxlaması
-    if (nextStatus === "scheduled" && !draft.scheduledAt) {
-      setMessage({ tone: "error", text: "Planlaşdırılmış dərc üçün tarix-vaxt seçin." });
-      return;
+    const publishing = nextStatus === "published";
+    const scheduling = publishing && publishMode === "schedule";
+
+    if (scheduling) {
+      if (!scheduleLocal) {
+        setMessage({ tone: "error", text: "Planlaşdırmaq üçün «Dərc vaxtı» bölməsində tarix və saat seçin." });
+        return;
+      }
+      if (!isFutureDate(new Date(scheduleLocal).toISOString())) {
+        setMessage({ tone: "error", text: "Planlaşdırma vaxtı gələcəkdə olmalıdır." });
+        return;
+      }
     }
 
-    if (nextStatus === "scheduled" && draft.scheduledAt && new Date(draft.scheduledAt) <= new Date()) {
-      setMessage({ tone: "error", text: "Planlaşdırma tarixi gələcəkdə olmalıdır." });
-      return;
-    }
-
-    // Artıq dərc olunmuş məqalə yenilənəndə orijinal dərc tarixi saxlanılır;
-    // ilk dəfə dərc olunanda tarix «indi» olur.
-    const wasPublished = Boolean(article) && draft.status === "published";
-    const newStatus: ArticleStatus = nextStatus ?? draft.status;
+    // Dərc tarixi:
+    //   planlaşdırma → seçilən vaxt; ilk dəfə dərc → indi;
+    //   saytda olan məqalənin yenilənməsi → mövcud tarix (və ya əl ilə düzəldilmiş tarix).
+    const wasPublished = isLive;
+    const newStatus: ArticleStatus = publishing ? "published" : (nextStatus ?? draft.status);
     let finalPublishedAt = draft.publishedAt;
-    if (newStatus === "published" && !wasPublished) {
+    if (scheduling) {
+      finalPublishedAt = new Date(scheduleLocal).toISOString();
+    } else if (publishing && !isLive) {
       finalPublishedAt = new Date().toISOString();
-    } else if (newStatus === "scheduled" && draft.scheduledAt) {
-      finalPublishedAt = new Date(draft.scheduledAt).toISOString();
     }
 
     const payload: ArticleInput = {
@@ -421,16 +474,12 @@ export default function ArticleEditor({ article }: { article?: Article }) {
           ? draft.readingMinutes
           : estimateReadingMinutes(draft.body.az || draft.body.en || ""),
     };
-
-    // Planlaşdırma tarixi yalnız «scheduled» statusunda saxlanılır
-    if (newStatus === "scheduled" && draft.scheduledAt) {
-      payload.scheduledAt = draft.scheduledAt;
-    } else {
-      delete payload.scheduledAt;
-    }
+    // Köhnə ayrı sahə artıq istifadə olunmur — vaxt publishedAt-dadır
+    delete payload.scheduledAt;
 
     // Saytda görünən hər dəyişiklikdə (dərc, yeniləmə, dərcdən çıxarma) cache təmizlənir
     const affectsSite = newStatus === "published" || wasPublished;
+    const resultStatus: ArticleStatus = scheduling ? "scheduled" : newStatus;
     const locations: ArticleLocation[] = [
       { category: payload.category, subcategory: payload.subcategory, slug: payload.slug },
     ];
@@ -446,19 +495,22 @@ export default function ArticleEditor({ article }: { article?: Article }) {
         await snapshotArticleVersion({
           articleId: article.id,
           article: payload,
-          summary: nextStatus === "published"
-            ? "Dərc edildi"
-            : nextStatus === "scheduled"
-            ? `Planlaşdırıldı: ${draft.scheduledAt}`
+          summary: scheduling
+            ? `Planlaşdırıldı: ${formatLocalDateTime(finalPublishedAt)}`
+            : publishing
+            ? wasPublished
+              ? "Yeniləndi"
+              : "Dərc edildi"
             : "Redaktə edildi",
           userEmail: session?.email ?? "unknown",
         });
         setDraft(payload);
+        if (!scheduling) setPublishMode("now");
         
         const cacheCleared = affectsSite ? await revalidateArticleCache(locations) : true;
         setMessage({
           tone: "success",
-          text: saveResultMessage(newStatus, wasPublished, cacheCleared),
+          text: saveResultMessage(resultStatus, wasPublished, cacheCleared),
         });
       } else {
         const id = await createArticle(payload);
@@ -474,7 +526,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
         const cacheCleared = affectsSite ? await revalidateArticleCache(locations) : true;
         setMessage({
           tone: "success",
-          text: saveResultMessage(newStatus, false, cacheCleared),
+          text: saveResultMessage(resultStatus, false, cacheCleared),
         });
         
         router.push(`/admin/articles/${id}`);
@@ -748,33 +800,79 @@ export default function ArticleEditor({ article }: { article?: Article }) {
 
           <Panel title="Dərc">
             <div className="space-y-5">
-              <Field label="Dərc tarixi" hint="«Dərc et» basanda avtomatik bu günə qoyulur.">
-                <input
-                  type="date"
-                  value={draft.publishedAt.slice(0, 10)}
-                  onChange={(event) =>
-                    setDraft((current) => ({ ...current, publishedAt: event.target.value }))
-                  }
-                  className={inputClass}
-                />
-              </Field>
+              {/* Tək seçim: dərhal və ya planlaşdırılmış. Tarix sahələri bir-birini təkrarlamır. */}
+              <fieldset className="space-y-2">
+                <legend className="mb-2 font-ui text-[11px] uppercase tracking-[0.14em] text-muted">
+                  Dərc vaxtı
+                </legend>
+                {(
+                  [
+                    {
+                      mode: "now",
+                      title: isLive ? "Saytda (dərc olunub)" : "Dərhal",
+                      text: isLive
+                        ? `Dərc tarixi: ${formatLocalDate(draft.publishedAt)}`
+                        : "«Dərc et» basanda məqalə dərhal saytda görünür.",
+                    },
+                    {
+                      mode: "schedule",
+                      title: "Planlaşdır",
+                      text: "Seçdiyiniz tarix və saatda məqalə avtomatik saytda görünür.",
+                    },
+                  ] as const
+                ).map((option) => (
+                  <label
+                    key={option.mode}
+                    className={`flex cursor-pointer items-start gap-3 border px-3 py-2.5 transition-colors ${
+                      publishMode === option.mode ? "border-bordo bg-bordo/5" : "border-line hover:border-ink/30"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="publish-mode"
+                      checked={publishMode === option.mode}
+                      onChange={() => setPublishMode(option.mode)}
+                      className="mt-1 h-4 w-4 accent-[#7b2233]"
+                    />
+                    <span>
+                      <span className="block font-ui text-[13px] text-ink">{option.title}</span>
+                      <span className="block font-ui text-[11px] text-muted">{option.text}</span>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
 
-              <Field
-                label="Planlaşdırılmış dərc"
-                hint="Gələcək vaxt seçib «Planlaşdır» basın — məqalə həmin vaxt avtomatik dərc olunur."
-              >
-                <input
-                  type="datetime-local"
-                  value={draft.scheduledAt ?? ""}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      scheduledAt: event.target.value || undefined,
-                    }))
-                  }
-                  className={inputClass}
-                />
-              </Field>
+              {publishMode === "schedule" && (
+                <Field label="Tarix və saat" hint="Bakı vaxtı ilə. Vaxt çatanda məqalə 1 dəqiqə ərzində saytda görünür.">
+                  <input
+                    type="datetime-local"
+                    value={scheduleLocal}
+                    min={toLocalInput(new Date().toISOString())}
+                    onChange={(event) => setScheduleLocal(event.target.value)}
+                    className={inputClass}
+                  />
+                </Field>
+              )}
+
+              {isLive && publishMode === "now" && (
+                <details className="font-ui text-[12px] text-muted">
+                  <summary className="cursor-pointer">Saytda göstərilən dərc tarixini düzəlt</summary>
+                  <input
+                    type="date"
+                    value={draft.publishedAt.slice(0, 10)}
+                    max={new Date().toISOString().slice(0, 10)}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        publishedAt: event.target.value
+                          ? new Date(`${event.target.value}T12:00:00`).toISOString()
+                          : current.publishedAt,
+                      }))
+                    }
+                    className={`${inputClass} mt-2`}
+                  />
+                </details>
+              )}
 
               <Field label="Müəllif">
                 <input
@@ -907,17 +1005,17 @@ export default function ArticleEditor({ article }: { article?: Article }) {
             </span>
             <span
               className={`border px-2.5 py-1 font-ui text-[10px] uppercase tracking-[0.14em] ${
-                draft.status === "published"
+                isLive
                   ? "border-gold bg-gold/15 text-ink"
-                  : draft.status === "scheduled"
+                  : isScheduled
                   ? "border-blue-300 bg-blue-50 text-blue-700"
                   : "border-line bg-cream-deep text-muted"
               }`}
             >
-              {draft.status === "published"
-                ? "Dərc olunub"
-                : draft.status === "scheduled"
-                ? "Planlaşdırılıb"
+              {isLive
+                ? `Saytda · ${formatLocalDate(draft.publishedAt)}`
+                : isScheduled
+                ? `Planlaşdırılıb · ${formatLocalDateTime(draft.publishedAt)}`
                 : "Qaralama"}
             </span>
             {article && (
@@ -938,19 +1036,16 @@ export default function ArticleEditor({ article }: { article?: Article }) {
         </div>
 
         {/* Əməliyyat düymələri — status həmin düymələrlə təyin olunur (ayrıca select yoxdur) */}
-        <div className="flex flex-wrap items-end gap-3">
-          {draft.status === "scheduled" && (
-            <div className="flex-1 min-w-[200px]">
-              <p className="font-ui text-[11px] uppercase tracking-[0.14em] text-muted">
-                Planlaşdırılmış dərc tarixi yuxarıdakı «Dərc tarixi» bölməsində seçilir
-              </p>
-              <p className="mt-1 font-ui text-xs text-muted">
-                {draft.scheduledAt
-                  ? `Dərc ediləcək vaxt: ${new Date(draft.scheduledAt).toLocaleString("az-AZ")}`
-                  : "Tarix seçilməyib"}
-              </p>
-            </div>
-          )}
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="flex-1 min-w-[200px] font-ui text-[12px] text-muted">
+            {publishMode === "schedule"
+              ? scheduleLocal
+                ? `«Planlaşdır» basanda məqalə ${formatLocalDateTime(scheduleLocal)} tarixində avtomatik saytda görünəcək.`
+                : "Sağdakı «Dərc vaxtı» bölməsində tarix və saat seçin."
+              : isLive
+              ? "«Yenilə» dəyişiklikləri dərhal saytda göstərir."
+              : "«Dərc et» məqaləni dərhal saytda göstərir."}
+          </p>
 
           <div className="flex flex-wrap gap-3 ml-auto">
             <Button variant="ghost" onClick={() => router.back()} disabled={busy}>
@@ -969,19 +1064,18 @@ export default function ArticleEditor({ article }: { article?: Article }) {
               }}
               disabled={busy}
             >
-              {isLive ? "Dərcdən çıxar" : "Qaralama saxla"}
+              {isLive ? "Dərcdən çıxar" : isScheduled ? "Planı ləğv et (qaralama)" : "Qaralama saxla"}
             </Button>
-            {draft.scheduledAt && new Date(draft.scheduledAt) > new Date() && (
-              <Button
-                variant="ghost"
-                onClick={() => void handleSave("scheduled")}
-                disabled={busy}
-              >
-                {busy ? "Saxlanılır…" : "Planlaşdır"}
-              </Button>
-            )}
             <Button onClick={() => void handleSave("published")} disabled={busy}>
-              {busy ? "Saxlanılır…" : isLive ? "Yenilə" : "Dərc et"}
+              {busy
+                ? "Saxlanılır…"
+                : publishMode === "schedule"
+                ? isScheduled
+                  ? "Planı yenilə"
+                  : "Planlaşdır"
+                : isLive
+                ? "Yenilə"
+                : "Dərc et"}
             </Button>
           </div>
         </div>

@@ -60,7 +60,8 @@ async function loadAllArticles(): Promise<Article[]> {
   if (!db) return publishedSeed();
 
   try {
-    const articles = await fetchFromFirestore(db);
+    // Planlaşdırılmış məqalələr (publishedAt gələcəkdə) vaxtı çatana qədər saytda görünmür
+    const articles = (await fetchFromFirestore(db)).filter(isAlreadyPublished);
     // Firestore boşdursa (məsələn seed hələ yüklənməyibsə) hazır məzmuna qayıdırıq.
     return articles.length > 0 ? articles : publishedSeed();
   } catch (error) {
@@ -130,7 +131,7 @@ async function findPublishedArticleBySlug(slug: string, locale: string = "az"): 
   try {
     // 1) Adi hal: həmin dilin slug-ı — tək sorğu
     const direct = await lookup(`slug.${locale}`);
-    if (direct) return direct;
+    if (direct) return isAlreadyPublished(direct) ? direct : null;
 
     // 2) Fallback: digər dillərin slug-ı və köhnə string slug — paralel
     const fallbackFields = [
@@ -139,7 +140,7 @@ async function findPublishedArticleBySlug(slug: string, locale: string = "az"): 
     ];
     const results = await Promise.all(fallbackFields.map(lookup));
     const found = results.find((article): article is Article => article !== null);
-    if (found) return found;
+    if (found) return isAlreadyPublished(found) ? found : null;
 
     return findSeedBySlug(slug, locale);
   } catch (error) {
@@ -194,4 +195,14 @@ export async function getAllSlugs(): Promise<Array<{locale: string; slug: string
   }
   
   return slugs;
+}
+
+/**
+ * Dərc vaxtı çatıbmı? Redaktorda «Planlaşdır» məqaləni status "published" və
+ * gələcək publishedAt ilə saxlayır — sayt onu vaxtı çatana qədər göstərmir,
+ * vaxt çatanda isə ISR (60 s) ilə avtomatik görünür. Cron tələb olunmur.
+ */
+function isAlreadyPublished(article: Pick<Article, "publishedAt">): boolean {
+  const time = Date.parse(article.publishedAt ?? "");
+  return !Number.isFinite(time) || time <= Date.now();
 }

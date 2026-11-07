@@ -16,7 +16,7 @@ import { isLocale, locales, type Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { routes } from "@/lib/routes";
 
-export const revalidate = 3600; // 1 saat
+export const revalidate = 60; // planlaşdırılmış məqalələr vaxtında görünsün
 
 type Params = { locale: string; category: string; sub: string };
 
