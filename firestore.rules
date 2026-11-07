@@ -383,9 +383,15 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    /** Pullu nəşrin gizli PDF linki və yaradıcı layout-u — yalnız redaksiya */
-    match /ejournalFiles/{id}   { allow read, write: if isStaff(); }
+    /** E-jurnal yaradıcısının layout-u — yalnız redaksiya */
     match /ejournalLayouts/{id} { allow read, write: if isStaff(); }
+
+    /** Çap nəşrləri — oxucu yalnız dərc olunmuşları görür; redaksiya idarə edir */
+    match /printEditions/{id} {
+      allow read: if resource.data.status == 'published' || isStaff();
+      allow create, update: if isStaff();
+      allow delete: if isAdmin();
+    }
 
     /** E-jurnal satışı və yükləmələr — satış/maliyyə */
     match /ejournalOrders/{id}    { allow read, write: if canAccessCrm(); }

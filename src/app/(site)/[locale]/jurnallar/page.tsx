@@ -5,7 +5,7 @@ import ComingSoon from "@/components/ComingSoon";
 import EditionsCatalog, { type CatalogIssue } from "@/components/EditionsCatalog";
 import { RoseMark } from "@/components/Logo";
 import { categoryName, isCategorySlug } from "@/lib/categories";
-import { getEditions } from "@/lib/data/ejournals";
+import { getPrintEditions } from "@/lib/data/ejournals";
 import { siteUrl } from "@/lib/firebase/config";
 import { formatDate, isLocale, localizeDigits, locales, type Locale } from "@/lib/i18n/config";
 import { getDictionary, interpolate } from "@/lib/i18n/dictionaries";
@@ -47,7 +47,7 @@ export default async function IssuesPage({
   const locale = raw as Locale;
   const dict = getDictionary(locale);
 
-  const editions = await getEditions();
+  const editions = await getPrintEditions();
   if (editions.length === 0) {
     return <ComingSoon locale={locale} title={dict.soon.issuesTitle} text={dict.soon.issuesText} />;
   }
@@ -63,7 +63,8 @@ export default async function IssuesPage({
         .map((line) => line.trim())
         .filter(Boolean),
       coverImage: issue.coverImage,
-      price: issue.price ?? 0,
+      price: issue.price,
+      inStock: issue.inStock !== false,
       category,
       categoryName:
         category === SPECIAL_ISSUE_CATEGORY
@@ -71,8 +72,8 @@ export default async function IssuesPage({
           : isCategorySlug(category)
             ? categoryName(category, locale)
             : "",
-      year: issue.publishedAt.slice(0, 4),
-      dateLabel: formatDate(issue.publishedAt, locale),
+      year: issue.releaseDate.slice(0, 4),
+      dateLabel: formatDate(issue.releaseDate, locale),
       pagesLabel:
         issue.pages > 0 ? interpolate(dict.ejournal.pages, { n: localizeDigits(issue.pages, locale) }) : "",
     };

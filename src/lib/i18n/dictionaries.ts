@@ -286,6 +286,7 @@ const az = {
     close: "Bağla",
     empty: "Bu filtrə uyğun nəşr yoxdur.",
     count: "{n} nəşr",
+    outOfStock: "Tükənib",
   },
   ejournal: {
     title: "E-jurnal",
@@ -589,6 +590,7 @@ const en: Dictionary = {
     close: "Close",
     empty: "No editions match this filter.",
     count: "{n} editions",
+    outOfStock: "Sold out",
   },
   ejournal: {
     title: "E-Magazine",
@@ -890,6 +892,7 @@ const ru: Dictionary = {
     close: "Закрыть",
     empty: "Нет изданий по этому фильтру.",
     count: "Изданий: {n}",
+    outOfStock: "Распродано",
   },
   ejournal: {
     title: "Э-журнал",
@@ -1190,6 +1193,7 @@ const tr: Dictionary = {
     close: "Kapat",
     empty: "Bu filtreye uygun yayın yok.",
     count: "{n} yayın",
+    outOfStock: "Tükendi",
   },
   ejournal: {
     title: "E-Dergi",
@@ -1491,6 +1495,7 @@ const ar: Dictionary = {
     close: "إغلاق",
     empty: "لا توجد إصدارات مطابقة لهذا التصفية.",
     count: "{n} إصدار",
+    outOfStock: "نفدت الكمية",
   },
   ejournal: {
     title: "المجلة الرقمية",

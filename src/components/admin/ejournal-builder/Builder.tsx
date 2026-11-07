@@ -10,8 +10,8 @@ import {
   getEjournalLayout,
   saveEjournal,
   saveEjournalLayout,
-  setEjournalPrivatePdf,
 } from "@/lib/data/admin";
+import { authorizedFetch } from "@/lib/auth/authorized-fetch";
 import { uploadMedia } from "@/lib/upload-client";
 import type { Ejournal, EjBlock, EjPage } from "@/lib/types";
 
@@ -505,6 +505,31 @@ export function Builder({ issueId }: { issueId: string }) {
     window.print();
   };
 
+  /** PDF bağlandıqdan sonra nömrəni saytda (/e-jurnal) dərc edir */
+  const publishIssue = async () => {
+    if (!issue) return;
+    if (!issue.coverImage) {
+      setPdfError("Dərc üçün üz qabığı lazımdır — «Üz qabığını nömrəyə təyin et» düyməsindən istifadə edin.");
+      return;
+    }
+    setPdfBusy(true);
+    setPdfError("");
+    try {
+      await saveEjournal(issueId, { status: "published" });
+      setIssue((current) => (current ? { ...current, status: "published" } : current));
+      // Saytdakı «E-jurnal» səhifəsini dərhal yenilə (5 dil)
+      await authorizedFetch("/api/revalidate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paths: ["az", "en", "ru", "tr", "ar"].map((code) => `/${code}/e-jurnal`) }),
+      }).catch(() => undefined);
+    } catch (error) {
+      setPdfError(error instanceof Error ? error.message : "Dərc olunmadı.");
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   const handlePdfFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -518,13 +543,9 @@ export function Builder({ issueId }: { issueId: string }) {
     try {
       const uploaded = await uploadMedia(file, "ejournals");
       const count = pagesRef.current.length;
-      if ((issue.price ?? 0) > 0) {
-        // Pullu nömrə: PDF linki yalnız staff-a açıq sənəddə saxlanılır
-        await setEjournalPrivatePdf(issueId, uploaded.url);
-        await saveEjournal(issueId, { pdfUrl: "", pages: count });
-      } else {
-        await saveEjournal(issueId, { pdfUrl: uploaded.url, pages: count });
-      }
+      // E-jurnal pulsuzdur — PDF saytda hər kəs üçün açıq olur
+      await saveEjournal(issueId, { pdfUrl: uploaded.url, pages: count });
+      setIssue((current) => (current ? { ...current, pdfUrl: uploaded.url, pages: count } : current));
       setPdfDone(true);
     } catch (error) {
       setPdfError(error instanceof Error ? error.message : "PDF yüklənmədi.");
@@ -811,11 +832,28 @@ export function Builder({ issueId }: { issueId: string }) {
               )}
               {pdfDone && (
                 <Alert tone="success" className="mt-3">
-                  PDF yükləndi və nömrəyə bağlandı.{" "}
-                  <a href="/admin/ejournals" className="underline">
-                    E-jurnallar siyahısına qayıt
-                  </a>
+                  {issue.status === "published" ? (
+                    <>
+                      PDF yükləndi. Nömrə saytda dərc olunub —{" "}
+                      <a href="/az/e-jurnal" target="_blank" rel="noopener noreferrer" className="underline">
+                        saytda bax
+                      </a>
+                      .
+                    </>
+                  ) : (
+                    <>PDF yükləndi və nömrəyə bağlandı. İndi saytda dərc edə bilərsiniz.</>
+                  )}
                 </Alert>
+              )}
+              {pdfDone && issue.status !== "published" && (
+                <div className="mt-3 flex flex-wrap gap-3">
+                  <Button onClick={() => void publishIssue()} disabled={pdfBusy}>
+                    Saytda dərc et
+                  </Button>
+                  <a href="/admin/ejournals" className="self-center font-ui text-[12px] underline">
+                    Sonra — siyahıya qayıt
+                  </a>
+                </div>
               )}
             </div>
 
