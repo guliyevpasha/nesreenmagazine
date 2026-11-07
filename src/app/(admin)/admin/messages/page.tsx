@@ -3,26 +3,55 @@
 import { useEffect, useState } from "react";
 
 import { Alert, Button, Empty, PageHeader, Panel } from "@/components/admin/ui";
-import { listMessages, removeMessage, type ContactMessage } from "@/lib/data/admin";
+import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+
+import { removeMessage, type ContactMessage } from "@/lib/data/admin";
+import { isAdmin, useAuth } from "@/lib/firebase/auth";
+import { getDb } from "@/lib/firebase/client";
+import { COLLECTIONS } from "@/lib/firebase/config";
 import { formatDate, localeNames, isLocale } from "@/lib/i18n/config";
 
 export default function MessagesPage() {
   const [messages, setMessages] = useState<ContactMessage[] | null>(null);
   const [error, setError] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+  const { session } = useAuth();
+  const canDelete = isAdmin(session);
 
-  async function refresh() {
-    try {
-      setMessages(await listMessages());
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Mesajlar oxunmadı.");
+  // Canlı siyahı: yeni mesajlar özü görünür
+  useEffect(() => {
+    const db = getDb();
+    if (!db) {
       setMessages([]);
+      return;
+    }
+    const unsubscribe = onSnapshot(
+      query(collection(db, COLLECTIONS.messages), orderBy("createdAt", "desc")),
+      (snapshot) => {
+        setMessages(
+          snapshot.docs.map((item) => ({
+            ...(item.data() as Omit<ContactMessage, "id">),
+            id: item.id,
+          })),
+        );
+      },
+      (caught) => {
+        setError(caught instanceof Error ? caught.message : "Mesajlar oxunmadı.");
+        setMessages([]);
+      },
+    );
+    return () => unsubscribe();
+  }, []);
+
+  async function handleDelete(id: string) {
+    if (!window.confirm("Mesaj silinsin?")) return;
+    setError("");
+    try {
+      await removeMessage(id);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Mesaj silinmədi.");
     }
   }
-
-  useEffect(() => {
-    void refresh();
-  }, []);
 
   return (
     <>
@@ -69,7 +98,7 @@ export default function MessagesPage() {
                         )}
                       </div>
                       <span className="shrink-0 font-ui text-[11.5px] text-muted">
-                        {formatDate(message.createdAt.slice(0, 10), "az")}
+                        {formatDate((message.createdAt ?? "").slice(0, 10), "az")}
                       </span>
                     </button>
 
@@ -91,16 +120,11 @@ export default function MessagesPage() {
                           >
                             Cavab yaz
                           </a>
-                          <Button
-                            variant="danger"
-                            onClick={() => {
-                              if (window.confirm("Mesaj silinsin?")) {
-                                void removeMessage(message.id).then(refresh);
-                              }
-                            }}
-                          >
-                            Sil
-                          </Button>
+                          {canDelete && (
+                            <Button variant="danger" onClick={() => void handleDelete(message.id)}>
+                              Sil
+                            </Button>
+                          )}
                         </div>
                       </div>
                     )}

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import ArticleCard from "@/components/ArticleCard";
 import type { Article } from "@/lib/types";
-import type { Locale } from "@/lib/i18n/config";
+import { localeDirection, type Locale } from "@/lib/i18n/config";
+import { getDictionary, interpolate } from "@/lib/i18n/dictionaries";
 
 interface HeroCarouselProps {
   articles: Article[];
@@ -13,6 +14,9 @@ interface HeroCarouselProps {
 }
 
 export default function HeroCarousel({ articles, locale, eyebrow }: HeroCarouselProps) {
+  const dict = getDictionary(locale);
+  // RTL dilində slayd əks istiqamətə sürüşür
+  const direction = localeDirection[locale] === "rtl" ? 1 : -1;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
@@ -58,7 +62,7 @@ export default function HeroCarousel({ articles, locale, eyebrow }: HeroCarousel
         <div className="relative overflow-hidden">
           <div
             className="flex transition-transform duration-500 ease-in-out"
-            style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+            style={{ transform: `translateX(${direction * currentIndex * 100}%)` }}
           >
             {articles.map((article, index) => (
               <div
@@ -81,11 +85,11 @@ export default function HeroCarousel({ articles, locale, eyebrow }: HeroCarousel
           <>
             <button
               onClick={goToPrevious}
-              className="absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-full bg-cream/90 p-3 text-ink shadow-lg backdrop-blur-sm transition-all hover:bg-cream hover:scale-110 lg:left-6"
-              aria-label="Əvvəlki məqalə"
+              className="absolute start-4 top-1/2 z-10 -translate-y-1/2 rounded-full bg-cream/90 p-3 text-ink shadow-lg backdrop-blur-sm transition-all hover:bg-cream hover:scale-110 lg:start-6"
+              aria-label={dict.carousel.prev}
             >
               <svg
-                className="h-5 w-5 lg:h-6 lg:w-6"
+                className="h-5 w-5 lg:h-6 lg:w-6 rtl:rotate-180"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -101,11 +105,11 @@ export default function HeroCarousel({ articles, locale, eyebrow }: HeroCarousel
 
             <button
               onClick={goToNext}
-              className="absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-full bg-cream/90 p-3 text-ink shadow-lg backdrop-blur-sm transition-all hover:bg-cream hover:scale-110 lg:right-6"
-              aria-label="Növbəti məqalə"
+              className="absolute end-4 top-1/2 z-10 -translate-y-1/2 rounded-full bg-cream/90 p-3 text-ink shadow-lg backdrop-blur-sm transition-all hover:bg-cream hover:scale-110 lg:end-6"
+              aria-label={dict.carousel.next}
             >
               <svg
-                className="h-5 w-5 lg:h-6 lg:w-6"
+                className="h-5 w-5 lg:h-6 lg:w-6 rtl:rotate-180"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -133,7 +137,7 @@ export default function HeroCarousel({ articles, locale, eyebrow }: HeroCarousel
                     ? "w-8 bg-gold"
                     : "w-2 bg-ink/20 hover:bg-ink/40"
                 }`}
-                aria-label={`Məqalə ${index + 1}`}
+                aria-label={interpolate(dict.carousel.slide, { n: index + 1 })}
               />
             ))}
           </div>

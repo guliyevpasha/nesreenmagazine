@@ -57,6 +57,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       routes.issues(locale),
       routes.ejournal(locale),
       routes.selected(locale),
+      routes.about(locale),
+      routes.partnership(locale),
     ]) {
       entries.push({
         url: `${siteUrl}${page}`,

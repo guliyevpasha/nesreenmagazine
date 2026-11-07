@@ -8,13 +8,13 @@ import {
   updateSubscriberStatus,
 } from "@/lib/data/admin";
 import type { Subscriber } from "@/lib/data/admin";
+import { isAdmin, useAuth } from "@/lib/firebase/auth";
 import {
   Alert,
   Button,
   Empty,
   PageHeader,
 } from "@/components/admin/ui";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
 
 /* ── köməkçilər ─────────────────────────────────────────────────────────── */
 function fmtDate(d?: string) {
@@ -47,8 +47,10 @@ function exportCsv(subscribers: Subscriber[]) {
 
 /* ── Əsas səhifə ────────────────────────────────────────────────────────── */
 export default function SubscribersPage() {
-  // useRoleAccess silindi
-  
+  const { session } = useAuth();
+  // Firestore qaydaları abunəçi silməyi yalnız adminə icazə verir
+  const canDelete = isAdmin(session);
+
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -291,14 +293,16 @@ export default function SubscribersPage() {
             >
               Deaktiv et
             </Button>
-            <Button
-              variant="danger"
-              onClick={() => void handleBulkDelete()}
-              disabled={bulkLoading}
-              className="py-1.5"
-            >
-              {bulkLoading ? "Silinir…" : "Sil"}
-            </Button>
+            {canDelete && (
+              <Button
+                variant="danger"
+                onClick={() => void handleBulkDelete()}
+                disabled={bulkLoading}
+                className="py-1.5"
+              >
+                {bulkLoading ? "Silinir…" : "Sil"}
+              </Button>
+            )}
             <button
               type="button"
               onClick={() => setSelected(new Set())}
@@ -395,13 +399,15 @@ export default function SubscribersPage() {
                         >
                           {sub.active ? "Deaktiv" : "Aktiv"}
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleDelete(sub.id)}
-                          className="font-ui text-[11px] uppercase tracking-[0.1em] text-bordo/60 hover:text-bordo transition-colors"
-                        >
-                          Sil
-                        </button>
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => void handleDelete(sub.id)}
+                            className="font-ui text-[11px] uppercase tracking-[0.1em] text-bordo/60 hover:text-bordo transition-colors"
+                          >
+                            Sil
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

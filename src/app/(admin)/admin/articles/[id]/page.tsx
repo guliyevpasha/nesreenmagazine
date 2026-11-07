@@ -7,6 +7,7 @@ import ArticleEditor from "@/components/admin/ArticleEditor";
 import { Alert, Empty, PageHeader } from "@/components/admin/ui";
 import { getCategory } from "@/lib/categories";
 import { getArticle } from "@/lib/data/admin";
+import { canEditCategory, useAuth } from "@/lib/firebase/auth";
 import type { Article } from "@/lib/types";
 import { getArticleTitle, getArticleSlug } from "@/lib/article-helpers";
 
@@ -16,6 +17,7 @@ export default function EditArticlePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const { session } = useAuth();
   const [article, setArticle] = useState<Article | null | undefined>(undefined);
   const [error, setError] = useState("");
 
@@ -59,6 +61,22 @@ export default function EditArticlePage({
             title="Bu məqalə mövcud deyil"
             text="Silinmiş ola bilər. Siyahıya qayıdıb yenidən yoxlayın."
           />
+          <div className="mt-6 text-center">
+            <Link href="/admin/articles" className="btn-ghost">
+              Məqalələrə qayıt
+            </Link>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (!canEditCategory(session, article.category)) {
+    return (
+      <>
+        <PageHeader title="Giriş məhdudlaşdırılıb" />
+        <div className="px-6 py-8 lg:px-10">
+          <Alert tone="error">Bu məqalə sizin bölmələrinizə aid deyil</Alert>
           <div className="mt-6 text-center">
             <Link href="/admin/articles" className="btn-ghost">
               Məqalələrə qayıt

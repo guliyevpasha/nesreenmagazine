@@ -27,7 +27,7 @@ export function RoleGuard({ children }: RoleGuardProps) {
 
     // Giriş edilməyibsə login-ə yönləndir
     if (!session) {
-      router.push('/auth/signin');
+      router.push('/admin');
       return;
     }
 
@@ -41,7 +41,6 @@ export function RoleGuard({ children }: RoleGuardProps) {
     const role = session.role;
     const canAccess = canAccessPath(role, pathname);
 
-    console.log('[RoleGuard] Yoxlama:', { role, pathname, canAccess });
 
     if (!canAccess) {
       setHasAccess(false);

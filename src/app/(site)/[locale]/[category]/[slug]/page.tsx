@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
 import ArticleCard from "@/components/ArticleCard";
 import ArticleBanners from "@/components/ArticleBanners";
@@ -64,7 +64,7 @@ export async function generateMetadata({
       url,
       publishedTime: article.publishedAt,
       modifiedTime: article.updatedAt ?? article.publishedAt,
-      authors: [article.author],
+      authors: [article.author || "Nesreen Magazine"],
       images: article.coverImage ? [{ url: article.coverImage }] : undefined,
     },
     twitter: {
@@ -88,25 +88,13 @@ export default async function ArticlePage({
 
   const article = await getArticleBySlug(slug, locale);
   
-  // Yalnız dərc olunmuş və bu bölməyə aid məqalə göstərilir; qalan hallarda «Tezliklə»
-  if (!article || article.category !== rawCategory || article.status !== "published") {
-    return (
-      <div className="container-mag flex min-h-[60vh] flex-col items-center justify-center py-20 text-center">
-        <div className="mx-auto max-w-md">
-          <RoseMark className="mx-auto h-12 w-12 text-gold/30" strokeWidth={1} />
-          <h1 className="mt-8 text-3xl font-display">{dict.soon.badge}</h1>
-          <p className="mt-4 text-lg text-ink-soft">
-            Bu məqalə hazırlanır. Yaxın zamanda dərc olunacaq.
-          </p>
-          <Link 
-            href={routes.category(locale, rawCategory)} 
-            className="btn-ghost mt-8"
-          >
-            {categoryName(rawCategory, locale)} bölməsinə qayıt
-          </Link>
-        </div>
-      </div>
-    );
+  // Dərc olunmuş məqalə yoxdursa — həqiqi 404 (axtarış sistemləri boş səhifəni indeksləməsin)
+  if (!article || article.status !== "published") notFound();
+
+  // Məqalə başqa bölmədədirsə və ya başqa dilin slug-ı ilə açılıbsa — kanonik ünvana yönləndir
+  const canonicalSlug = getArticleSlug(article, locale);
+  if (article.category !== rawCategory || (canonicalSlug && canonicalSlug !== slug)) {
+    permanentRedirect(routes.article(locale, article.category, canonicalSlug));
   }
 
   const title = pick(article.title, locale);
@@ -132,7 +120,7 @@ export default async function ArticlePage({
     inLanguage: locale,
     datePublished: article.publishedAt,
     dateModified: article.updatedAt ?? article.publishedAt,
-    author: { "@type": "Organization", name: article.author },
+    author: { "@type": "Organization", name: article.author || "Nesreen Magazine" },
     publisher: {
       "@type": "Organization",
       name: "Nesreen Magazine",
@@ -185,10 +173,10 @@ export default async function ArticlePage({
 
         <div className="mt-6 flex flex-col items-center gap-1">
           <p className="font-ui text-[11px] uppercase tracking-[0.16em] text-ink">
-            {article.author}
+            {article.author || "Nesreen Magazine"}
           </p>
           <p className="font-ui text-[11px] tracking-[0.16em] text-muted">
-            {formatDate(article.publishedAt, locale)} · {interpolate(dict.common.minRead, { n: article.readingMinutes })}
+            {formatDate(article.publishedAt, locale)} · {interpolate(dict.common.minRead, { n: article.readingMinutes || 1 })}
           </p>
         </div>
       </header>
@@ -215,7 +203,7 @@ export default async function ArticlePage({
 
       {/* ---------- Mətn ---------- */}
       <div className="container-mag py-14 lg:py-16">
-        <div className="mx-auto grid grid-cols-1 lg:grid-cols-[1fr_720px_1fr] gap-8">
+        <div className="mx-auto grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,720px)_minmax(0,1fr)] gap-8">
           {/* Sol reklam sahəsi - desktop */}
           <aside className="hidden lg:block">
             <div className="sticky top-24">

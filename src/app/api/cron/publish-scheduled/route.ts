@@ -12,19 +12,22 @@ import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { getFirestore } from "firebase-admin/firestore";
 
+import { requireAdminAuth } from "@/lib/auth/middleware";
 import { getFirebaseAdmin } from "@/lib/firebase/admin";
 
 const LOCALES = ["az", "en", "ru", "tr", "ar"] as const;
 
-function isAuthorized(request: NextRequest): boolean {
+async function isAuthorized(request: NextRequest): Promise<boolean> {
   // Vercel Cron "CRON_SECRET" göndərir; köhnə ad "CRON_SECRET_KEY" də qəbul olunur.
   // Secret təyin olunmayıbsa endpoint bağlıdır.
   const secret = process.env.CRON_SECRET || process.env.CRON_SECRET_KEY;
-  return Boolean(secret) && request.headers.get("authorization") === `Bearer ${secret}`;
+  if (secret && request.headers.get("authorization") === `Bearer ${secret}`) return true;
+  // Admin paneldən «İndi işə sal» düyməsi — admin Firebase tokeni ilə
+  return Boolean(await requireAdminAuth(request));
 }
 
 export async function GET(request: NextRequest) {
-  if (!isAuthorized(request)) {
+  if (!(await isAuthorized(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

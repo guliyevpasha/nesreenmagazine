@@ -72,24 +72,25 @@ export async function trackArticleView(
     );
 
     // Unikal ziyarətçi tracking (opsional)
+    // Anonim server oxuya bilmir, ona görə «yaratmağa cəhd et» yanaşması:
+    // sənəd artıq varsa qaydalar yazmanı rədd edir → bu ziyarətçi bu gün artıq sayılıb.
     if (visitorId) {
       const visitorRef = doc(db, "analytics_visitors", `${articleId}_${visitorId}_${today}`);
-      const visitorDoc = await getDoc(visitorRef);
-      
-      if (!visitorDoc.exists()) {
+      let isNewVisitor = false;
+      try {
         await setDoc(visitorRef, {
           articleId,
           visitorId,
           date: today,
           timestamp: new Date().toISOString(),
         });
+        isNewVisitor = true;
+      } catch {
+        isNewVisitor = false;
+      }
 
-        // Unikal ziyarətçi sayını artır
-        await setDoc(
-          dailyRef,
-          { uniqueVisitors: increment(1) },
-          { merge: true }
-        );
+      if (isNewVisitor) {
+        await setDoc(dailyRef, { uniqueVisitors: increment(1) }, { merge: true });
       }
     }
   } catch (error) {

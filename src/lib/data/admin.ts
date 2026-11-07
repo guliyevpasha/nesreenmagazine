@@ -301,14 +301,14 @@ export async function createArticle(input: ArticleInput): Promise<string> {
     }
     
     // Check payload size (Firestore limit is ~1MB per document)
-    const payloadSize = JSON.stringify(cleanedInput).length;
-    const maxSize = 1048576; // 1 MB in bytes
-    
+    const payloadSize = new TextEncoder().encode(JSON.stringify(cleanedInput)).length;
+    const maxSize = 950_000; // Firestore limiti 1 MiB; ehtiyatla 950 KB
+
     if (payloadSize > maxSize) {
       const sizeMB = (payloadSize / 1048576).toFixed(2);
       console.error('[ERROR createArticle] Payload too large:', sizeMB, 'MB');
       throw new Error(
-        `Məqalə çox böyükdür (${sizeMB} MB). Firestore limiti 1 MB-dır. ` +
+        `Məqalə çox böyükdür (${sizeMB} MB). İcazə verilən maksimum ölçü təxminən 0.9 MB-dır. ` +
         `Şəkilləri mətn içinə base64 formatında deyil, Cloudinary-ə yükləyib URL istifadə edin.`
       );
     }
@@ -340,14 +340,14 @@ export async function saveArticle(id: string, input: ArticleInput): Promise<void
     }
     
     // Check payload size (Firestore limit is ~1MB per document)
-    const payloadSize = JSON.stringify(cleanedInput).length;
-    const maxSize = 1048576; // 1 MB in bytes
-    
+    const payloadSize = new TextEncoder().encode(JSON.stringify(cleanedInput)).length;
+    const maxSize = 950_000; // Firestore limiti 1 MiB; ehtiyatla 950 KB
+
     if (payloadSize > maxSize) {
       const sizeMB = (payloadSize / 1048576).toFixed(2);
       console.error('[ERROR saveArticle] Payload too large:', sizeMB, 'MB');
       throw new Error(
-        `Məqalə çox böyükdür (${sizeMB} MB). Firestore limiti 1 MB-dır. ` +
+        `Məqalə çox böyükdür (${sizeMB} MB). İcazə verilən maksimum ölçü təxminən 0.9 MB-dır. ` +
         `Şəkilləri mətn içinə base64 formatında deyil, Cloudinary-ə yükləyib URL istifadə edin.`
       );
     }
@@ -1202,16 +1202,21 @@ export async function snapshotArticleVersion(params: {
 }): Promise<void> {
   try {
     const version = (params.currentVersion ?? 0) + 1;
+    const snapshot = JSON.stringify(params.article);
+    if (new TextEncoder().encode(snapshot).length > 900_000) {
+      console.warn("[versions] Məqalə çox böyükdür, versiya snapshot-u keçildi");
+      return;
+    }
     await saveArticleVersion({
       articleId: params.articleId,
       version,
       summary: params.summary,
-      snapshot: JSON.stringify(params.article),
+      snapshot,
       createdAt: new Date().toISOString(),
       createdBy: params.userEmail,
     });
-  } catch {
-    console.warn("[versions] Versiya yaradılmadı");
+  } catch (error) {
+    console.warn("[versions] Versiya yaradılmadı", error);
   }
 }
 
@@ -2687,19 +2692,10 @@ export async function deletePushCampaign(id: string): Promise<void> {
 }
 
 /**
- * Kampaniyanı göndər (status = "sending" qoy).
- * Real göndərmə backend job-da edilməlidir.
+ * Push göndərmə serveri (FCM) hələ qoşulmayıb — status dəyişdirilmir.
  */
-export async function sendPushCampaign(id: string): Promise<void> {
-  const docRef = doc(db(), COLLECTIONS.pushCampaigns, id);
-  await updateDoc(docRef, {
-    status: "sending",
-    sentAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  });
-  
-  // TODO: Backend job trigger (Firebase Functions, Cloud Run, etc.)
-  // Bu placeholder-dir, real inteqrasiya lazımdır.
+export async function sendPushCampaign(_id: string): Promise<void> {
+  throw new Error("Push göndərmə serveri hələ qoşulmayıb.");
 }
 
 /**
@@ -4245,94 +4241,119 @@ export function calculatePerformanceRating(
 }
 
 /**
- * Səhifə performansını test et (mock - real implementation Google Lighthouse API istifadə edər).
+ * Səhifə performansını Google PageSpeed Insights API v5 ilə test et.
  */
 export async function testPagePerformance(
   pageUrl: string,
   pageTitle: string,
   device: "desktop" | "mobile"
 ): Promise<string> {
-  // Mock data - real implementation would use Lighthouse API or PageSpeed Insights API
-  const mockPerformance: PagePerformanceInput = {
+  const endpoint =
+    "https://www.googleapis.com/pagespeedonline/v5/runPagespeed" +
+    `?url=${encodeURIComponent(pageUrl)}&strategy=${device}&category=performance`;
+
+  let res: Response;
+  try {
+    res = await fetch(endpoint);
+  } catch {
+    throw new Error("PageSpeed xidmətinə qoşulmaq mümkün olmadı. İnternet bağlantısını yoxlayın.");
+  }
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const body = await res.json();
+      detail = body?.error?.message ? `: ${body.error.message}` : "";
+    } catch {
+      /* ignore */
+    }
+    throw new Error(`PageSpeed testi uğursuz oldu (HTTP ${res.status})${detail}`);
+  }
+
+  const json = await res.json();
+  const lh = json?.lighthouseResult;
+  const rawScore = lh?.categories?.performance?.score;
+  if (!lh || typeof rawScore !== "number") {
+    throw new Error("PageSpeed cavabı gözlənilən formatda deyil.");
+  }
+  const audits = lh.audits ?? {};
+  const num = (id: string): number => {
+    const v = audits[id]?.numericValue;
+    return typeof v === "number" ? v : 0;
+  };
+
+  const lcp = Math.round(num("largest-contentful-paint"));
+  const cls = Number(num("cumulative-layout-shift").toFixed(3));
+  const tbt = Math.round(num("total-blocking-time"));
+  const fcp = Math.round(num("first-contentful-paint"));
+  const ttfb = Math.round(num("server-response-time"));
+
+  const items: any[] = audits["network-requests"]?.details?.items ?? [];
+  const bucket = (types: string[]) => {
+    const list = items.filter((i) => types.includes(i.resourceType));
+    return {
+      count: list.length,
+      size: list.reduce((sum, i) => sum + (Number(i.transferSize) || 0), 0),
+    };
+  };
+  const totalSize = items.reduce((sum, i) => sum + (Number(i.transferSize) || 0), 0);
+
+  const opportunities = (Object.values(audits) as any[])
+    .filter(
+      (a) =>
+        a?.details?.type === "opportunity" &&
+        typeof a.details.overallSavingsMs === "number" &&
+        a.details.overallSavingsMs > 0
+    )
+    .sort((a, b) => b.details.overallSavingsMs - a.details.overallSavingsMs)
+    .slice(0, 10)
+    .map((a) => ({
+      id: String(a.id),
+      title: String(a.title ?? a.id),
+      description: String(a.displayValue ?? ""),
+      savings: Math.round(a.details.overallSavingsMs),
+      savingsUnit: "ms" as const,
+      priority:
+        a.details.overallSavingsMs > 1000
+          ? ("high" as const)
+          : a.details.overallSavingsMs > 300
+            ? ("medium" as const)
+            : ("low" as const),
+    }));
+
+  const result: PagePerformanceInput = {
     pageUrl,
     pageTitle,
     testedAt: new Date().toISOString(),
     device,
-    performanceScore: Math.floor(Math.random() * 40) + 60, // 60-100
+    performanceScore: Math.round(rawScore * 100),
     webVitals: {
-      lcp: Math.floor(Math.random() * 2000) + 1500, // 1500-3500ms
-      lcpRating: "good",
-      fid: Math.floor(Math.random() * 150) + 50, // 50-200ms
-      fidRating: "good",
-      cls: Math.random() * 0.15, // 0-0.15
-      clsRating: "good",
-      fcp: Math.floor(Math.random() * 1000) + 1000, // 1000-2000ms
-      fcpRating: "good",
-      ttfb: Math.floor(Math.random() * 500) + 300, // 300-800ms
-      ttfbRating: "good",
-      inp: Math.floor(Math.random() * 150) + 100, // 100-250ms
-      inpRating: "good",
+      lcp,
+      lcpRating: calculatePerformanceRating("lcp", lcp),
+      // Laboratoriya testində FID ölçülmür; burada Total Blocking Time (TBT) saxlanılır.
+      fid: tbt,
+      fidRating: calculatePerformanceRating("fid", tbt),
+      cls,
+      clsRating: calculatePerformanceRating("cls", cls),
+      fcp,
+      fcpRating: calculatePerformanceRating("fcp", fcp),
+      ttfb,
+      ttfbRating: calculatePerformanceRating("ttfb", ttfb),
     },
     resources: {
-      totalCount: Math.floor(Math.random() * 50) + 30,
-      totalSize: Math.floor(Math.random() * 2000000) + 1000000, // 1-3MB
-      javascript: { count: 10, size: 500000 },
-      css: { count: 5, size: 200000 },
-      images: { count: 15, size: 800000 },
-      fonts: { count: 3, size: 150000 },
+      totalCount: items.length,
+      totalSize,
+      javascript: bucket(["Script"]),
+      css: bucket(["Stylesheet"]),
+      images: bucket(["Image"]),
+      fonts: bucket(["Font"]),
     },
-    opportunities: [
-      {
-        id: "optimize-images",
-        title: "Şəkilləri optimallaşdır",
-        description: "WebP və ya AVIF formatına keçin",
-        savings: 500,
-        savingsUnit: "bytes",
-        priority: "high",
-      },
-      {
-        id: "minify-js",
-        title: "JavaScript faylları minify edin",
-        description: "Terser və ya UglifyJS istifadə edin",
-        savings: 200,
-        savingsUnit: "ms",
-        priority: "medium",
-      },
-    ],
-    serverResponseTime: Math.floor(Math.random() * 200) + 100,
-    domContentLoaded: Math.floor(Math.random() * 1000) + 1000,
-    fullPageLoad: Math.floor(Math.random() * 2000) + 2000,
+    opportunities,
+    serverResponseTime: ttfb,
+    domContentLoaded: Math.round(num("speed-index")),
+    fullPageLoad: Math.round(num("interactive")),
   };
 
-  // Calculate ratings
-  mockPerformance.webVitals.lcpRating = calculatePerformanceRating(
-    "lcp",
-    mockPerformance.webVitals.lcp
-  );
-  mockPerformance.webVitals.fidRating = calculatePerformanceRating(
-    "fid",
-    mockPerformance.webVitals.fid
-  );
-  mockPerformance.webVitals.clsRating = calculatePerformanceRating(
-    "cls",
-    mockPerformance.webVitals.cls
-  );
-  mockPerformance.webVitals.fcpRating = calculatePerformanceRating(
-    "fcp",
-    mockPerformance.webVitals.fcp
-  );
-  mockPerformance.webVitals.ttfbRating = calculatePerformanceRating(
-    "ttfb",
-    mockPerformance.webVitals.ttfb
-  );
-  if (mockPerformance.webVitals.inp) {
-    mockPerformance.webVitals.inpRating = calculatePerformanceRating(
-      "inp",
-      mockPerformance.webVitals.inp
-    );
-  }
-
-  return await createPagePerformance(mockPerformance);
+  return await createPagePerformance(result);
 }
 
 
@@ -4406,68 +4427,48 @@ export async function deleteBackup(id: string): Promise<void> {
   await deleteDoc(docRef);
 }
 
+/** İxrac üçün əsas kolleksiyalar. */
+export const BACKUP_EXPORT_COLLECTIONS = [
+  "articles",
+  "staff",
+  "subscribers",
+  "messages",
+  "ejournals",
+  "advancedBanners",
+  "siteSettings",
+  "seoRedirects",
+  "crmClients",
+  "adOrders",
+  "contentPlan",
+  "horoscopes",
+] as const;
+
 /**
- * Manual backup yarat (mock - real implementation Firebase export API istifadə edər).
+ * Kolleksiyaları cari adminin icazələri daxilində oxuyub
+ * tək obyekt kimi qaytarır (Firestore-a heç nə yazılmır).
  */
-export async function createManualBackup(
-  collections: string[],
-  name: string,
-  userId: string,
-  notes?: string
-): Promise<string> {
-  const startTime = Date.now();
-  
-  // Generate a temporary ID for storage path
-  const tempId = `backup-${Date.now()}`;
+export async function exportBackupSnapshot(
+  collections: readonly string[] = BACKUP_EXPORT_COLLECTIONS
+): Promise<{
+  data: Record<string, unknown>;
+  counts: Record<string, number>;
+  errors: Record<string, string>;
+}> {
+  const data: Record<string, unknown> = {};
+  const counts: Record<string, number> = {};
+  const errors: Record<string, string> = {};
 
-  // Create backup record
-  const backupId = await createDatabaseBackup({
-    name,
-    type: "manual",
-    status: "in-progress",
-    createdAt: new Date().toISOString(),
-    size: 0,
-    storagePath: `/backups/${tempId}.json`,
-    collections,
-    totalDocuments: 0,
-    createdBy: userId,
-    notes,
-  });
-
-  try {
-    // Mock: Real implementation would export data from Firestore
-    // For now, we'll simulate the backup process
-    let totalDocs = 0;
-    const backupData: Record<string, any[]> = {};
-
-    for (const collectionName of collections) {
-      const snap = await getDocs(collection(db(), collectionName));
-      backupData[collectionName] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      totalDocs += snap.size;
+  for (const name of collections) {
+    try {
+      const snap = await getDocs(collection(db(), name));
+      data[name] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      counts[name] = snap.size;
+    } catch (error: any) {
+      errors[name] = error?.code || error?.message || "unknown";
     }
-
-    // Convert to JSON string to calculate size
-    const jsonData = JSON.stringify(backupData, null, 2);
-    const size = new Blob([jsonData]).size;
-
-    const duration = Date.now() - startTime;
-
-    // Update backup record with success
-    await updateBackupStatus(backupId, "completed", {
-      size,
-      totalDocuments: totalDocs,
-      duration,
-      downloadUrl: `/api/backups/${backupId}/download`, // Mock URL
-    });
-
-    return backupId;
-  } catch (error: any) {
-    // Update backup record with failure
-    await updateBackupStatus(backupId, "failed", {
-      error: error.message || "Unknown error",
-    });
-    throw error;
   }
+
+  return { data, counts, errors };
 }
 
 /**
@@ -4528,39 +4529,15 @@ export async function listRestoreOperations(): Promise<RestoreOperation[]> {
 }
 
 /**
- * Restore əməliyyatı başlat.
+ * Restore əməliyyatı real şəkildə dəstəklənmir.
+ * Saxta "tamamlandı" statusu yazılmır.
  */
 export async function startRestore(
-  backupId: string,
-  collections: string[],
-  userId: string
+  _backupId: string,
+  _collections: string[],
+  _userId: string
 ): Promise<string> {
-  const backup = await getDatabaseBackup(backupId);
-  if (!backup) throw new Error("Backup not found");
-  if (backup.status !== "completed") throw new Error("Backup is not completed");
-
-  const docRef = await addDoc(collection(db(), COLLECTIONS.restoreOperations), {
-    backupId,
-    status: "in-progress",
-    startedAt: new Date().toISOString(),
-    collections,
-    restoredDocuments: 0,
-    progress: 0,
-    restoredBy: userId,
-  });
-
-  // Mock restore process
-  // Real implementation would restore data from backup file
-  setTimeout(async () => {
-    await updateDoc(doc(db(), COLLECTIONS.restoreOperations, docRef.id), {
-      status: "completed",
-      completedAt: new Date().toISOString(),
-      restoredDocuments: backup.totalDocuments,
-      progress: 100,
-    });
-  }, 5000);
-
-  return docRef.id;
+  throw new Error("Bərpa əməliyyatı yalnız texniki dəstək vasitəsilə aparılır.");
 }
 
 /**

@@ -137,32 +137,39 @@ service cloud.firestore {
      * Analytics kolleksiyaları - tracking üçün açıq amma validate edilir
      * Rate limiting və data validation tətbiq olunur
      */
+    // Baxış sayğacı (src/lib/analytics/track-views.ts) anonim işləyir.
+    // Yalnız +1 artım və məlum sahələr qəbul olunur — sayğacı şişirtmək olmaz.
     match /analytics_daily/{docId} {
       allow read: if isStaff();
-      // Yazma yalnız valid data ilə
-      allow create: if request.resource.data.date is string
-                    && request.resource.data.pageViews is number
-                    && request.resource.data.pageViews >= 0
-                    && request.resource.data.pageViews < 1000000;
-      allow update: if isStaff();
-      allow delete: if false; // Immutable
+      allow create: if request.resource.data.keys().hasOnly(
+                         ['articleId', 'slug', 'category', 'date', 'views', 'uniqueVisitors', 'updatedAt'])
+                    && request.resource.data.date is string
+                    && request.resource.data.views == 1;
+      allow update: if request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['views', 'uniqueVisitors', 'updatedAt'])
+                    && request.resource.data.get('views', 0) <= resource.data.get('views', 0) + 1
+                    && request.resource.data.get('uniqueVisitors', 0) <= resource.data.get('uniqueVisitors', 0) + 1;
+      allow delete: if false;
     }
 
     match /analytics_totals/{docId} {
       allow read: if isStaff();
-      allow create: if request.resource.data.count is number
-                    && request.resource.data.count >= 0;
-      allow update: if isStaff();
+      allow create: if request.resource.data.keys().hasOnly(
+                         ['articleId', 'slug', 'category', 'totalViews', 'lastViewed', 'updatedAt'])
+                    && request.resource.data.totalViews == 1;
+      allow update: if request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['totalViews', 'lastViewed', 'updatedAt', 'slug', 'category'])
+                    && request.resource.data.totalViews <= resource.data.get('totalViews', 0) + 1;
       allow delete: if false;
     }
 
+    // Unikal ziyarətçi qeydi: yalnız yaradılır (mövcuddursa yazma rədd edilir = artıq sayılıb)
     match /analytics_visitors/{docId} {
       allow read: if isStaff();
-      allow create: if request.resource.data.timestamp is timestamp
-                    && request.resource.data.path is string
-                    && request.resource.data.path.size() < 500;
-      allow update: if false; // Append only
-      allow delete: if false;
+      allow create: if request.resource.data.keys().hasOnly(['articleId', 'visitorId', 'date', 'timestamp'])
+                    && request.resource.data.visitorId is string
+                    && request.resource.data.visitorId.size() < 100;
+      allow update, delete: if false;
     }
 
     /** Bürc şərhləri — hamı oxuya bilər, yalnız staff yazır */
@@ -225,7 +232,8 @@ service cloud.firestore {
     match /subscribers/{subscriberId} {
       allow create: if request.resource.data.email is string
                     && request.resource.data.email.size() < 200;
-      allow read, update, delete: if isStaff();
+      allow read, update: if isStaff();
+      allow delete:       if isAdmin();
     }
 
     /** Əlaqə mesajları — hər kəs göndərə bilər */
@@ -340,7 +348,7 @@ service cloud.firestore {
     match /sessions/{sessionId} {
       allow read:   if isStaff();
       allow create: if true;  // Client-side tracking üçün açıq
-      allow update: if true;  // Session update üçün
+      allow update: if false; // kod sessiyanı yeniləmir; başqasının sessiyasını dəyişmək olmaz
       allow delete: if false;
     }
 
@@ -348,8 +356,7 @@ service cloud.firestore {
      * Məqalə analitikası — staff oxuya və yaza bilər.
      */
     match /articleAnalytics/{articleId} {
-      allow read:  if isStaff() || true;  // Optionally public for article stats
-      allow write: if isStaff();
+      allow read, write: if isStaff();
     }
 
     /**
@@ -372,6 +379,53 @@ service cloud.firestore {
     match /revenueAnalytics/{period} {
       allow read, write: if canAccessCrm();
     }
+
+    // ═══════════════════════════════════════════
+    //  Admin panel bölmələri (əvvəl qaydası yox idi → hamısı rədd edilirdi)
+    // ═══════════════════════════════════════════
+
+    /** Redaksiya alətləri — bütün aktiv staff */
+    match /tags/{id}                { allow read, write: if isStaff(); }
+    match /enhancedCategories/{id}  { allow read, write: if isStaff(); }
+    match /categoryStats/{id}       { allow read, write: if isStaff(); }
+    match /mediaFolders/{id}        { allow read, write: if isStaff(); }
+    match /mediaFiles/{id}          { allow read, write: if isStaff(); }
+    match /articleTranslations/{id} { allow read, write: if isStaff(); }
+    match /translationJobs/{id}     { allow read, write: if isStaff(); }
+    match /pagePerformance/{id}     { allow read, write: if isStaff(); }
+    match /optimizationTips/{id}    { allow read, write: if isStaff(); }
+
+    /** Şərhlər — saytda hələ şərh forması yoxdur; yalnız redaksiya idarə edir */
+    match /comments/{id} {
+      allow read, create, update: if isStaff();
+      allow delete:               if isAdmin()
+                                    || (isStaff() && staffDoc().data.role == 'moderator');
+    }
+
+    /** Silmə sorğuları — staff yaradır, admin təsdiqləyir */
+    match /deletionRequests/{id} {
+      allow read, create: if isStaff();
+      allow update, delete: if isAdmin();
+    }
+
+    /** E-jurnal satışı və yükləmələr — satış/maliyyə */
+    match /ejournalOrders/{id}    { allow read, write: if canAccessCrm(); }
+    match /ejournalDownloads/{id} { allow read, write: if canAccessCrm(); }
+
+    /** Üzvlük planları, istifadəçilər, push, backup — yalnız admin */
+    match /subscriptionPlans/{id}    { allow read, write: if isAdmin(); }
+    match /userSubscriptions/{id}    { allow read, write: if isAdmin(); }
+    match /subscriptionPayments/{id} { allow read, write: if isAdmin(); }
+    match /pushCampaigns/{id}        { allow read, write: if isAdmin(); }
+    match /pushTemplates/{id}        { allow read, write: if isAdmin(); }
+    match /userFcmTokens/{id}        { allow read, write: if isAdmin(); }
+    match /pushDeliveryLogs/{id}     { allow read, write: if isAdmin(); }
+    match /frontendUsers/{id}        { allow read, write: if isAdmin(); }
+    match /userReadingHistory/{id}   { allow read, write: if isAdmin(); }
+    match /userActivities/{id}       { allow read, write: if isAdmin(); }
+    match /databaseBackups/{id}      { allow read, write: if isAdmin(); }
+    match /backupSchedules/{id}      { allow read, write: if isAdmin(); }
+    match /restoreOperations/{id}    { allow read, write: if isAdmin(); }
 
     // ═══════════════════════════════════════════
     //  Default — hər şey bağlıdır

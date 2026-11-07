@@ -41,7 +41,19 @@ export default function NewslettersPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
-  if (accessLoading || !hasAccess) return null;
+  if (accessLoading) {
+    return (
+      <p className="px-10 py-16 text-center font-ui text-[13px] text-muted">Yüklənir…</p>
+    );
+  }
+
+  if (!hasAccess) {
+    return (
+      <div className="px-6 py-16 lg:px-10">
+        <Alert tone="error">İcazə yoxdur</Alert>
+      </div>
+    );
+  }
 
   async function handleSend() {
     if (!subject.trim() || !content.trim()) {

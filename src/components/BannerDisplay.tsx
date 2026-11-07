@@ -1,13 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import type { AdvancedAdBanner } from "@/lib/types";
 import { DEFAULT_BANNER_TEXT } from "@/lib/types";
+import { isLocale, defaultLocale, type Locale } from "@/lib/i18n/config";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 
 interface BannerDisplayProps {
   banner?: AdvancedAdBanner;
   showPlaceholder?: boolean;
   className?: string;
+  /** Verilməsə, URL-dəki dil götürülür (yoxdursa az). */
+  locale?: Locale;
 }
 
 /**
@@ -18,7 +23,12 @@ export default function BannerDisplay({
   banner,
   showPlaceholder = true,
   className = "",
+  locale: localeProp,
 }: BannerDisplayProps) {
+  const params = useParams<{ locale?: string }>();
+  const fromUrl = params?.locale;
+  const locale: Locale = localeProp ?? (fromUrl && isLocale(fromUrl) ? fromUrl : defaultLocale);
+  const dict = getDictionary(locale);
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -27,7 +37,7 @@ export default function BannerDisplay({
 
   // Əgər banner yoxdursa və placeholder istənilirsə
   if (!banner && showPlaceholder) {
-    return <PlaceholderBanner className={className} />;
+    return <PlaceholderBanner className={className} locale={locale} />;
   }
 
   if (!banner || !isClient) {
@@ -123,8 +133,8 @@ export default function BannerDisplay({
         )}
         
         {/* Reklam badge */}
-        <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 text-[9px] uppercase tracking-wider text-white pointer-events-none">
-          Reklam
+        <div className="absolute top-2 end-2 bg-black/60 px-2 py-1 text-[9px] uppercase tracking-wider text-white pointer-events-none">
+          {dict.ads.label}
         </div>
       </div>
     </div>
@@ -135,14 +145,16 @@ export default function BannerDisplay({
  * Placeholder Banner - Boş qaldığı zaman göstərilir
  * Motion/animated dizaynlı
  */
-function PlaceholderBanner({ className = "" }: { className?: string }) {
+function PlaceholderBanner({ className = "", locale }: { className?: string; locale: Locale }) {
+  const dict = getDictionary(locale);
+
   return (
     <div className={`banner-placeholder ${className}`}>
       <div className="relative overflow-hidden border border-line bg-gradient-to-br from-[#6B0F2A] via-[#4A0A1C] to-[#2A0510] p-8 text-center">
         {/* Subtle background circles */}
         <div className="absolute inset-0 overflow-hidden opacity-[0.08]">
-          <div className="absolute -top-10 -left-10 h-40 w-40 rounded-full bg-gold animate-pulse" style={{ animationDuration: "6s" }} />
-          <div className="absolute -bottom-10 -right-10 h-32 w-32 rounded-full bg-white animate-pulse" style={{ animationDuration: "8s" }} />
+          <div className="absolute -top-10 -start-10 h-40 w-40 rounded-full bg-gold animate-pulse" style={{ animationDuration: "6s" }} />
+          <div className="absolute -bottom-10 -end-10 h-32 w-32 rounded-full bg-white animate-pulse" style={{ animationDuration: "8s" }} />
         </div>
         
         <div className="relative z-10">
@@ -166,9 +178,9 @@ function PlaceholderBanner({ className = "" }: { className?: string }) {
           
           {/* Text */}
           <h3 className="mb-2 font-display text-xl font-semibold text-white tracking-wide" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
-            {DEFAULT_BANNER_TEXT.title}
+            {dict.ads.defaultTitle}
           </h3>
-          <p className="mb-5 text-sm text-white/80">Peşəkar reklam xidməti</p>
+          <p className="mb-5 text-sm text-white/80">{dict.ads.professional}</p>
           
           {/* WhatsApp button */}
           <a

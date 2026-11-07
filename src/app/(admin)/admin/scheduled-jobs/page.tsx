@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+
+import { authorizedFetch } from "@/lib/auth/authorized-fetch";
 import { PageHeader, Panel, Button, Alert } from "@/components/admin/ui";
 
 export default function ScheduledJobsPage() {
@@ -14,12 +16,13 @@ export default function ScheduledJobsPage() {
     setResult(null);
 
     try {
-      const response = await fetch("/api/cron/publish-scheduled", {
+      const response = await authorizedFetch("/api/cron/publish-scheduled", {
         method: "POST",
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || `HTTP ${response.status}`);
       }
 
       const data = await response.json();

@@ -7,11 +7,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 // Yalnız brauzer versiyası: sanitize yalnız useEffect içində (client-də) çağırılır.
 // `isomorphic-dompurify` serverdə jsdom yükləyir və Vercel-də məqalə səhifəsini 500 ilə çökdürürdü.
 import DOMPurify from "dompurify";
 import BannerDisplay from "./BannerDisplay";
 import type { AdvancedAdBanner, AdBannerLocation } from "@/lib/types";
+import { defaultLocale, isLocale } from "@/lib/i18n/config";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 
 interface ArticleBannersProps {
   location: AdBannerLocation;
@@ -56,6 +59,9 @@ export default function ArticleBanners({ location, className = "" }: ArticleBann
 export function InjectBannersIntoContent({ html, location }: { html: string; location: AdBannerLocation }) {
   const [processedHtml, setProcessedHtml] = useState('');
   const [banners, setBanners] = useState<AdvancedAdBanner[]>([]);
+  const params = useParams<{ locale?: string }>();
+  const fromUrl = params?.locale;
+  const adLabel = getDictionary(fromUrl && isLocale(fromUrl) ? fromUrl : defaultLocale).ads.label;
 
   useEffect(() => {
     loadBannersAndInject();
@@ -70,7 +76,7 @@ export function InjectBannersIntoContent({ html, location }: { html: string; loc
         
         if (banner) {
           // HTML-ə banner əlavə et və sanitize et
-          const injected = injectBanners(html, banner, location);
+          const injected = injectBanners(html, banner, location, adLabel);
           const sanitized = DOMPurify.sanitize(injected, {
             ALLOWED_TAGS: ['div', 'p', 'a', 'img', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'strong', 'em', 'br', 'span'],
             ALLOWED_ATTR: ['class', 'href', 'src', 'alt', 'style', 'target', 'rel'],
@@ -95,7 +101,7 @@ export function InjectBannersIntoContent({ html, location }: { html: string; loc
 /**
  * HTML-ə banner əlavə edən helper funksiya
  */
-function injectBanners(html: string, banner: AdvancedAdBanner, location: AdBannerLocation): string {
+function injectBanners(html: string, banner: AdvancedAdBanner, location: AdBannerLocation, adLabel: string): string {
   const tag = location === "article-between-h2" ? "h2" : "h3";
   const regex = new RegExp(`(</${tag}>)`, "gi");
   
@@ -109,7 +115,7 @@ function injectBanners(html: string, banner: AdvancedAdBanner, location: AdBanne
     <div class="my-8 flex justify-center">
       <div class="banner-injected w-full max-w-3xl">
         <div class="border border-line bg-cream-deep/30 p-4 text-center">
-          <p class="text-[9px] uppercase tracking-wider text-muted mb-3">Reklam</p>
+          <p class="text-[9px] uppercase tracking-wider text-muted mb-3">${adLabel}</p>
           <a href="${safeLink}" target="_blank" rel="noopener noreferrer" class="block">
             <img 
               src="${safeImageUrl}" 

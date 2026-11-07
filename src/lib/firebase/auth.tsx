@@ -46,6 +46,8 @@ export type AdminSession = {
   role: StaffRole;
   /** Boş siyahı = bütün bölmələr. */
   categories: CategorySlug[];
+  /** Bootstrap admin üçün aktiv `staff` sənədi tapılmayıb (Firestore yazmaları rədd ediləcək). */
+  missingStaffDoc?: boolean;
 };
 
 type AuthState = {
@@ -103,13 +105,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const email = nextUser.email.toLowerCase();
 
       if (BOOTSTRAP_ADMINS.includes(email)) {
-        setSession({
+        const bootstrapSession: AdminSession = {
           uid: nextUser.uid,
           email,
           name: nextUser.displayName ?? email,
           role: "admin",
           categories: [],
-        });
+        };
+        let missingStaffDoc = false;
+        try {
+          const staff = await loadStaffRecord(email);
+          if (!staff || !staff.active) {
+            missingStaffDoc = true;
+          } else if (staff.name) {
+            bootstrapSession.name = staff.name;
+          }
+        } catch {
+          missingStaffDoc = true;
+        }
+        setSession({ ...bootstrapSession, missingStaffDoc });
         setLoading(false);
         return;
       }
@@ -179,6 +193,7 @@ export function useAuth(): AuthState {
 export function canEditCategory(session: AdminSession | null, category: CategorySlug): boolean {
   if (!session) return false;
   if (session.role === "admin") return true;
+  if (session.role !== "editor" && session.role !== "author") return false;
   if (session.categories.length === 0) return true;
   return session.categories.includes(category);
 }

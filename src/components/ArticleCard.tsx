@@ -36,7 +36,7 @@ export default function ArticleCard({
     : categoryName(article.category, locale);
     
   const date = formatDate(article.publishedAt, locale);
-  const reading = interpolate(dict.common.minRead, { n: article.readingMinutes });
+  const reading = interpolate(dict.common.minRead, { n: article.readingMinutes || 1 });
 
   /* ---------------- Hero — ana səhifənin baş məqaləsi ---------------- */
   if (variant === "hero") {

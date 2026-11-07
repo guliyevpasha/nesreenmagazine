@@ -79,7 +79,7 @@ export function getArticleSlug(article: Article, locale: Locale = "az"): string 
  * Məqalənin bütün mövcud tərcümələrini yoxla
  */
 export function getAvailableLocales(article: Article): Locale[] {
-  const locales: Locale[] = ["az", "en", "ru", "tr"];
+  const locales: Locale[] = ["az", "en", "ru", "tr", "ar"];
   return locales.filter((locale) => {
     if (typeof article.title === "string") return false;
     if (typeof article.body === "string") return false;

@@ -6,7 +6,6 @@ import { PageHeader, Alert, Empty } from "@/components/admin/ui";
 import { getAllBanners, deleteBanner, duplicateBanner, getBannerStats, toggleBannerStatus } from "@/lib/data/banners";
 import type { AdvancedAdBanner } from "@/lib/types";
 import { adBannerLocationLabels } from "@/lib/types";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
 
 export default function AdvancedBannersPage() {
   // useRoleAccess silindi

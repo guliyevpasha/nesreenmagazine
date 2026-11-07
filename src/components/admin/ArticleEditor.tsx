@@ -219,6 +219,25 @@ export default function ArticleEditor({ article }: { article?: Article }) {
   /** Məqalə hazırda saytda dərc olunubmu (status yalnız saxlama ilə dəyişir) */
   const isLive = Boolean(article) && draft.status === "published";
 
+  /** «Saytda yerləşmə» paneli üçün sadə dildə xülasə */
+  const placementSummary = useMemo(() => {
+    const category = categories.find((item) => item.slug === draft.category);
+    const sub = getSubcategories(draft.category).find((item) => item.slug === draft.subcategory);
+    const lines = [
+      draft.featured ? "Ana səhifə — yuxarıdakı böyük karusel" : "Ana səhifə — son məqalələr lenti",
+      `«${category?.name.az ?? draft.category}» bölməsi`,
+    ];
+    if (sub) lines.push(`«${sub.name.az}» alt bölməsi`);
+    if (draft.trending) lines.push("«Çox oxunanlar» siyahısı");
+    const missing = locales.filter((code) => !draft.title[code]?.trim() || !draft.body[code]?.trim());
+    lines.push(
+      missing.length === 0
+        ? "5 dildə tam"
+        : `Boş dillər: ${missing.map((code) => code.toUpperCase()).join(", ")} — orada AZ mətni göstəriləcək`,
+    );
+    return lines;
+  }, [draft.category, draft.subcategory, draft.featured, draft.trending, draft.title, draft.body]);
+
   const allowedCategories = categories.filter((category) =>
     canEditCategory(session, category.slug),
   );
@@ -631,7 +650,8 @@ export default function ArticleEditor({ article }: { article?: Article }) {
 
         {/* ------------------------ Parametrlər ------------------------ */}
         <div className="space-y-6 xl:col-span-4">
-          <Panel title="Dərc">
+          {/* Saytda yerləşmə — bir baxışda: bölmə, alt bölmə, ana səhifədəki yer */}
+          <Panel title="Saytda yerləşmə">
             <div className="space-y-5">
               <Field label="Bölmə">
                 <select
@@ -654,24 +674,81 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                 </select>
               </Field>
 
-              <Field label="Alt bölmə" hint="Menyudakı açılan siyahıda görünür.">
-                <select
-                  value={draft.subcategory ?? ""}
-                  onChange={(event) =>
-                    setDraft((current) => ({ ...current, subcategory: event.target.value }))
-                  }
-                  className={inputClass}
-                >
-                  <option value="">— seçilməyib —</option>
-                  {getSubcategories(draft.category).map((sub) => (
-                    <option key={sub.slug} value={sub.slug}>
-                      {sub.name.az}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+              {getSubcategories(draft.category).length > 0 && (
+                <Field label="Alt bölmə" hint="Menyuda bölmənin açılan siyahısında görünür.">
+                  <select
+                    value={draft.subcategory ?? ""}
+                    onChange={(event) =>
+                      setDraft((current) => ({ ...current, subcategory: event.target.value }))
+                    }
+                    className={inputClass}
+                  >
+                    <option value="">— yalnız əsas bölmədə —</option>
+                    {getSubcategories(draft.category).map((sub) => (
+                      <option key={sub.slug} value={sub.slug}>
+                        {sub.name.az}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
 
-              <Field label="Dərc tarixi">
+              <fieldset className="space-y-2">
+                <legend className="mb-2 font-ui text-[11px] uppercase tracking-[0.14em] text-muted">
+                  Ana səhifədə
+                </legend>
+                {[
+                  { featured: false, title: "Adi məqalə", text: "Ana səhifənin və bölmənin lentində, tarixə görə." },
+                  { featured: true, title: "Baş məqalə", text: "Ana səhifənin yuxarısındakı böyük karuseldə." },
+                ].map((option) => (
+                  <label
+                    key={option.title}
+                    className={`flex cursor-pointer items-start gap-3 border px-3 py-2.5 transition-colors ${
+                      draft.featured === option.featured ? "border-bordo bg-bordo/5" : "border-line hover:border-ink/30"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="placement"
+                      checked={draft.featured === option.featured}
+                      onChange={() => setDraft((current) => ({ ...current, featured: option.featured }))}
+                      className="mt-1 h-4 w-4 accent-[#7b2233]"
+                    />
+                    <span>
+                      <span className="block font-ui text-[13px] text-ink">{option.title}</span>
+                      <span className="block font-ui text-[11px] text-muted">{option.text}</span>
+                    </span>
+                  </label>
+                ))}
+                <label className="flex items-center gap-3 pt-1 font-ui text-[13px] text-ink">
+                  <input
+                    type="checkbox"
+                    checked={draft.trending}
+                    onChange={(event) =>
+                      setDraft((current) => ({ ...current, trending: event.target.checked }))
+                    }
+                    className="h-4 w-4 accent-[#7b2233]"
+                  />
+                  Həmçinin «Çox oxunanlar» siyahısında göstər
+                </label>
+              </fieldset>
+
+              <div className="border-t border-line pt-4">
+                <p className="font-ui text-[11px] uppercase tracking-[0.14em] text-muted">
+                  Dərc olunanda görünəcək
+                </p>
+                <ul className="mt-2 space-y-1 font-ui text-[12px] text-ink-soft">
+                  {placementSummary.map((line) => (
+                    <li key={line}>• {line}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </Panel>
+
+          <Panel title="Dərc">
+            <div className="space-y-5">
+              <Field label="Dərc tarixi" hint="«Dərc et» basanda avtomatik bu günə qoyulur.">
                 <input
                   type="date"
                   value={draft.publishedAt.slice(0, 10)}
@@ -684,7 +761,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
 
               <Field
                 label="Planlaşdırılmış dərc"
-                hint="Gələcək tarix-vaxt seçsəniz, məqalə avtomatik dərc ediləcək."
+                hint="Gələcək vaxt seçib «Planlaşdır» basın — məqalə həmin vaxt avtomatik dərc olunur."
               >
                 <input
                   type="datetime-local"
@@ -697,11 +774,6 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                   }
                   className={inputClass}
                 />
-                {draft.scheduledAt && new Date(draft.scheduledAt) > new Date() && (
-                  <p className="mt-1 font-ui text-[11px] text-gold-soft">
-                    ⏰ Planlaşdırılıb: {new Date(draft.scheduledAt).toLocaleString("az-AZ")}
-                  </p>
-                )}
               </Field>
 
               <Field label="Müəllif">
@@ -715,7 +787,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                 />
               </Field>
 
-              <Field label="Oxu müddəti" hint="0 yazsanız mətnə görə avtomatik hesablanır.">
+              <Field label="Oxu müddəti (dəq.)" hint="0 yazsanız mətnə görə avtomatik hesablanır.">
                 <input
                   type="number"
                   min={0}
@@ -729,32 +801,6 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                   className={inputClass}
                 />
               </Field>
-
-              <div className="space-y-3 border-t border-line pt-5">
-                <label className="flex items-center gap-3 font-ui text-[13px] text-ink">
-                  <input
-                    type="checkbox"
-                    checked={draft.featured}
-                    onChange={(event) =>
-                      setDraft((current) => ({ ...current, featured: event.target.checked }))
-                    }
-                    className="h-4 w-4 accent-[#7b2233]"
-                  />
-                  Ana səhifənin baş məqaləsi
-                </label>
-
-                <label className="flex items-center gap-3 font-ui text-[13px] text-ink">
-                  <input
-                    type="checkbox"
-                    checked={draft.trending}
-                    onChange={(event) =>
-                      setDraft((current) => ({ ...current, trending: event.target.checked }))
-                    }
-                    className="h-4 w-4 accent-[#7b2233]"
-                  />
-                  «Çox oxunanlar» siyahısında
-                </label>
-              </div>
             </div>
           </Panel>
 
