@@ -604,8 +604,10 @@ export function emptyLocalizedTags(): LocalizedTags {
  * Seçilmiş dildə mətni qaytarır; həmin dil boşdursa Azərbaycan,
  * o da boşdursa ingilis dilinə keçir.
  */
-export function pick(text: LocalizedText | undefined, locale: Locale): string {
+export function pick(text: LocalizedText | string | undefined, locale: Locale): string {
   if (!text) return "";
+  // Köhnə məqalələrdə sahə tək dilli string kimi saxlanılıb
+  if (typeof text === "string") return text.trim();
   return text[locale]?.trim() || text.az?.trim() || text.en?.trim() || "";
 }
 

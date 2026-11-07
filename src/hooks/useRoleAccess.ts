@@ -22,46 +22,24 @@ export function useRoleAccess(requiredPath: string) {
     }
 
     if (!session) {
-      console.log('[useRoleAccess] Session yoxdur, login-ə yönləndirilir');
-      router.replace('/auth/signin');
-      return;
-    }
-
-    const role = session.role;
-    
-    // Admin her yerə daxil ola bilər
-    if (role === 'admin') {
-      console.log('[useRoleAccess] ✅ Admin - tam icazə');
-      setHasAccess(true);
-      setChecking(false);
-      return;
-    }
-    
-    const access = canAccessPath(role, requiredPath);
-
-    console.log('[useRoleAccess] Yoxlama:', { 
-      role, 
-      requiredPath, 
-      hasAccess: access,
-      sessionName: session.name,
-      sessionEmail: session.email,
-    });
-
-    if (!access) {
-      console.log('[useRoleAccess] ⛔ İcazə YOX - redirect edilir');
-      setHasAccess(false);
-      setChecking(false);
-      // Dərhal redirect et
       router.replace('/admin');
       return;
     }
-    
-    console.log('[useRoleAccess] ✅ İcazə var');
+
+    const access = canAccessPath(session.role, requiredPath);
+
+    if (!access) {
+      setHasAccess(false);
+      setChecking(false);
+      router.replace('/admin');
+      return;
+    }
+
     setHasAccess(true);
     setChecking(false);
   }, [session, loading, requiredPath, router]);
 
-  return { 
+  return {
     hasAccess,
     loading: checking,
     session,

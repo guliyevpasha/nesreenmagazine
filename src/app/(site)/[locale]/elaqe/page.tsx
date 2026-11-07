@@ -21,7 +21,6 @@ const CONTACT = {
   email: "salam@nesreenmagazine.com",
   advertising: "reklam@nesreenmagazine.com",
   phone: "+994 12 000 00 00",
-  address: "Bakı, Azərbaycan",
 };
 
 export async function generateMetadata({
@@ -120,7 +119,7 @@ export default async function ContactPage({
                   <dt className="font-ui text-[11px] uppercase tracking-[0.16em] text-muted">
                     {dict.contact.addressLabel}
                   </dt>
-                  <dd className="mt-1 text-[0.9375rem] text-ink">{CONTACT.address}</dd>
+                  <dd className="mt-1 text-[0.9375rem] text-ink">{dict.contact.addressValue}</dd>
                 </div>
 
                 <div>

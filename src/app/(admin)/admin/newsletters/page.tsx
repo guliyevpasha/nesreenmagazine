@@ -1,5 +1,6 @@
 "use client";
 
+import { authorizedFetch } from "@/lib/auth/authorized-fetch";
 import { useState } from "react";
 import dynamic from 'next/dynamic';
 import { useAuth } from "@/lib/firebase/auth";
@@ -40,7 +41,19 @@ export default function NewslettersPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
-  if (accessLoading || !hasAccess) return null;
+  if (accessLoading) {
+    return (
+      <p className="px-10 py-16 text-center font-ui text-[13px] text-muted">Yüklənir…</p>
+    );
+  }
+
+  if (!hasAccess) {
+    return (
+      <div className="px-6 py-16 lg:px-10">
+        <Alert tone="error">İcazə yoxdur</Alert>
+      </div>
+    );
+  }
 
   async function handleSend() {
     if (!subject.trim() || !content.trim()) {
@@ -75,7 +88,7 @@ export default function NewslettersPage() {
         </div>
       `;
 
-      const response = await fetch('/api/admin/send-newsletter', {
+      const response = await authorizedFetch('/api/admin/send-newsletter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -10,7 +10,7 @@ import {
   Field,
   inputClass,
 } from "@/components/admin/ui";
-import { useAuth } from "@/lib/firebase/auth";
+import { isAdmin, useAuth } from "@/lib/firebase/auth";
 import { getArticleSlug } from "@/lib/article-helpers";
 import {
   listSeoRedirects,
@@ -237,11 +237,12 @@ Sitemap: https://nesreenmagazine.com/sitemap.xml`
 
   async function handleDelete(id: string) {
     if (!confirm("Bu redirect-i silmək istəyirsiniz?")) return;
+    setError("");
     try {
       await removeSeoRedirect(id);
       setRedirects((prev) => prev.filter((r) => r.id !== id));
-    } catch {
-      alert("Silinmə xətası baş verdi.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Silinmə xətası baş verdi.");
     }
   }
 
@@ -432,13 +433,15 @@ Sitemap: https://nesreenmagazine.com/sitemap.xml`
                           >
                             Redaktə
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleDelete(redirect.id)}
-                            className="font-ui text-[11px] uppercase tracking-[0.12em] text-bordo/60 hover:text-bordo"
-                          >
-                            Sil
-                          </button>
+                          {isAdmin(session) && (
+                            <button
+                              type="button"
+                              onClick={() => void handleDelete(redirect.id)}
+                              className="font-ui text-[11px] uppercase tracking-[0.12em] text-bordo/60 hover:text-bordo"
+                            >
+                              Sil
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

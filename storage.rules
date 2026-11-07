@@ -44,43 +44,64 @@ service firebase.storage {
     // Məqalə üz qabıqları - yalnız staff
     match /covers/{fileName} {
       allow read: if true;
-      allow write: if isStaff() && isImage();
+      allow create, update: if isStaff() && isImage();
+      allow delete: if isStaff();
     }
 
     // Reklam bannerləri - yalnız staff
     match /banners/{fileName} {
       allow read: if true;
-      allow write: if isStaff() && (isImage() || isVideo());
+      allow create, update: if isStaff() && (isImage() || isVideo());
+      allow delete: if isStaff();
     }
 
     // Məqalə mətnindəki şəkillər - yalnız staff
     match /inline-images/{fileName} {
       allow read: if true;
-      allow write: if isStaff() && isImage();
+      allow create, update: if isStaff() && isImage();
+      allow delete: if isStaff();
     }
 
     // Köhnə inline qovluğu - yalnız staff
     match /inline/{fileName} {
       allow read: if true;
-      allow write: if isStaff() && isImage();
+      allow create, update: if isStaff() && isImage();
+      allow delete: if isStaff();
     }
 
     // Articles qovluğu - yalnız staff
     match /articles/{fileName} {
       allow read: if true;
-      allow write: if isStaff() && isImage();
+      allow create, update: if isStaff() && isImage();
+      allow delete: if isStaff();
     }
 
     // E-jurnalın üz qabıqları - yalnız staff
     match /ejournal-covers/{fileName} {
       allow read: if true;
-      allow write: if isStaff() && isImage();
+      allow create, update: if isStaff() && isImage();
+      allow delete: if isStaff();
     }
 
     // E-jurnalın PDF nömrələri - yalnız staff
     match /ejournals/{fileName} {
       allow read: if true;
-      allow write: if isStaff() && isPDF();
+      allow create, update: if isStaff() && isPDF();
+      allow delete: if isStaff();
+    }
+
+    // E-kitab bannerlərinin şəkilləri - yalnız staff
+    match /ebook/{fileName} {
+      allow read: if true;
+      allow create, update: if isStaff() && isImage();
+      allow delete: if isStaff();
+    }
+
+    // Ümumi media (admin Fayl idarəetməsi) - yalnız staff
+    match /media/{fileName} {
+      allow read: if true;
+      allow create, update: if isStaff() && (isImage() || isVideo() || isPDF());
+      allow delete: if isStaff();
     }
 
     match /{allPaths=**} {

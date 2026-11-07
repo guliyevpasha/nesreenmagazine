@@ -13,8 +13,7 @@ import type { CrmClient, CrmClientInput, DealStage } from "@/lib/types";
 import {
   dealStageLabels,
 } from "@/lib/types";
-import { useAuth } from "@/lib/firebase/auth";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { isAdmin, useAuth } from "@/lib/firebase/auth";
 import {
   Alert,
   Button,
@@ -67,7 +66,7 @@ function ClientCard({
 }: {
   client: CrmClient;
   onEdit: (c: CrmClient) => void;
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void;
 }) {
   return (
     <div className="border border-line bg-paper p-4 hover:border-bordo/40 transition-colors">
@@ -123,13 +122,15 @@ function ClientCard({
         >
           Redaktə
         </button>
-        <button
-          type="button"
-          onClick={() => onDelete(client.id)}
-          className="ml-auto font-ui text-[11px] uppercase tracking-[0.12em] text-bordo/60 hover:text-bordo transition-colors"
-        >
-          Sil
-        </button>
+        {onDelete && (
+          <button
+            type="button"
+            onClick={() => onDelete(client.id)}
+            className="ml-auto font-ui text-[11px] uppercase tracking-[0.12em] text-bordo/60 hover:text-bordo transition-colors"
+          >
+            Sil
+          </button>
+        )}
       </div>
     </div>
   );
@@ -241,7 +242,7 @@ function ClientModal({
 /* ── Əsas səhifə ────────────────────────────────────────────────────────── */
 export default function CrmPage() {
   const { session } = useAuth();
-  // useRoleAccess silindi
+  const canDelete = isAdmin(session);
   
   const [clients, setClients] = useState<CrmClient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -267,11 +268,12 @@ export default function CrmPage() {
 
   async function handleDelete(id: string) {
     if (!confirm("Bu müştərini silmək istəyirsiniz?")) return;
+    setError("");
     try {
       await removeCrmClient(id);
       setClients((prev) => prev.filter((c) => c.id !== id));
-    } catch {
-      alert("Silinmə xətası baş verdi.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Silinmə xətası baş verdi.");
     }
   }
 
@@ -400,7 +402,7 @@ export default function CrmPage() {
                     key={client.id}
                     client={client}
                     onEdit={openEdit}
-                    onDelete={(id) => void handleDelete(id)}
+                    onDelete={canDelete ? (id) => void handleDelete(id) : undefined}
                   />
                 ))}
               </div>
@@ -431,7 +433,7 @@ export default function CrmPage() {
                       key={client.id}
                       client={client}
                       onEdit={openEdit}
-                      onDelete={(id) => void handleDelete(id)}
+                      onDelete={canDelete ? (id) => void handleDelete(id) : undefined}
                     />
                   ))}
                 </div>

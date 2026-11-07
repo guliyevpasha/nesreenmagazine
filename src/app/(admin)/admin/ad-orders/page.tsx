@@ -17,7 +17,7 @@ import {
   paymentStatusLabels,
   materialStatusLabels,
 } from "@/lib/types";
-import { useAuth } from "@/lib/firebase/auth";
+import { isAdmin, useAuth } from "@/lib/firebase/auth";
 import {
   Alert,
   Button,
@@ -387,11 +387,12 @@ export default function AdOrdersPage() {
 
   async function handleDelete(id: string) {
     if (!confirm("Bu sifarişi silmək istəyirsiniz?")) return;
+    setError("");
     try {
       await removeAdOrder(id);
       setOrders((prev) => prev.filter((o) => o.id !== id));
-    } catch {
-      alert("Silinmə xətası baş verdi.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Silinmə xətası baş verdi.");
     }
   }
 
@@ -588,13 +589,15 @@ export default function AdOrdersPage() {
                               >
                                 Redaktə
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => void handleDelete(order.id)}
-                                className="font-ui text-[11px] uppercase tracking-[0.12em] text-bordo/60 hover:text-bordo"
-                              >
-                                Sil
-                              </button>
+                              {isAdmin(session) && (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDelete(order.id)}
+                                  className="font-ui text-[11px] uppercase tracking-[0.12em] text-bordo/60 hover:text-bordo"
+                                >
+                                  Sil
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

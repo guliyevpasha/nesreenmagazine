@@ -6,6 +6,8 @@
  */
 "use client";
 
+import { authorizedFetch } from "@/lib/auth/authorized-fetch";
+import { uploadFormData } from "@/lib/upload-client";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 
@@ -126,32 +128,52 @@ const MARKDOWN_HELP = `## Başlıq      ### Alt başlıq
 /**
  * Məqalə cache-ini təmizlə
  */
-async function revalidateArticleCache(slug: string, category: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    const response = await fetch("/api/revalidate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        slug,
-        category,
-      }),
-    });
+type ArticleLocation = {
+  category: string;
+  subcategory?: string;
+  slug: LocalizedText | string;
+};
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ Cache revalidation failed:", errorText);
-      return { success: false, error: errorText };
-    } else {
-      const result = await response.json();
-      console.log("✅ Cache successfully revalidated:", result);
-      return { success: true };
+/**
+ * Məqalənin saytdakı bütün ünvanlarını (5 dil × ana səhifə, kateqoriya,
+ * alt bölmə, məqalə) yeniləyir. Köhnə və yeni ünvan birlikdə verilir ki,
+ * slug və ya kateqoriya dəyişəndə köhnə səhifə də təmizlənsin.
+ */
+async function revalidateArticleCache(locations: ArticleLocation[]): Promise<boolean> {
+  const paths = new Set<string>();
+  for (const { category, subcategory, slug } of locations) {
+    for (const code of locales) {
+      paths.add(`/${code}`);
+      paths.add(`/${code}/${category}`);
+      if (subcategory) paths.add(`/${code}/${category}/bolme/${subcategory}`);
+      const localized = typeof slug === "string" ? slug : slug[code] || slug.az;
+      if (localized) paths.add(`/${code}/${category}/${localized}`);
     }
-  } catch (error) {
-    console.error("❌ Cache revalidation error:", error);
-    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
+
+  try {
+    const response = await authorizedFetch("/api/revalidate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paths: [...paths] }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+function saveResultMessage(status: ArticleStatus, wasPublished: boolean, cacheCleared: boolean): string {
+  const cacheNote = cacheCleared ? "" : " Sayt keşi təmizlənmədi — dəyişiklik 1 dəqiqə ərzində görünəcək.";
+  if (status === "published") {
+    return (wasPublished ? "Məqalə yeniləndi və saytda görünür." : "Məqalə dərc edildi və saytda görünür.") + cacheNote;
+  }
+  if (status === "scheduled") {
+    return "Məqalə planlaşdırıldı." + (wasPublished ? " Saytdan müvəqqəti çıxarıldı." + cacheNote : "");
+  }
+  return wasPublished
+    ? "Məqalə dərcdən çıxarıldı və qaralamaya keçirildi." + cacheNote
+    : "Qaralama yadda saxlanıldı.";
 }
 
 export default function ArticleEditor({ article }: { article?: Article }) {
@@ -194,6 +216,27 @@ export default function ArticleEditor({ article }: { article?: Article }) {
   );
   const [uploading, setUploading] = useState(false);
   const [uploadingInline, setUploadingInline] = useState(false);
+  /** Məqalə hazırda saytda dərc olunubmu (status yalnız saxlama ilə dəyişir) */
+  const isLive = Boolean(article) && draft.status === "published";
+
+  /** «Saytda yerləşmə» paneli üçün sadə dildə xülasə */
+  const placementSummary = useMemo(() => {
+    const category = categories.find((item) => item.slug === draft.category);
+    const sub = getSubcategories(draft.category).find((item) => item.slug === draft.subcategory);
+    const lines = [
+      draft.featured ? "Ana səhifə — yuxarıdakı böyük karusel" : "Ana səhifə — son məqalələr lenti",
+      `«${category?.name.az ?? draft.category}» bölməsi`,
+    ];
+    if (sub) lines.push(`«${sub.name.az}» alt bölməsi`);
+    if (draft.trending) lines.push("«Çox oxunanlar» siyahısı");
+    const missing = locales.filter((code) => !draft.title[code]?.trim() || !draft.body[code]?.trim());
+    lines.push(
+      missing.length === 0
+        ? "5 dildə tam"
+        : `Boş dillər: ${missing.map((code) => code.toUpperCase()).join(", ")} — orada AZ mətni göstəriləcək`,
+    );
+    return lines;
+  }, [draft.category, draft.subcategory, draft.featured, draft.trending, draft.title, draft.body]);
 
   const allowedCategories = categories.filter((category) =>
     canEditCategory(session, category.slug),
@@ -237,10 +280,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
       formData.append('file', file);
       formData.append('folder', 'covers');
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      const response = await uploadFormData(formData);
 
       if (!response.ok) {
         const responseClone = response.clone();
@@ -281,10 +321,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
       formData.append('file', file);
       formData.append('folder', 'inline-images');
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      const response = await uploadFormData(formData);
 
       if (!response.ok) {
         const responseClone = response.clone();
@@ -358,16 +395,26 @@ export default function ArticleEditor({ article }: { article?: Article }) {
       return;
     }
 
-    // İndi dərc et - avtomatik tarix set et
+    if (nextStatus === "scheduled" && draft.scheduledAt && new Date(draft.scheduledAt) <= new Date()) {
+      setMessage({ tone: "error", text: "Planlaşdırma tarixi gələcəkdə olmalıdır." });
+      return;
+    }
+
+    // Artıq dərc olunmuş məqalə yenilənəndə orijinal dərc tarixi saxlanılır;
+    // ilk dəfə dərc olunanda tarix «indi» olur.
+    const wasPublished = Boolean(article) && draft.status === "published";
+    const newStatus: ArticleStatus = nextStatus ?? draft.status;
     let finalPublishedAt = draft.publishedAt;
-    if (nextStatus === "published") {
+    if (newStatus === "published" && !wasPublished) {
       finalPublishedAt = new Date().toISOString();
+    } else if (newStatus === "scheduled" && draft.scheduledAt) {
+      finalPublishedAt = new Date(draft.scheduledAt).toISOString();
     }
 
     const payload: ArticleInput = {
       ...draft,
       slug: slugs,
-      status: nextStatus ?? draft.status,
+      status: newStatus,
       publishedAt: finalPublishedAt,
       readingMinutes:
         draft.readingMinutes > 0
@@ -375,9 +422,20 @@ export default function ArticleEditor({ article }: { article?: Article }) {
           : estimateReadingMinutes(draft.body.az || draft.body.en || ""),
     };
 
-    // Scheduled statusdursa scheduledAt əlavə et, deyilsə çıxart
-    if (nextStatus === "scheduled" && draft.scheduledAt) {
+    // Planlaşdırma tarixi yalnız «scheduled» statusunda saxlanılır
+    if (newStatus === "scheduled" && draft.scheduledAt) {
       payload.scheduledAt = draft.scheduledAt;
+    } else {
+      delete payload.scheduledAt;
+    }
+
+    // Saytda görünən hər dəyişiklikdə (dərc, yeniləmə, dərcdən çıxarma) cache təmizlənir
+    const affectsSite = newStatus === "published" || wasPublished;
+    const locations: ArticleLocation[] = [
+      { category: payload.category, subcategory: payload.subcategory, slug: payload.slug },
+    ];
+    if (article) {
+      locations.push({ category: article.category, subcategory: article.subcategory, slug: article.slug });
     }
 
     setBusy(true);
@@ -397,19 +455,11 @@ export default function ArticleEditor({ article }: { article?: Article }) {
         });
         setDraft(payload);
         
-        // Məqalə published statusuna keçdisə, cache-i təmizlə
-        if (nextStatus === "published" || payload.status === "published") {
-          const articleSlugAz = typeof article.slug === "string" ? article.slug : article.slug.az;
-          const revalidateResult = await revalidateArticleCache(articleSlugAz, article.category);
-          
-          if (revalidateResult.success) {
-            setMessage({ tone: "success", text: "✅ Məqalə dərc edildi və saytda görünür." });
-          } else {
-            setMessage({ tone: "success", text: "Məqalə yadda saxlanıldı. ⚠️ Cache təmizlənmədi - səhifəni yeniləyin." });
-          }
-        } else {
-          setMessage({ tone: "success", text: "Dəyişikliklər yadda saxlanıldı." });
-        }
+        const cacheCleared = affectsSite ? await revalidateArticleCache(locations) : true;
+        setMessage({
+          tone: "success",
+          text: saveResultMessage(newStatus, wasPublished, cacheCleared),
+        });
       } else {
         const id = await createArticle(payload);
         // Yeni məqalə üçün ilk versiya
@@ -421,19 +471,11 @@ export default function ArticleEditor({ article }: { article?: Article }) {
           currentVersion: 0,
         });
         
-        // Yeni məqalə published statusundadırsa, cache-i təmizlə
-        if (payload.status === "published") {
-          const payloadSlugAz = typeof payload.slug === "string" ? payload.slug : payload.slug.az;
-          const revalidateResult = await revalidateArticleCache(payloadSlugAz, payload.category);
-          
-          if (revalidateResult.success) {
-            setMessage({ tone: "success", text: "✅ Məqalə yaradıldı və saytda görünür." });
-          } else {
-            setMessage({ tone: "success", text: "Məqalə yaradıldı. ⚠️ Cache təmizlənmədi - səhifəni yeniləyin." });
-          }
-        } else {
-          setMessage({ tone: "success", text: "Məqalə yaradıldı." });
-        }
+        const cacheCleared = affectsSite ? await revalidateArticleCache(locations) : true;
+        setMessage({
+          tone: "success",
+          text: saveResultMessage(newStatus, false, cacheCleared),
+        });
         
         router.push(`/admin/articles/${id}`);
       }
@@ -608,7 +650,8 @@ export default function ArticleEditor({ article }: { article?: Article }) {
 
         {/* ------------------------ Parametrlər ------------------------ */}
         <div className="space-y-6 xl:col-span-4">
-          <Panel title="Dərc">
+          {/* Saytda yerləşmə — bir baxışda: bölmə, alt bölmə, ana səhifədəki yer */}
+          <Panel title="Saytda yerləşmə">
             <div className="space-y-5">
               <Field label="Bölmə">
                 <select
@@ -631,24 +674,81 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                 </select>
               </Field>
 
-              <Field label="Alt bölmə" hint="Menyudakı açılan siyahıda görünür.">
-                <select
-                  value={draft.subcategory ?? ""}
-                  onChange={(event) =>
-                    setDraft((current) => ({ ...current, subcategory: event.target.value }))
-                  }
-                  className={inputClass}
-                >
-                  <option value="">— seçilməyib —</option>
-                  {getSubcategories(draft.category).map((sub) => (
-                    <option key={sub.slug} value={sub.slug}>
-                      {sub.name.az}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+              {getSubcategories(draft.category).length > 0 && (
+                <Field label="Alt bölmə" hint="Menyuda bölmənin açılan siyahısında görünür.">
+                  <select
+                    value={draft.subcategory ?? ""}
+                    onChange={(event) =>
+                      setDraft((current) => ({ ...current, subcategory: event.target.value }))
+                    }
+                    className={inputClass}
+                  >
+                    <option value="">— yalnız əsas bölmədə —</option>
+                    {getSubcategories(draft.category).map((sub) => (
+                      <option key={sub.slug} value={sub.slug}>
+                        {sub.name.az}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
 
-              <Field label="Dərc tarixi">
+              <fieldset className="space-y-2">
+                <legend className="mb-2 font-ui text-[11px] uppercase tracking-[0.14em] text-muted">
+                  Ana səhifədə
+                </legend>
+                {[
+                  { featured: false, title: "Adi məqalə", text: "Ana səhifənin və bölmənin lentində, tarixə görə." },
+                  { featured: true, title: "Baş məqalə", text: "Ana səhifənin yuxarısındakı böyük karuseldə." },
+                ].map((option) => (
+                  <label
+                    key={option.title}
+                    className={`flex cursor-pointer items-start gap-3 border px-3 py-2.5 transition-colors ${
+                      draft.featured === option.featured ? "border-bordo bg-bordo/5" : "border-line hover:border-ink/30"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="placement"
+                      checked={draft.featured === option.featured}
+                      onChange={() => setDraft((current) => ({ ...current, featured: option.featured }))}
+                      className="mt-1 h-4 w-4 accent-[#7b2233]"
+                    />
+                    <span>
+                      <span className="block font-ui text-[13px] text-ink">{option.title}</span>
+                      <span className="block font-ui text-[11px] text-muted">{option.text}</span>
+                    </span>
+                  </label>
+                ))}
+                <label className="flex items-center gap-3 pt-1 font-ui text-[13px] text-ink">
+                  <input
+                    type="checkbox"
+                    checked={draft.trending}
+                    onChange={(event) =>
+                      setDraft((current) => ({ ...current, trending: event.target.checked }))
+                    }
+                    className="h-4 w-4 accent-[#7b2233]"
+                  />
+                  Həmçinin «Çox oxunanlar» siyahısında göstər
+                </label>
+              </fieldset>
+
+              <div className="border-t border-line pt-4">
+                <p className="font-ui text-[11px] uppercase tracking-[0.14em] text-muted">
+                  Dərc olunanda görünəcək
+                </p>
+                <ul className="mt-2 space-y-1 font-ui text-[12px] text-ink-soft">
+                  {placementSummary.map((line) => (
+                    <li key={line}>• {line}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </Panel>
+
+          <Panel title="Dərc">
+            <div className="space-y-5">
+              <Field label="Dərc tarixi" hint="«Dərc et» basanda avtomatik bu günə qoyulur.">
                 <input
                   type="date"
                   value={draft.publishedAt.slice(0, 10)}
@@ -661,7 +761,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
 
               <Field
                 label="Planlaşdırılmış dərc"
-                hint="Gələcək tarix-vaxt seçsəniz, məqalə avtomatik dərc ediləcək."
+                hint="Gələcək vaxt seçib «Planlaşdır» basın — məqalə həmin vaxt avtomatik dərc olunur."
               >
                 <input
                   type="datetime-local"
@@ -674,11 +774,6 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                   }
                   className={inputClass}
                 />
-                {draft.scheduledAt && new Date(draft.scheduledAt) > new Date() && (
-                  <p className="mt-1 font-ui text-[11px] text-gold-soft">
-                    ⏰ Planlaşdırılıb: {new Date(draft.scheduledAt).toLocaleString("az-AZ")}
-                  </p>
-                )}
               </Field>
 
               <Field label="Müəllif">
@@ -692,7 +787,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                 />
               </Field>
 
-              <Field label="Oxu müddəti" hint="0 yazsanız mətnə görə avtomatik hesablanır.">
+              <Field label="Oxu müddəti (dəq.)" hint="0 yazsanız mətnə görə avtomatik hesablanır.">
                 <input
                   type="number"
                   min={0}
@@ -706,32 +801,6 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                   className={inputClass}
                 />
               </Field>
-
-              <div className="space-y-3 border-t border-line pt-5">
-                <label className="flex items-center gap-3 font-ui text-[13px] text-ink">
-                  <input
-                    type="checkbox"
-                    checked={draft.featured}
-                    onChange={(event) =>
-                      setDraft((current) => ({ ...current, featured: event.target.checked }))
-                    }
-                    className="h-4 w-4 accent-[#7b2233]"
-                  />
-                  Ana səhifənin baş məqaləsi
-                </label>
-
-                <label className="flex items-center gap-3 font-ui text-[13px] text-ink">
-                  <input
-                    type="checkbox"
-                    checked={draft.trending}
-                    onChange={(event) =>
-                      setDraft((current) => ({ ...current, trending: event.target.checked }))
-                    }
-                    className="h-4 w-4 accent-[#7b2233]"
-                  />
-                  «Çox oxunanlar» siyahısında
-                </label>
-              </div>
             </div>
           </Panel>
 
@@ -868,63 +937,51 @@ export default function ArticleEditor({ article }: { article?: Article }) {
           )}
         </div>
 
-        {/* Status Selection */}
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="flex-1 min-w-[200px]">
-            <label className="block font-ui text-[11px] uppercase tracking-[0.14em] text-muted mb-2">
-              Dərc seçimi
-            </label>
-            <select
-              value={draft.status}
-              onChange={(e) => setDraft({ ...draft, status: e.target.value as ArticleStatus })}
-              className="w-full rounded border border-line px-4 py-2.5 font-ui text-sm focus:border-bordo focus:outline-none"
-            >
-              <option value="draft">📝 Qaralama</option>
-              <option value="scheduled">⏰ Planlaşdırılmış</option>
-            </select>
-          </div>
-
+        {/* Əməliyyat düymələri — status həmin düymələrlə təyin olunur (ayrıca select yoxdur) */}
+        <div className="flex flex-wrap items-end gap-3">
           {draft.status === "scheduled" && (
             <div className="flex-1 min-w-[200px]">
-              <label className="block font-ui text-[11px] uppercase tracking-[0.14em] text-muted mb-2">
-                Dərc tarixi və vaxtı
-              </label>
-              <input
-                type="datetime-local"
-                value={draft.scheduledAt ?? ""}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    scheduledAt: event.target.value || undefined,
-                  }))
-                }
-                className="w-full rounded border border-line px-4 py-2.5 font-ui text-sm focus:border-bordo focus:outline-none"
-              />
+              <p className="font-ui text-[11px] uppercase tracking-[0.14em] text-muted">
+                Planlaşdırılmış dərc tarixi yuxarıdakı «Dərc tarixi» bölməsində seçilir
+              </p>
+              <p className="mt-1 font-ui text-xs text-muted">
+                {draft.scheduledAt
+                  ? `Dərc ediləcək vaxt: ${new Date(draft.scheduledAt).toLocaleString("az-AZ")}`
+                  : "Tarix seçilməyib"}
+              </p>
             </div>
           )}
 
-          <div className="flex gap-3 ml-auto">
-            <Button 
-              variant="ghost" 
-              onClick={() => router.back()} 
-              disabled={busy}
-            >
+          <div className="flex flex-wrap gap-3 ml-auto">
+            <Button variant="ghost" onClick={() => router.back()} disabled={busy}>
               Ləğv et
             </Button>
-            <Button variant="ghost" onClick={() => void handleSave("draft")} disabled={busy}>
-              Qaralama saxla
+            <Button
+              variant="ghost"
+              onClick={() => {
+                if (
+                  isLive &&
+                  !window.confirm("Məqalə saytdan çıxarılıb qaralamaya keçiriləcək. Davam edilsin?")
+                ) {
+                  return;
+                }
+                void handleSave("draft");
+              }}
+              disabled={busy}
+            >
+              {isLive ? "Dərcdən çıxar" : "Qaralama saxla"}
             </Button>
-            {draft.status === "scheduled" && (
-              <Button 
-                variant="ghost" 
-                onClick={() => void handleSave("scheduled")} 
-                disabled={busy || !draft.scheduledAt}
+            {draft.scheduledAt && new Date(draft.scheduledAt) > new Date() && (
+              <Button
+                variant="ghost"
+                onClick={() => void handleSave("scheduled")}
+                disabled={busy}
               >
                 {busy ? "Saxlanılır…" : "Planlaşdır"}
               </Button>
             )}
             <Button onClick={() => void handleSave("published")} disabled={busy}>
-              {busy ? "Saxlanılır…" : "Dərc et"}
+              {busy ? "Saxlanılır…" : isLive ? "Yenilə" : "Dərc et"}
             </Button>
           </div>
         </div>

@@ -16,6 +16,7 @@ import type {
   OptimizationTip,
 } from "@/lib/types";
 import { useAuth } from "@/lib/firebase/auth";
+import { siteUrl } from "@/lib/firebase/config";
 
 export default function PerformanceMonitorPage() {
   const { user } = useAuth();
@@ -26,6 +27,7 @@ export default function PerformanceMonitorPage() {
   const [isTesting, setIsTesting] = useState(false);
   const [testUrl, setTestUrl] = useState("/");
   const [testDevice, setTestDevice] = useState<"desktop" | "mobile">("desktop");
+  const [testError, setTestError] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -54,12 +56,16 @@ export default function PerformanceMonitorPage() {
     if (!testUrl.trim()) return;
 
     setIsTesting(true);
+    setTestError(null);
     try {
-      await testPagePerformance(testUrl, testUrl, testDevice);
+      const raw = testUrl.trim();
+      const fullUrl = /^https?:\/\//i.test(raw)
+        ? raw
+        : `${siteUrl}${raw.startsWith("/") ? "" : "/"}${raw}`;
+      await testPagePerformance(fullUrl, raw, testDevice);
       await loadData();
-      alert("Test tamamlandı!");
-    } catch (error) {
-      alert("Test uğursuz oldu");
+    } catch (error: any) {
+      setTestError(error?.message || "Test uğursuz oldu");
     } finally {
       setIsTesting(false);
     }
@@ -141,6 +147,17 @@ export default function PerformanceMonitorPage() {
         </div>
       </div>
 
+      <p className="text-xs text-muted-foreground">
+        Nəticələr Google PageSpeed Insights vasitəsilə real ölçülür (bir test 20-60 saniyə çəkə bilər).
+        Yalnız ictimai əlçatan ünvanlar test edilə bilər; &quot;FID&quot; sahəsində laboratoriya testində
+        ölçülən Total Blocking Time (TBT) göstərilir.
+      </p>
+      {testError && (
+        <div className="p-3 border border-red-300 bg-red-50 text-red-700 rounded-lg text-sm">
+          {testError}
+        </div>
+      )}
+
       {/* Summary Stats */}
       {summary && (
         <>
@@ -197,11 +214,11 @@ export default function PerformanceMonitorPage() {
               </div>
 
               <div className="text-center">
-                <div className="text-sm text-muted-foreground mb-2">FID</div>
+                <div className="text-sm text-muted-foreground mb-2">TBT</div>
                 <div className="text-2xl font-bold">
                   {summary.averageWebVitals.fid.toFixed(0)}ms
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">First Input Delay</div>
+                <div className="text-xs text-muted-foreground mt-1">Total Blocking Time</div>
               </div>
 
               <div className="text-center">
@@ -351,7 +368,7 @@ export default function PerformanceMonitorPage() {
                     LCP: {(test.webVitals.lcp / 1000).toFixed(2)}s
                   </span>
                   <span className={`px-2 py-1 rounded ${getRatingColor(test.webVitals.fidRating)}`}>
-                    FID: {test.webVitals.fid}ms
+                    TBT: {test.webVitals.fid}ms
                   </span>
                   <span className={`px-2 py-1 rounded ${getRatingColor(test.webVitals.clsRating)}`}>
                     CLS: {test.webVitals.cls.toFixed(3)}

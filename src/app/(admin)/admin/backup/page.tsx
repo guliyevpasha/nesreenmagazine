@@ -5,12 +5,12 @@ import {
   listDatabaseBackups,
   listBackupSchedules,
   getBackupStats,
-  createManualBackup,
+  exportBackupSnapshot,
+  BACKUP_EXPORT_COLLECTIONS,
   deleteBackup,
   createBackupSchedule,
   deleteBackupSchedule,
   toggleBackupSchedule,
-  startRestore,
   exportCollectionData,
 } from "@/lib/data/admin";
 import type { DatabaseBackup, BackupSchedule, BackupStats } from "@/lib/types";
@@ -26,8 +26,7 @@ export default function BackupRestorePage() {
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
   const [showNewScheduleDialog, setShowNewScheduleDialog] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
-  const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
-  const [backupName, setBackupName] = useState("");
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
 
   const availableCollections = Object.values(COLLECTIONS);
 
@@ -54,21 +53,39 @@ export default function BackupRestorePage() {
     }
   }
 
-  async function handleCreateBackup() {
-    if (!user || selectedCollections.length === 0 || !backupName.trim()) {
-      alert("Zəhmət olmasa bütün sahələri doldurun");
-      return;
-    }
-
+  async function handleExportAll() {
     setIsCreatingBackup(true);
+    setExportMessage(null);
     try {
-      await createManualBackup(selectedCollections, backupName, user.uid);
-      setBackupName("");
-      setSelectedCollections([]);
-      await loadData();
-      alert("Backup uğurla yaradıldı!");
-    } catch (error) {
-      alert("Backup yaradıla bilmədi");
+      const { data, counts, errors } = await exportBackupSnapshot();
+      const failed = Object.keys(errors);
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        exportedBy: user?.email ?? null,
+        counts,
+        errors,
+        collections: data,
+      };
+      const json = JSON.stringify(payload, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `nesreen-ixrac-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
+      setExportMessage(
+        failed.length === 0
+          ? `Fayl yükləndi: ${total} sənəd, ${Object.keys(counts).length} kolleksiya.`
+          : `Fayl yükləndi (${total} sənəd), lakin bu kolleksiyalar oxuna bilmədi: ${failed
+              .map((k) => `${k} (${errors[k]})`)
+              .join(", ")}`
+      );
+    } catch (error: any) {
+      setExportMessage(`İxrac uğursuz oldu: ${error?.message || "naməlum xəta"}`);
     } finally {
       setIsCreatingBackup(false);
     }
@@ -82,24 +99,6 @@ export default function BackupRestorePage() {
       await loadData();
     } catch (error) {
       alert("Backup silinə bilmədi");
-    }
-  }
-
-  async function handleRestore(backupId: string) {
-    if (!user) return;
-    if (!confirm("Bu backup-dan restore etmək istədiyinizə əminsiniz? Mövcud data əvəz olunacaq!")) {
-      return;
-    }
-
-    try {
-      const backup = backups.find((b) => b.id === backupId);
-      if (!backup) return;
-
-      await startRestore(backupId, backup.collections, user.uid);
-      alert("Restore prosesi başladı. Bu bir neçə dəqiqə çəkə bilər.");
-      await loadData();
-    } catch (error: any) {
-      alert(error.message || "Restore uğursuz oldu");
     }
   }
 
@@ -169,7 +168,7 @@ export default function BackupRestorePage() {
         <div>
           <h1 className="text-3xl font-bold">Backup & Restore</h1>
           <p className="text-muted-foreground">
-            Database yedəkləmə və bərpa sistemi
+            Məlumatların yedək nüsxəsi (JSON ixracı)
           </p>
         </div>
 
@@ -182,7 +181,9 @@ export default function BackupRestorePage() {
           </button>
           <button
             onClick={() => setShowNewScheduleDialog(true)}
-            className="px-4 py-2 bg-secondary text-primary rounded-lg hover:bg-secondary/80"
+            disabled
+            title="Avtomatik yedəkləmə hələ qoşulmayıb"
+            className="px-4 py-2 bg-secondary text-primary rounded-lg opacity-50 cursor-not-allowed"
           >
             ⏰ Schedule
           </button>
@@ -232,68 +233,26 @@ export default function BackupRestorePage() {
         </div>
       )}
 
-      {/* Create Backup Form */}
+      {/* JSON ixracı */}
       <div className="border rounded-lg p-6">
-        <h2 className="text-xl font-bold mb-4">🔄 Yeni Backup Yarat</h2>
-        
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Backup Adı</label>
-            <input
-              type="text"
-              placeholder="Məs: Günlük Backup 2026-10-15"
-              value={backupName}
-              onChange={(e) => setBackupName(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Kolleksiyalar ({selectedCollections.length} seçildi)
-            </label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-48 overflow-y-auto border rounded-lg p-3">
-              <button
-                onClick={() => {
-                  if (selectedCollections.length === availableCollections.length) {
-                    setSelectedCollections([]);
-                  } else {
-                    setSelectedCollections([...availableCollections]);
-                  }
-                }}
-                className="col-span-full px-3 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200"
-              >
-                {selectedCollections.length === availableCollections.length
-                  ? "Heç birini seçmə"
-                  : "Hamısını seç"}
-              </button>
-              {availableCollections.map((col) => (
-                <label key={col} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 p-2 rounded">
-                  <input
-                    type="checkbox"
-                    checked={selectedCollections.includes(col)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedCollections([...selectedCollections, col]);
-                      } else {
-                        setSelectedCollections(selectedCollections.filter((c) => c !== col));
-                      }
-                    }}
-                  />
-                  <span className="truncate">{col}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <button
-            onClick={handleCreateBackup}
-            disabled={isCreatingBackup || selectedCollections.length === 0 || !backupName.trim()}
-            className="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50"
-          >
-            {isCreatingBackup ? "Yaradılır..." : "💾 Backup Yarat"}
-          </button>
-        </div>
+        <h2 className="text-xl font-bold mb-2">Məlumatların JSON ixracı</h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Əsas kolleksiyalar ({BACKUP_EXPORT_COLLECTIONS.join(", ")}) sizin hesabın icazələri
+          daxilində oxunur və bir .json fayl kimi kompüterinizə yüklənir. Fayl serverdə
+          saxlanılmır.
+        </p>
+        <button
+          onClick={handleExportAll}
+          disabled={isCreatingBackup}
+          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50"
+        >
+          {isCreatingBackup ? "Hazırlanır..." : "JSON ixrac et"}
+        </button>
+        {exportMessage && <p className="text-sm mt-3">{exportMessage}</p>}
+        <p className="text-xs text-muted-foreground mt-4 border-t pt-3">
+          Bərpa əməliyyatı yalnız texniki dəstək vasitəsilə aparılır. Planlaşdırılmış avtomatik
+          yedəkləmə hələ qoşulmayıb; aşağıdakı qeydlər yalnız əvvəlki yazılardır.
+        </p>
       </div>
 
       {/* Backup Schedules */}
@@ -410,12 +369,6 @@ export default function BackupRestorePage() {
 
                   {backup.status === "completed" && (
                     <div className="flex gap-2 ml-4">
-                      <button
-                        onClick={() => handleRestore(backup.id)}
-                        className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-                      >
-                        ↩️ Restore
-                      </button>
                       <button
                         onClick={() => handleDeleteBackup(backup.id)}
                         className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"

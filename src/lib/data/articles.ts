@@ -7,6 +7,8 @@ import {
   type Firestore,
 } from "firebase/firestore";
 
+import { cache } from "react";
+
 import type { CategorySlug } from "@/lib/categories";
 import { seedArticles } from "@/lib/content";
 import { COLLECTIONS, isFirebaseConfigured } from "@/lib/firebase/config";
@@ -23,7 +25,7 @@ import { logger } from "@/lib/logger";
  */
 
 function sortByDateDesc(articles: Article[]): Article[] {
-  return [...articles].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+  return [...articles].sort((a, b) => (b.publishedAt ?? "").localeCompare(a.publishedAt ?? ""));
 }
 
 function publishedSeed(): Article[] {
@@ -48,8 +50,10 @@ async function fetchFromFirestore(db: Firestore): Promise<Article[]> {
   return articles;
 }
 
-/** Dərc olunmuş bütün məqalələr, tarixə görə yenidən köhnəyə. */
-export async function getAllArticles(): Promise<Article[]> {
+/** Dərc olunmuş bütün məqalələr, tarixə görə yenidən köhnəyə. Sorğu başına bir dəfə oxunur (React cache). */
+export const getAllArticles = cache(loadAllArticles);
+
+async function loadAllArticles(): Promise<Article[]> {
   if (!isFirebaseConfigured) return publishedSeed();
 
   const db = getDb();
@@ -85,60 +89,62 @@ export async function getArticlesBySubcategory(
   return typeof limit === "number" ? articles.slice(0, limit) : articles;
 }
 
-export async function getArticleBySlug(slug: string, locale: string = "az"): Promise<Article | null> {
-  // Admin paneldən fərqli olaraq, saytda BÜTÜN məqalələri yoxlayırıq
-  // (draft, scheduled, published) və sonra səhifədə status yoxlayırıq
-  if (!isFirebaseConfigured) {
-    return seedArticles.find((article) => {
-      // Köhnə format - string slug
-      if (typeof article.slug === "string") {
-        return article.slug === slug;
-      }
-      // Yeni format - LocalizedText slug
-      return article.slug?.[locale as keyof typeof article.slug] === slug;
-    }) ?? null;
-  }
+/** Məqalənin `slug` sahəsi verilmiş dəyərə uyğundurmu (köhnə string və ya 5 dilli obyekt). */
+function matchesSlug(article: Article, slug: string, locale: string): boolean {
+  if (typeof article.slug === "string") return article.slug === slug;
+  const slugs = article.slug as Record<string, string | undefined> | undefined;
+  if (!slugs) return false;
+  // Əvvəl həmin dilin slug-ı, sonra digər dillər (linklər AZ slug-a fallback edir)
+  return slugs[locale] === slug || Object.values(slugs).includes(slug);
+}
+
+function findSeedBySlug(slug: string, locale: string): Article | null {
+  return seedArticles.find((article) => matchesSlug(article, slug, locale)) ?? null;
+}
+
+/**
+ * Saytda göstəriləcək DƏRC OLUNMUŞ məqaləni slug-a görə tapır.
+ *
+ * Vacib: Firestore qaydaları anonim oxucuya yalnız `status == "published"`
+ * sənədləri oxumağa icazə verir. Sorğuda bu filtr olmasa, Firestore bütün
+ * sorğunu rədd edir və məqalə «tapılmır» (əvvəlki «Tezliklə» xətası).
+ */
+// React cache: generateMetadata və səhifə eyni sorğunu bir dəfə işlədir
+export const getArticleBySlug = cache(findPublishedArticleBySlug);
+
+async function findPublishedArticleBySlug(slug: string, locale: string = "az"): Promise<Article | null> {
+  if (!isFirebaseConfigured) return findSeedBySlug(slug, locale);
 
   const db = getDb();
-  if (!db) {
-    return seedArticles.find((article) => {
-      if (typeof article.slug === "string") {
-        return article.slug === slug;
-      }
-      return article.slug?.[locale as keyof typeof article.slug] === slug;
-    }) ?? null;
-  }
+  if (!db) return findSeedBySlug(slug, locale);
+
+  const articles = collection(db, COLLECTIONS.articles);
+  const lookup = async (field: string): Promise<Article | null> => {
+    const snapshot = await getDocs(
+      query(articles, where("status", "==", "published"), where(field, "==", slug)),
+    );
+    const doc = snapshot.docs[0];
+    return doc ? { ...(doc.data() as Omit<Article, "id">), id: doc.id } : null;
+  };
 
   try {
-    // Firestore-da `slug.az`, `slug.en` kimi field-lərdə axtarış
-    const fieldPath = `slug.${locale}`;
-    const snapshot = await getDocs(
-      query(
-        collection(db, COLLECTIONS.articles),
-        where(fieldPath, "==", slug),
-      ),
-    );
-    
-    if (snapshot.empty) {
-      // Firestore-da yoxdursa seed-də yoxlayırıq
-      return seedArticles.find((article) => {
-        if (typeof article.slug === "string") {
-          return article.slug === slug;
-        }
-        return article.slug?.[locale as keyof typeof article.slug] === slug;
-      }) ?? null;
-    }
-    
-    const doc = snapshot.docs[0];
-    return { ...(doc.data() as Omit<Article, "id">), id: doc.id };
+    // 1) Adi hal: həmin dilin slug-ı — tək sorğu
+    const direct = await lookup(`slug.${locale}`);
+    if (direct) return direct;
+
+    // 2) Fallback: digər dillərin slug-ı və köhnə string slug — paralel
+    const fallbackFields = [
+      ...["az", "en", "ru", "tr", "ar"].filter((code) => code !== locale).map((code) => `slug.${code}`),
+      "slug",
+    ];
+    const results = await Promise.all(fallbackFields.map(lookup));
+    const found = results.find((article): article is Article => article !== null);
+    if (found) return found;
+
+    return findSeedBySlug(slug, locale);
   } catch (error) {
     logger.error("Məqalə oxumaq alınmadı, seed-ə baxılır:", error);
-    return seedArticles.find((article) => {
-      if (typeof article.slug === "string") {
-        return article.slug === slug;
-      }
-      return article.slug?.[locale as keyof typeof article.slug] === slug;
-    }) ?? null;
+    return findSeedBySlug(slug, locale);
   }
 }
 

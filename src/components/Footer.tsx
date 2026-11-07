@@ -7,7 +7,7 @@ import Logo from "@/components/Logo";
 import NewsletterForm from "@/components/NewsletterForm";
 import { AGENCY } from "@/lib/agency";
 import { categories } from "@/lib/categories";
-import type { Locale } from "@/lib/i18n/config";
+import { formatDate, type Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { routes } from "@/lib/routes";
 
@@ -19,9 +19,13 @@ const SOCIAL = [
   },
 ];
 
+// Hüquqi mətnlərin son yenilənmə tarixi (sabit — hidrasiya uyğunsuzluğunun qarşısını alır)
+const LEGAL_UPDATED = "2026-11-07";
+
 export default function Footer({ locale }: { locale: Locale }) {
   const dict = getDictionary(locale);
   const year = new Date().getFullYear();
+  const legalUpdated = formatDate(LEGAL_UPDATED, locale);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
 
@@ -172,32 +176,28 @@ export default function Footer({ locale }: { locale: Locale }) {
               <button 
                 onClick={() => setShowPrivacy(false)}
                 className="text-muted hover:text-bordo text-2xl w-8 h-8 flex items-center justify-center"
-                aria-label="Bağla"
+                aria-label={dict.nav.close}
               >
                 ×
               </button>
             </div>
             <div className="p-6 text-sm text-ink-soft leading-relaxed">
-              <p className="mb-4">
-                Bu məxfilik siyasəti Nesreen Magazine saytında şəxsi məlumatlarınızın necə toplandığı və istifadə edildiyi barədə məlumat verir.
-              </p>
-              <h3 className="font-semibold mb-2 text-ink">Topladığımız məlumatlar:</h3>
-              <ul className="list-disc pl-6 mb-4 space-y-1">
-                <li>Newsletter abunəliyi üçün e-poçt ünvanı</li>
-                <li>Əlaqə formu vasitəsilə göndərilən şəxsi məlumatlar</li>
-                <li>Sayt istifadəsi haqqında analitik məlumatlar</li>
+              <p className="mb-4">{dict.legal.privacyIntro}</p>
+              <h3 className="font-semibold mb-2 text-ink">{dict.legal.privacyCollectTitle}</h3>
+              <ul className="list-disc ps-6 mb-4 space-y-1">
+                {dict.legal.privacyCollect.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
               </ul>
-              <h3 className="font-semibold mb-2 text-ink">Məlumatların istifadəsi:</h3>
-              <ul className="list-disc pl-6 mb-4 space-y-1">
-                <li>Newsletter göndərmək üçün</li>
-                <li>Sorğularınıza cavab vermək üçün</li>
-                <li>Sayt performansını təkmilləşdirmək üçün</li>
+              <h3 className="font-semibold mb-2 text-ink">{dict.legal.privacyUseTitle}</h3>
+              <ul className="list-disc ps-6 mb-4 space-y-1">
+                {dict.legal.privacyUse.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
               </ul>
-              <p className="mb-4">
-                Şəxsi məlumatlarınız üçüncü tərəflərə satılmır və ya paylaşılmır. İstədiyiniz zaman newsletter abunəliyindən çıxa bilərsiniz.
-              </p>
+              <p className="mb-4">{dict.legal.privacyNote}</p>
               <p className="text-xs text-muted">
-                Son yenilənmə: {new Date().toLocaleDateString(locale === 'az' ? 'az-AZ' : locale)}
+                {dict.legal.lastUpdated} {legalUpdated}
               </p>
             </div>
           </div>
@@ -213,33 +213,29 @@ export default function Footer({ locale }: { locale: Locale }) {
               <button 
                 onClick={() => setShowTerms(false)}
                 className="text-muted hover:text-bordo text-2xl w-8 h-8 flex items-center justify-center"
-                aria-label="Bağla"
+                aria-label={dict.nav.close}
               >
                 ×
               </button>
             </div>
             <div className="p-6 text-sm text-ink-soft leading-relaxed">
-              <p className="mb-4">
-                Bu istifadə şərtləri Nesreen Magazine saytından istifadə qaydalarını müəyyən edir.
-              </p>
-              <h3 className="font-semibold mb-2 text-ink">İstifadə qaydaları:</h3>
-              <ul className="list-disc pl-6 mb-4 space-y-1">
-                <li>Sayt məzmunu yalnız şəxsi istifadə üçündir</li>
-                <li>Məqalələri icazəsiz kopyalamaq qadağandır</li>
-                <li>Saytda təhqiredici və ya qanunuzə zidd məzmun paylaşmaq olmaz</li>
+              <p className="mb-4">{dict.legal.termsIntro}</p>
+              <h3 className="font-semibold mb-2 text-ink">{dict.legal.termsRulesTitle}</h3>
+              <ul className="list-disc ps-6 mb-4 space-y-1">
+                {dict.legal.termsRules.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
               </ul>
-              <h3 className="font-semibold mb-2 text-ink">Məsuliyyət:</h3>
-              <ul className="list-disc pl-6 mb-4 space-y-1">
-                <li>Sayt məzmunu "olduğu kimi" təqdim edilir</li>
-                <li>Məlumatların dəqiqliyinə zəmanət verilmir</li>
-                <li>İstifadəçilər öz riskləri ilə saytdan istifadə edirlər</li>
+              <h3 className="font-semibold mb-2 text-ink">{dict.legal.termsLiabilityTitle}</h3>
+              <ul className="list-disc ps-6 mb-4 space-y-1">
+                {dict.legal.termsLiability.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
               </ul>
-              <h3 className="font-semibold mb-2 text-ink">Müəlliflik hüquqları:</h3>
-              <p className="mb-4">
-                Saytdakı bütün məzmun Nesreen Magazine-ə məxsusdur və müəlliflik hüquqları ilə qorunur.
-              </p>
+              <h3 className="font-semibold mb-2 text-ink">{dict.legal.termsCopyrightTitle}</h3>
+              <p className="mb-4">{dict.legal.termsCopyright}</p>
               <p className="text-xs text-muted">
-                Son yenilənmə: {new Date().toLocaleDateString(locale === 'az' ? 'az-AZ' : locale)}
+                {dict.legal.lastUpdated} {legalUpdated}
               </p>
             </div>
           </div>

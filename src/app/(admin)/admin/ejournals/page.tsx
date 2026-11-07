@@ -23,7 +23,7 @@ import {
   getEjournalStats,
   getEjournalDetailStats,
 } from "@/lib/data/admin";
-import { useAuth } from "@/lib/firebase/auth";
+import { isAdmin, useAuth } from "@/lib/firebase/auth";
 import { locales, type Locale } from "@/lib/i18n/config";
 import { emptyLocalized, type Ejournal, type EjournalInput, type EjournalStats } from "@/lib/types";
 
@@ -54,22 +54,27 @@ export default function EjournalsPage() {
     null,
   );
 
-  async function refresh() {
-    try {
-      const [issuesData, statsData] = await Promise.all([
-        listEjournals(),
-        getEjournalStats(),
-      ]);
-      setIssues(issuesData);
-      setStats(statsData);
+  const canDelete = isAdmin(session);
 
-      // Load stats for each issue
-      const statsPromises = issuesData.map(async (issue) => {
-        const detailStats = await getEjournalDetailStats(issue.id);
-        return [issue.id, detailStats] as const;
+  async function handleRemove(id: string) {
+    if (!window.confirm("Nömrə silinsin?")) return;
+    try {
+      await removeEjournal(id);
+      await refresh();
+    } catch (caught) {
+      setMessage({
+        tone: "error",
+        text: caught instanceof Error ? caught.message : "Nömrə silinmədi.",
       });
-      const statsEntries = await Promise.all(statsPromises);
-      setIssueStats(Object.fromEntries(statsEntries));
+    }
+  }
+
+  async function refresh() {
+    // Nömrələr statistikadan asılı olmadan yüklənir
+    let issuesData: Ejournal[] = [];
+    try {
+      issuesData = await listEjournals();
+      setIssues(issuesData);
     } catch (caught) {
       setMessage({
         tone: "error",
@@ -77,7 +82,27 @@ export default function EjournalsPage() {
       });
       setIssues([]);
       setStats(null);
+      return;
     }
+
+    // Statistika uğursuz olsa belə siyahı qalır
+    try {
+      setStats(await getEjournalStats());
+    } catch {
+      setStats(null);
+    }
+
+    const entries = await Promise.allSettled(
+      issuesData.map(async (issue) => {
+        const detailStats = await getEjournalDetailStats(issue.id);
+        return [issue.id, detailStats] as const;
+      }),
+    );
+    setIssueStats(
+      Object.fromEntries(
+        entries.flatMap((entry) => (entry.status === "fulfilled" ? [entry.value] : [])),
+      ),
+    );
   }
 
   useEffect(() => {
@@ -371,16 +396,11 @@ export default function EjournalsPage() {
                             >
                               {issue.status === "published" ? "Gizlət" : "Dərc et"}
                             </Button>
-                            <Button
-                              variant="danger"
-                              onClick={() => {
-                                if (window.confirm("Nömrə silinsin?")) {
-                                  void removeEjournal(issue.id).then(refresh);
-                                }
-                              }}
-                            >
-                              Sil
-                            </Button>
+                            {canDelete && (
+                              <Button variant="danger" onClick={() => void handleRemove(issue.id)}>
+                                Sil
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </li>

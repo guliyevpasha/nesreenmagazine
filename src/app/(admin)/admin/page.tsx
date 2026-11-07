@@ -113,16 +113,21 @@ export default function AdminDashboard() {
 
   async function loadDashboardData() {
     try {
-      console.log("Loading dashboard data...");
-      
+      // Yalnız rolun oxuya bildiyi məlumatlar sorğulanır
+      const role = session?.role;
+      const canReadOrders = role === "admin" || role === "sales" || role === "finance";
+      const canReadSubscribers = role === "admin" || role === "analyst" || role === "moderator";
+
       const [articles, subscribers, adOrders, analyticsStats] = await Promise.all([
         listArticles().catch(err => { console.error("Articles error:", err); return []; }),
-        countSubscribers().catch(err => { console.error("Subscribers error:", err); return 0; }),
-        listAdOrders().catch(err => { console.error("AdOrders error:", err); return []; }),
+        canReadSubscribers
+          ? countSubscribers().catch(err => { console.error("Subscribers error:", err); return 0; })
+          : Promise.resolve(0),
+        canReadOrders
+          ? listAdOrders().catch(err => { console.error("AdOrders error:", err); return []; })
+          : Promise.resolve([]),
         getOverallStats().catch(err => { console.error("Analytics error:", err); return { totalViews: 0 }; }),
       ]);
-
-      console.log("Data loaded:", { articles: articles.length, subscribers, analyticsStats });
 
       const published = articles.filter((a) => a.status === "published");
       const drafts = articles.filter((a) => a.status === "draft");
@@ -292,26 +297,18 @@ export default function AdminDashboard() {
           <StatCard
             label="Ümumi məqalələr"
             value={displayStats.totalArticles.toLocaleString()}
-            change="+12%"
-            isPositive={true}
           />
           <StatCard
             label="Baxışlar"
             value={displayStats.pageViews.toLocaleString()}
-            change="+8.2%"
-            isPositive={true}
           />
           <StatCard
-            label="Aktiv istifadəçilər"
-            value={(displayStats.pageViews / 3).toFixed(0)}
-            change="+5.4%"
-            isPositive={true}
+            label="Qaralamalar"
+            value={displayStats.draftArticles.toLocaleString()}
           />
           <StatCard
             label="Yayımlanmış"
             value={displayStats.publishedArticles.toLocaleString()}
-            change="+15"
-            isPositive={true}
           />
         </div>
 
@@ -353,10 +350,12 @@ export default function AdminDashboard() {
           {/* Sağ sidebar - 4 sütun */}
           <div className="space-y-6 lg:col-span-4">
             <CategoriesPanel articles={displayStats.articles} />
-            <TrendingTags />
+            <TrendingTags articles={displayStats.articles} />
             <StaffPanel />
             <RecentEditsPanel articles={displayStats.articles} />
-            <SubscribersPanel count={displayStats.subscribers} />
+            {(session?.role === "admin" || session?.role === "analyst" || session?.role === "moderator") && (
+              <SubscribersPanel count={displayStats.subscribers} />
+            )}
             <QuickActionsPanel />
           </div>
         </div>
@@ -460,8 +459,6 @@ function FeaturedSection({
               </h4>
               <div className="mt-2 flex items-center gap-2 font-ui text-[10px] text-muted">
                 <span>{new Date(article.publishedAt).toLocaleDateString("az-AZ")}</span>
-                <span>·</span>
-                <span>👁 {Math.floor(Math.random() * 1000) + 100}</span>
               </div>
             </Link>
           );
@@ -701,24 +698,32 @@ function QuickActionsPanel() {
   );
 }
 
-function TrendingTags() {
-  // Top keywords/tags - real data from SEO analytics
-  const trendingTags = [
-    { tag: "moda", count: 245, trend: "+12%" },
-    { tag: "gözəllik", count: 189, trend: "+8%" },
-    { tag: "saç düzümü", count: 156, trend: "+15%" },
-    { tag: "makeup", count: 134, trend: "+6%" },
-    { tag: "dəri baxımı", count: 128, trend: "+10%" },
-    { tag: "moda trendi", count: 98, trend: "+22%" },
-  ];
+function TrendingTags({ articles }: { articles: Article[] }) {
+  // Dərc olunmuş məqalələrin AZ etiketlərindən real say (uydurma rəqəm yoxdur)
+  const counts = new Map<string, number>();
+  for (const article of articles) {
+    if (article.status !== "published") continue;
+    const tags = Array.isArray(article.tags) ? article.tags : article.tags?.az ?? [];
+    for (const tag of tags) {
+      const key = String(tag).trim().toLowerCase();
+      if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+  }
+  const trendingTags = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([tag, count]) => ({ tag, count, trend: "" }));
 
   return (
     <div className="border border-line bg-paper p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-display text-[15px] text-ink">Trending Etiketlər</h3>
-        <span className="font-ui text-[10px] uppercase tracking-wider text-muted">Bu ay</span>
+        <h3 className="font-display text-[15px] text-ink">Ən çox işlənən etiketlər</h3>
+        <span className="font-ui text-[10px] uppercase tracking-wider text-muted">məqalə sayı</span>
       </div>
       <div className="space-y-2">
+        {trendingTags.length === 0 && (
+          <p className="font-ui text-[12px] text-muted">Hələ etiket yoxdur.</p>
+        )}
         {trendingTags.map((item) => (
           <div key={item.tag} className="flex items-center justify-between py-1.5">
             <div className="flex items-center gap-2">
@@ -726,7 +731,6 @@ function TrendingTags() {
             </div>
             <div className="flex items-center gap-2">
               <span className="font-ui text-[11px] text-muted">{item.count}</span>
-              <span className="font-ui text-[10px] text-green-600">{item.trend}</span>
             </div>
           </div>
         ))}

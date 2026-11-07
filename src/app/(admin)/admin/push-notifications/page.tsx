@@ -8,7 +8,6 @@ import {
   createPushCampaign,
   updatePushCampaign,
   deletePushCampaign,
-  sendPushCampaign,
   getPushNotificationStats,
   listPushTemplates,
   createPushTemplate,
@@ -183,18 +182,6 @@ export default function PushNotificationsPage() {
     }
   }
 
-  async function handleSendCampaign(id: string) {
-    if (!confirm("Bu kampaniyanı indi göndərmək istədiyinizdən əminsiniz?")) return;
-    try {
-      await sendPushCampaign(id);
-      alert("Kampaniya göndərilir... (Backend job triggered)");
-      loadData();
-    } catch (err) {
-      console.error("Kampaniya göndərilmədi:", err);
-      alert("Xəta baş verdi");
-    }
-  }
-
   async function handleDeleteCampaign(id: string) {
     if (!confirm("Bu kampaniyanı silmək istədiyinizdən əminsiniz?")) return;
     try {
@@ -248,6 +235,11 @@ export default function PushNotificationsPage() {
         <p className="mt-2 text-gray-600">
           Web push kampaniyaları, şablonlar və statistika
         </p>
+      </div>
+
+      <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        Push göndərmə serveri hələ qoşulmayıb. Kampaniya qaralamaları və şablonlar saxlanıla bilər,
+        lakin bildirişlərin göndərilməsi hazırda mümkün deyil.
       </div>
 
       {/* Stats Dashboard */}
@@ -626,9 +618,9 @@ export default function PushNotificationsPage() {
                       {campaign.status === "draft" && (
                         <>
                           <button
-                            onClick={() => handleSendCampaign(campaign.id)}
-                            className="mr-2 text-green-600 hover:text-green-900"
-                            title="Göndər"
+                            disabled
+                            className="mr-2 text-gray-400 cursor-not-allowed"
+                            title="Push göndərmə serveri hələ qoşulmayıb"
                           >
                             📤
                           </button>

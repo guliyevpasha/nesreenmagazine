@@ -1,5 +1,6 @@
 "use client";
 
+import { uploadFormData } from "@/lib/upload-client";
 import { useEffect, useRef, useState } from "react";
 
 interface RichTextEditorProps {
@@ -57,6 +58,60 @@ export default function RichTextEditor({
       lastContentRef.current = newContent;
       onChange(newContent);
       updateCurrentFormat();
+    }
+  };
+
+  /**
+   * Yapışdırılan / sürüşdürülən şəkillər base64 kimi mətnə düşməsin
+   * (Firestore sənədi 1 MB limitlidir). Şəkil faylları Storage-a yüklənir,
+   * HTML içindəki data:image şəkilləri isə çıxarılır.
+   */
+  const insertUploadedImages = async (files: File[]) => {
+    setUploadingImage(true);
+    try {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("folder", "inline-images");
+        const response = await uploadFormData(formData);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Şəkil yüklənmədi");
+        const alt = file.name.replace(/\.[^.]+$/, "");
+        document.execCommand(
+          "insertHTML",
+          false,
+          `<img src="${data.url}" alt="${alt.replace(/"/g, "&quot;")}" style="max-width:100%;height:auto" /><br>`,
+        );
+      }
+      handleInput();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Şəkil yüklənmədi");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
+    const images = Array.from(event.clipboardData.files).filter((file) => file.type.startsWith("image/"));
+    if (images.length > 0) {
+      event.preventDefault();
+      void insertUploadedImages(images);
+      return;
+    }
+    const html = event.clipboardData.getData("text/html");
+    if (html && /<img[^>]+src=["']?data:/i.test(html)) {
+      event.preventDefault();
+      const cleaned = html.replace(/<img[^>]+src=["']?data:[^>]*>/gi, "");
+      document.execCommand("insertHTML", false, cleaned);
+      handleInput();
+    }
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    const images = Array.from(event.dataTransfer.files).filter((file) => file.type.startsWith("image/"));
+    if (images.length > 0) {
+      event.preventDefault();
+      void insertUploadedImages(images);
     }
   };
 
@@ -128,10 +183,7 @@ export default function RichTextEditor({
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
+      const response = await uploadFormData(formData);
 
       if (!response.ok) {
         // Response-u clone et ki, bir neçə dəfə oxuya biləsən
@@ -442,6 +494,8 @@ export default function RichTextEditor({
             ref={editorRef}
             contentEditable
             onInput={handleInput}
+            onPaste={handlePaste}
+            onDrop={handleDrop}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             onKeyUp={updateCurrentFormat}

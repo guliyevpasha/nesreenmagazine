@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Alert, Button, Empty, PageHeader, StatusPill } from "@/components/admin/ui";
 import { categories, getCategory, isCategorySlug } from "@/lib/categories";
 import { listArticles, removeArticle, saveArticle } from "@/lib/data/admin";
-import { isAdmin, useAuth } from "@/lib/firebase/auth";
+import { canEditCategory, isAdmin, useAuth } from "@/lib/firebase/auth";
 import { formatDate, locales, localeShort, type Locale } from "@/lib/i18n/config";
 import type { Article } from "@/lib/types";
 import { getArticleTitle, getArticleSlug, isArticleComplete } from "@/lib/article-helpers";
@@ -52,7 +52,15 @@ function ArticleStatusPill({ status }: { status: string }) {
 }
 
 /* ── Actions Menu ─────────────────────────────────────────────────────────── */
-function ArticleActionsMenu({ article, onDelete }: { article: Article; onDelete: () => void }) {
+function ArticleActionsMenu({
+  article,
+  onDelete,
+  canDelete,
+}: {
+  article: Article;
+  onDelete: () => void;
+  canDelete: boolean;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -128,13 +136,15 @@ function ArticleActionsMenu({ article, onDelete }: { article: Article; onDelete:
             >
               📋 Kopyala
             </button>
-            <button
-              onClick={handleDelete}
-              disabled={busy}
-              className="w-full px-4 py-2.5 text-left font-ui text-[12px] text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
-            >
-              🗑️ Sil
-            </button>
+            {canDelete && (
+              <button
+                onClick={handleDelete}
+                disabled={busy}
+                className="w-full px-4 py-2.5 text-left font-ui text-[12px] text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+              >
+                🗑️ Sil
+              </button>
+            )}
           </div>
         </>
       )}
@@ -167,12 +177,6 @@ export default function ArticlesListPage() {
   async function load() {
     try {
       const list = await listArticles();
-      console.log('📊 Loaded articles:', list);
-      console.log('📊 First article:', list[0]);
-      if (list[0]) {
-        console.log('📊 First article title type:', typeof list[0].title);
-        console.log('📊 First article title:', list[0].title);
-      }
       setArticles(list);
       setSelected(new Set()); // seçimi sıfırla
       
@@ -203,10 +207,18 @@ export default function ArticlesListPage() {
 
   useEffect(() => { void load(); }, []);
 
+  // Redaktor/müəllif yalnız öz bölmələrini görür (admin hamısını)
+  const restrictToOwn = session?.role === "editor" || session?.role === "author";
+  const allowedCategories = useMemo(
+    () => (restrictToOwn ? categories.filter((item) => canEditCategory(session, item.slug)) : categories),
+    [restrictToOwn, session],
+  );
+
   const visible = useMemo(() => {
     if (!articles) return [];
     const needle = term.trim().toLowerCase();
     return articles.filter((article) => {
+      if (restrictToOwn && !canEditCategory(session, article.category)) return false;
       if (category && article.category !== category) return false;
       if (statusFilter !== "all" && article.status !== statusFilter) return false;
       if (!needle) return true;
@@ -225,7 +237,7 @@ export default function ArticlesListPage() {
         return title.toLowerCase().includes(needle);
       });
     });
-  }, [articles, category, statusFilter, term]);
+  }, [articles, category, statusFilter, term, restrictToOwn, session]);
 
   // Pagination hesablamaları
   const totalPages = Math.ceil(visible.length / itemsPerPage);
@@ -268,6 +280,18 @@ export default function ArticlesListPage() {
     }
   }
 
+  function reportBulk(results: PromiseSettledResult<unknown>[], action: string) {
+    const ok = results.filter((r) => r.status === "fulfilled").length;
+    const failed = results.length - ok;
+    const text = `${ok} uğurlu, ${failed} uğursuz`;
+    if (failed > 0) {
+      setError(`Kütləvi ${action}: ${text}.`);
+      if (ok > 0) setSuccess(`Kütləvi ${action}: ${text}.`);
+    } else {
+      setSuccess(`Kütləvi ${action}: ${text}.`);
+    }
+  }
+
   /* ── Kütləvi dərc ── */
   async function handleBulkPublish() {
     if (selected.size === 0) return;
@@ -275,11 +299,13 @@ export default function ArticlesListPage() {
     setBulkLoading(true);
     setError(""); setSuccess("");
     try {
-      const toPublish = (articles ?? []).filter((a) => selected.has(a.id));
-      await Promise.all(
+      const toPublish = (articles ?? []).filter(
+        (a) => selected.has(a.id) && canEditCategory(session, a.category),
+      );
+      const results = await Promise.allSettled(
         toPublish.map((a) => saveArticle(a.id, { ...a, status: "published" })),
       );
-      setSuccess(`${selected.size} məqalə dərc edildi.`);
+      reportBulk(results, "dərc");
       await load();
     } catch {
       setError("Kütləvi dərc xətası baş verdi.");
@@ -295,11 +321,13 @@ export default function ArticlesListPage() {
     setBulkLoading(true);
     setError(""); setSuccess("");
     try {
-      const toDraft = (articles ?? []).filter((a) => selected.has(a.id));
-      await Promise.all(
+      const toDraft = (articles ?? []).filter(
+        (a) => selected.has(a.id) && canEditCategory(session, a.category),
+      );
+      const results = await Promise.allSettled(
         toDraft.map((a) => saveArticle(a.id, { ...a, status: "draft" })),
       );
-      setSuccess(`${selected.size} məqalə qaralamaya alındı.`);
+      reportBulk(results, "qaralama");
       await load();
     } catch {
       setError("Kütləvi qaralama xətası baş verdi.");
@@ -410,7 +438,7 @@ export default function ArticlesListPage() {
           >
             Hamısı
           </Link>
-          {categories.map((item) => (
+          {allowedCategories.map((item) => (
             <Link
               key={item.slug}
               href={`/admin/articles?category=${item.slug}`}
@@ -596,7 +624,7 @@ export default function ArticlesListPage() {
                         <ArticleStatusPill status={article.status} />
                       </td>
                       <td className="px-5 py-4">
-                        <ArticleActionsMenu article={article} onDelete={load} />
+                        <ArticleActionsMenu article={article} onDelete={load} canDelete={canManage} />
                       </td>
                     </tr>
                   ))}

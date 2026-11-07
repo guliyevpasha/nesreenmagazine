@@ -1,16 +1,22 @@
+"use client";
+
 import Link from "next/link";
+import { useParams } from "next/navigation";
 
 import { RoseMark } from "@/components/Logo";
-import { defaultLocale } from "@/lib/i18n/config";
+import { defaultLocale, isLocale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { routes } from "@/lib/routes";
 
 /**
  * 404 səhifəsi.
- * Bu səhifə dil parametrinə çata bilmir, ona görə standart dildə göstərilir.
+ * Dil URL-dən oxunur; tapılmazsa standart dil (az) istifadə olunur.
  */
 export default function NotFound() {
-  const dict = getDictionary(defaultLocale);
+  const params = useParams<{ locale?: string }>();
+  const raw = params?.locale;
+  const locale = raw && isLocale(raw) ? raw : defaultLocale;
+  const dict = getDictionary(locale);
 
   return (
     <section className="container-read py-24 text-center lg:py-32">
@@ -20,7 +26,7 @@ export default function NotFound() {
       <p className="mx-auto mt-5 max-w-md text-[0.9375rem] leading-relaxed text-ink-soft">
         {dict.common.notFoundText}
       </p>
-      <Link href={routes.home(defaultLocale)} className="btn-primary mt-10">
+      <Link href={routes.home(locale)} className="btn-primary mt-10">
         {dict.common.backHome}
       </Link>
     </section>

@@ -26,7 +26,7 @@ import {
   adFormatLabels,
   paymentStatusLabels,
 } from "@/lib/types";
-import { useAuth } from "@/lib/firebase/auth";
+import { isAdmin, useAuth } from "@/lib/firebase/auth";
 import {
   Alert,
   Button,
@@ -56,7 +56,7 @@ function ActivityCard({
   onDelete,
 }: {
   activity: CrmActivity;
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void;
 }) {
   const date = new Date(activity.createdAt);
   return (
@@ -84,13 +84,15 @@ function ActivityCard({
             </p>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => onDelete(activity.id)}
-          className="text-muted hover:text-bordo text-lg leading-none"
-        >
-          ×
-        </button>
+        {onDelete && (
+          <button
+            type="button"
+            onClick={() => onDelete(activity.id)}
+            className="text-muted hover:text-bordo text-lg leading-none"
+          >
+            ×
+          </button>
+        )}
       </div>
     </div>
   );
@@ -225,6 +227,7 @@ export default function ClientDetailPage() {
   const [orders, setOrders] = useState<AdOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [activityModal, setActivityModal] = useState(false);
   const [editing, setEditing] = useState(false);
 
@@ -288,11 +291,12 @@ export default function ClientDetailPage() {
 
   async function handleDeleteActivity(id: string) {
     if (!confirm("Bu aktivliyi silmək istəyirsiniz?")) return;
+    setActionError("");
     try {
       await removeCrmActivity(id);
       setActivities((prev) => prev.filter((a) => a.id !== id));
-    } catch {
-      alert("Silinmə xətası");
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Silinmə xətası");
     }
   }
 
@@ -338,6 +342,11 @@ export default function ClientDetailPage() {
           </div>
         }
       />
+      {actionError && (
+        <div className="px-6 pt-4 lg:px-10">
+          <Alert tone="error">{actionError}</Alert>
+        </div>
+      )}
 
       <div className="px-6 py-6 lg:px-10 space-y-6">
         {/* Statistika */}
@@ -538,7 +547,7 @@ export default function ClientDetailPage() {
                     <ActivityCard
                       key={activity.id}
                       activity={activity}
-                      onDelete={(id) => void handleDeleteActivity(id)}
+                      onDelete={isAdmin(session) ? (id) => void handleDeleteActivity(id) : undefined}
                     />
                   ))}
                 </div>

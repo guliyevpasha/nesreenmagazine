@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
 
 import {
   Alert,
@@ -14,9 +15,10 @@ import {
 import { categories, type CategorySlug } from "@/lib/categories";
 import { addStaff, listStaff, removeStaff, saveStaff } from "@/lib/data/admin";
 import { isAdmin, roleLabels, useAuth } from "@/lib/firebase/auth";
+import { getDb } from "@/lib/firebase/client";
+import { COLLECTIONS } from "@/lib/firebase/config";
 import { formatDate } from "@/lib/i18n/config";
 import type { StaffMember, StaffRole } from "@/lib/types";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
 
 // Alt kateqoriyalar
 const SUBCATEGORIES: Partial<Record<CategorySlug, string[]>> = {
@@ -51,9 +53,7 @@ const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
 };
 
 export default function StaffPage() {
-  const { session } = useAuth();
-  // useRoleAccess silindi - admin hər halda daxil ola bilər
-  
+  const { session, resetPassword } = useAuth();
   const [staff, setStaff] = useState<StaffMember[] | null>(null);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(
     null,
@@ -107,6 +107,16 @@ export default function StaffPage() {
     setBusy(true);
     setMessage(null);
     try {
+      // Mövcud sənədin üzərinə yazmamaq üçün yoxla
+      const normalizedEmail = email.trim().toLowerCase();
+      const db = getDb();
+      if (db) {
+        const existing = await getDoc(doc(db, COLLECTIONS.staff, normalizedEmail));
+        if (existing.exists()) {
+          setMessage({ tone: "error", text: "Bu e-poçt ilə işçi artıq mövcuddur." });
+          return;
+        }
+      }
       await addStaff({
         name: name.trim(),
         email: email.trim().toLowerCase(),
@@ -208,7 +218,42 @@ export default function StaffPage() {
     });
   }
 
+  /** Admini (özünü və ya sonuncu aktiv admini) itirməmək üçün qoruma. */
+  function adminGuardMessage(member: StaffMember, action: "deactivate" | "remove" | "demote"): string | null {
+    const verb =
+      action === "remove" ? "silə" : action === "deactivate" ? "dayandıra" : "rolunu dəyişə";
+    if (member.email.toLowerCase() === session?.email.toLowerCase()) {
+      return `Özünüzü ${verb} bilməzsiniz.`;
+    }
+    if (member.role === "admin" && member.active) {
+      const activeAdmins = (staff ?? []).filter((m) => m.role === "admin" && m.active).length;
+      if (activeAdmins <= 1) {
+        return `Sonuncu aktiv admini ${verb} bilməzsiniz.`;
+      }
+    }
+    return null;
+  }
+
+  async function handleResetPassword(member: StaffMember) {
+    try {
+      await resetPassword(member.email);
+      setMessage({ tone: "success", text: `${member.email} ünvanına şifrə sıfırlama linki göndərildi.` });
+    } catch (caught) {
+      setMessage({
+        tone: "error",
+        text: caught instanceof Error ? caught.message : "Şifrə sıfırlama linki göndərilmədi.",
+      });
+    }
+  }
+
   async function toggleActive(member: StaffMember) {
+    if (member.active) {
+      const blocked = adminGuardMessage(member, "deactivate");
+      if (blocked) {
+        setMessage({ tone: "error", text: blocked });
+        return;
+      }
+    }
     try {
       await saveStaff(member.id, { active: !member.active });
       await refresh();
@@ -221,6 +266,13 @@ export default function StaffPage() {
   }
 
   async function changeRole(member: StaffMember, nextRole: StaffRole) {
+    if (member.role === "admin" && nextRole !== "admin") {
+      const blocked = adminGuardMessage(member, "demote");
+      if (blocked) {
+        setMessage({ tone: "error", text: blocked });
+        return;
+      }
+    }
     try {
       await saveStaff(member.id, {
         role: nextRole,
@@ -236,6 +288,11 @@ export default function StaffPage() {
   }
 
   async function handleRemove(member: StaffMember) {
+    const blocked = adminGuardMessage(member, "remove");
+    if (blocked) {
+      setMessage({ tone: "error", text: blocked });
+      return;
+    }
     if (!window.confirm(`${member.name} siyahıdan silinsin?`)) return;
     try {
       await removeStaff(member.id);
@@ -462,6 +519,10 @@ export default function StaffPage() {
                             onClick={() => void toggleActive(member)}
                           >
                             {member.active ? "Dayandır" : "Aktiv et"}
+                          </Button>
+
+                          <Button variant="ghost" onClick={() => void handleResetPassword(member)}>
+                            Şifrə sıfırlama linki göndər
                           </Button>
 
                           <Button variant="danger" onClick={() => void handleRemove(member)}>

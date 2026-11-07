@@ -6,12 +6,16 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import Logo, { RoseMark } from "@/components/Logo";
 import { categories } from "@/lib/categories";
+import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestore";
+
 import {
-  listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/lib/data/admin";
-import { isAdmin, roleLabels, useAuth } from "@/lib/firebase/auth";
+import { canEditCategory, roleLabels, useAuth } from "@/lib/firebase/auth";
+import { getDb } from "@/lib/firebase/client";
+import { COLLECTIONS } from "@/lib/firebase/config";
+import { canAccessPath } from "@/middleware/roleGuard";
 import type { Notification, NotificationPriority } from "@/lib/types";
 import { notificationTypeLabels } from "@/lib/types";
 
@@ -87,28 +91,29 @@ function NotificationBell({ userRole }: { userRole: string }) {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  async function load() {
-    setLoading(true);
-    try {
-      const all = await listNotifications(30);
-      // Rol filtri — forRole boşsa hamıya göstər
-      const filtered = all.filter(
-        (n) => !n.forRole || n.forRole.length === 0 || n.forRole.includes(userRole),
-      );
-      setNotifications(filtered);
-    } catch {
-      // səssiz xəta
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
-    void load();
-    // Hər 60 saniyədə yenilə
-    const interval = setInterval(() => void load(), 60_000);
-    return () => clearInterval(interval);
-  }, []);
+    const db = getDb();
+    if (!db) return;
+    setLoading(true);
+    const unsubscribe = onSnapshot(
+      query(collection(db, COLLECTIONS.notifications), orderBy("createdAt", "desc"), limit(30)),
+      (snapshot) => {
+        const all = snapshot.docs.map(
+          (item) => ({ ...(item.data() as Omit<Notification, "id">), id: item.id }) as Notification,
+        );
+        // Rol filtri — forRole boşsa hamıya göstər
+        setNotifications(
+          all.filter((n) => !n.forRole || n.forRole.length === 0 || n.forRole.includes(userRole)),
+        );
+        setLoading(false);
+      },
+      () => {
+        // səssiz xəta (icazə yoxdur və s.)
+        setLoading(false);
+      },
+    );
+    return () => unsubscribe();
+  }, [userRole]);
 
   // Xaricdə klik edildikdə bağla
   useEffect(() => {
@@ -294,15 +299,100 @@ export default function AdminShell({ children }: { children: ReactNode }) {
 
   if (!session) return <LoginScreen unauthorized={unauthorized} />;
 
-  const canManage = isAdmin(session);
-  const userRole = session?.role || 'author';
-  
-  // Rol-based görünən menyular
-  const canSeeStaff = userRole === 'admin';
-  const canSeeBanners = userRole === 'admin';
-  const canSeeCRM = ['admin', 'sales', 'finance'].includes(userRole);
-  const canSeeSettings = userRole === 'admin';
-  const canSeeBackup = userRole === 'admin';
+  const role = session.role;
+  const startsWith = (base: string) => pathname.startsWith(base);
+
+  type MenuItem = { href: string; label: string; icon?: string; active: boolean };
+  type MenuSection = { title: string; items: MenuItem[] };
+
+  const rawSections: MenuSection[] = [
+    {
+      title: "İdarə Panelim",
+      items: [
+        { href: "/admin", label: "İcmal", icon: ICONS.dashboard, active: pathname === "/admin" },
+        { href: "/admin/analytics", label: "Analitika", icon: ICONS.analytics, active: startsWith("/admin/analytics") },
+        { href: "/admin/performance", label: "Performans", icon: ICONS.settings, active: startsWith("/admin/performance") },
+        { href: "/admin/backup", label: "Backup & Restore", icon: ICONS.audit, active: startsWith("/admin/backup") },
+        { href: "/admin/activity-log", label: "Activity Log", icon: ICONS.audit, active: startsWith("/admin/activity-log") },
+        { href: "/admin/api-docs", label: "API Docs", icon: ICONS.settings, active: startsWith("/admin/api-docs") },
+        { href: "/admin/system-health", label: "System Health", icon: ICONS.analytics, active: startsWith("/admin/system-health") },
+      ],
+    },
+    {
+      title: "Kontent",
+      items: [
+        { href: "/admin/articles", label: "Məqalələr", icon: ICONS.articles, active: pathname === "/admin/articles" && !activeCategory },
+        ...categories
+          .slice(0, 5)
+          .filter((category) => canEditCategory(session, category.slug))
+          .map((category) => ({
+            href: `/admin/articles?category=${category.slug}`,
+            label: category.name.az,
+            active: pathname === "/admin/articles" && activeCategory === category.slug,
+          })),
+        { href: "/admin/media", label: "Media", icon: ICONS.media, active: startsWith("/admin/media") },
+        { href: "/admin/comments", label: "Şərhlər", icon: ICONS.mail, active: startsWith("/admin/comments") },
+      ],
+    },
+    {
+      title: "SEO Alətləri",
+      items: [
+        { href: "/admin/seo", label: "SEO İdarəçisi", icon: ICONS.seo, active: startsWith("/admin/seo") },
+        { href: "/admin/astrology", label: "Astrologiya", icon: ICONS.stars, active: startsWith("/admin/astrology") },
+      ],
+    },
+    {
+      title: "Alətlər",
+      items: [
+        { href: "/admin/translations", label: "Tərcümə İdarəçisi", icon: ICONS.site, active: startsWith("/admin/translations") },
+        { href: "/admin/categories", label: "Kateqoriyalar", icon: ICONS.site, active: startsWith("/admin/categories") },
+        { href: "/admin/tags", label: "Tag İdarəçisi", icon: ICONS.site, active: startsWith("/admin/tags") },
+        { href: "/admin/files", label: "Fayl İdarəetməsi", icon: ICONS.media, active: startsWith("/admin/files") },
+        { href: "/admin/content-plan", label: "Kontent Planı", icon: ICONS.contentplan, active: startsWith("/admin/content-plan") },
+      ],
+    },
+    {
+      title: "Marketinq",
+      items: [
+        { href: "/admin/advanced-banners", label: "Reklam Bannerləri", icon: ICONS.banner, active: startsWith("/admin/advanced-banners") },
+        { href: "/admin/ejournals", label: "E-Jurnallar", icon: ICONS.ejournal, active: startsWith("/admin/ejournals") },
+        { href: "/admin/subscriptions", label: "Üzvlük Planları", icon: ICONS.crm, active: startsWith("/admin/subscriptions") },
+        { href: "/admin/push-notifications", label: "Push Bildirişlər", icon: ICONS.mail, active: startsWith("/admin/push-notifications") },
+        { href: "/admin/subscribers", label: "Abunəçilər", icon: ICONS.subscribers, active: startsWith("/admin/subscribers") },
+      ],
+    },
+    {
+      title: "CRM",
+      items: [
+        { href: "/admin/crm", label: "Müştərilər", icon: ICONS.crm, active: startsWith("/admin/crm") },
+        { href: "/admin/ad-orders", label: "Reklam Sifarişləri", icon: ICONS.adorders, active: startsWith("/admin/ad-orders") },
+        { href: "/admin/sales-forecast", label: "Satış Proqnozu", icon: ICONS.analytics, active: startsWith("/admin/sales-forecast") },
+      ],
+    },
+    {
+      title: "Bildirişlər",
+      items: [
+        { href: "/admin/messages", label: "Mesajlar", icon: ICONS.mail, active: startsWith("/admin/messages") },
+        { href: "/admin/newsletters", label: "Email Bülten", icon: ICONS.mail, active: startsWith("/admin/newsletters") },
+      ],
+    },
+    {
+      title: "Parametrlər",
+      items: [
+        { href: "/admin/site-settings", label: "Sayt Parametrləri", icon: ICONS.settings, active: startsWith("/admin/site-settings") },
+        { href: "/admin/staff", label: "İşçilər", icon: ICONS.staff, active: startsWith("/admin/staff") },
+        { href: "/admin/audit", label: "Audit Jurnalı", icon: ICONS.audit, active: startsWith("/admin/audit") },
+      ],
+    },
+  ];
+
+  // Tək həqiqət mənbəyi: canAccessPath — menyu və guard eyni qaydanı istifadə edir
+  const menuSections = rawSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => canAccessPath(role, item.href)),
+    }))
+    .filter((section) => section.items.length > 0);
 
   const sidebar = (
     <div className="flex h-full flex-col bg-bordo-deep">
@@ -318,249 +408,24 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4 px-3">
-        {/* İdarə Panelim */}
-        <p className="px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-          İdarə Panelim
-        </p>
-        <NavLink
-          href="/admin"
-          label="İcmal"
-          icon={ICONS.dashboard}
-          active={pathname === "/admin"}
-        />
-        <NavLink
-          href="/admin/analytics"
-          label="Analitika"
-          icon={ICONS.analytics}
-          active={pathname.startsWith("/admin/analytics")}
-        />
-        {canSeeBackup && (
-          <>
-            <NavLink
-              href="/admin/performance"
-              label="Performans"
-              icon={ICONS.settings}
-              active={pathname.startsWith("/admin/performance")}
-            />
-            <NavLink
-              href="/admin/backup"
-              label="Backup & Restore"
-              icon={ICONS.audit}
-              active={pathname.startsWith("/admin/backup")}
-            />
-            <NavLink
-              href="/admin/activity-log"
-              label="Activity Log"
-              icon={ICONS.audit}
-              active={pathname.startsWith("/admin/activity-log")}
-            />
-            <NavLink
-              href="/admin/api-docs"
-              label="API Docs"
-              icon={ICONS.settings}
-              active={pathname.startsWith("/admin/api-docs")}
-            />
-          </>
-        )}
-        <NavLink
-          href="/admin/system-health"
-          label="System Health"
-          icon={ICONS.analytics}
-          active={pathname.startsWith("/admin/system-health")}
-        />
-
-        {/* Kontent */}
-        <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-          Kontent
-        </p>
-        <NavLink
-          href="/admin/articles"
-          label="Məqalələr"
-          icon={ICONS.articles}
-          active={pathname === "/admin/articles" && !activeCategory}
-        />
-        {categories.slice(0, 5).map((category) => (
-          <NavLink
-            key={category.slug}
-            href={`/admin/articles?category=${category.slug}`}
-            label={category.name.az}
-            active={pathname === "/admin/articles" && activeCategory === category.slug}
-          />
+        {menuSections.map((section, index) => (
+          <div key={section.title}>
+            <p
+              className={`${index === 0 ? "" : "mt-5 "}px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold`}
+            >
+              {section.title}
+            </p>
+            {section.items.map((item) => (
+              <NavLink
+                key={item.href}
+                href={item.href}
+                label={item.label}
+                icon={item.icon}
+                active={item.active}
+              />
+            ))}
+          </div>
         ))}
-
-        {/* SEO Alətləri - yalnız admin və editor */}
-        {['admin', 'editor', 'seo'].includes(userRole) && (
-          <>
-            <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-              SEO Alətləri
-            </p>
-            <NavLink
-              href="/admin/seo"
-              label="SEO İdarəçisi"
-              icon={ICONS.seo}
-              active={pathname.startsWith("/admin/seo")}
-            />
-            <NavLink
-              href="/admin/astrology"
-              label="Astrologiya"
-              icon={ICONS.stars}
-              active={pathname.startsWith("/admin/astrology")}
-            />
-          </>
-        )}
-
-        {/* Alətlər - yalnız admin və editor */}
-        {['admin', 'editor'].includes(userRole) && (
-          <>
-            <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-              Alətlər
-            </p>
-            <NavLink
-              href="/admin/translations"
-              label="Tərcümə İdarəçisi"
-              icon={ICONS.site}
-              active={pathname.startsWith("/admin/translations")}
-            />
-            <NavLink
-              href="/admin/categories"
-              label="Kateqoriyalar"
-              icon={ICONS.site}
-              active={pathname.startsWith("/admin/categories")}
-            />
-            <NavLink
-              href="/admin/tags"
-              label="Tag İdarəçisi"
-              icon={ICONS.site}
-              active={pathname.startsWith("/admin/tags")}
-            />
-            <NavLink
-              href="/admin/files"
-              label="Fayl İdarəetməsi"
-              icon={ICONS.media}
-              active={pathname.startsWith("/admin/files")}
-            />
-            <NavLink
-              href="/admin/content-plan"
-              label="Kontent Planı"
-              icon={ICONS.contentplan}
-              active={pathname.startsWith("/admin/content-plan")}
-            />
-          </>
-        )}
-
-        {/* Marketinq - yalnız admin */}
-        {canSeeBanners && (
-          <>
-            <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-              Marketinq
-            </p>
-            <NavLink
-              href="/admin/advanced-banners"
-              label="Reklam Bannerləri"
-              icon={ICONS.banner}
-              active={pathname.startsWith("/admin/advanced-banners")}
-            />
-            <NavLink
-              href="/admin/ejournals"
-              label="E-Jurnallar"
-              icon={ICONS.ejournal}
-              active={pathname.startsWith("/admin/ejournals")}
-            />
-            <NavLink
-              href="/admin/subscriptions"
-              label="Üzvlük Planları"
-              icon={ICONS.crm}
-              active={pathname.startsWith("/admin/subscriptions")}
-            />
-            <NavLink
-              href="/admin/push-notifications"
-              label="Push Bildirişlər"
-              icon={ICONS.mail}
-              active={pathname.startsWith("/admin/push-notifications")}
-            />
-            <NavLink
-              href="/admin/subscribers"
-              label="Abunəçilər"
-              icon={ICONS.subscribers}
-              active={pathname.startsWith("/admin/subscribers")}
-            />
-          </>
-        )}
-
-        {/* CRM bölməsi - yalnız admin, sales, finance */}
-        {canSeeCRM && (
-          <>
-            <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-              CRM
-            </p>
-            <NavLink
-              href="/admin/crm"
-              label="Müştərilər"
-              icon={ICONS.crm}
-              active={pathname.startsWith("/admin/crm")}
-            />
-            <NavLink
-              href="/admin/ad-orders"
-              label="Reklam Sifarişləri"
-              icon={ICONS.adorders}
-              active={pathname.startsWith("/admin/ad-orders")}
-            />
-            <NavLink
-              href="/admin/sales-forecast"
-              label="Satış Proqnozu"
-              icon={ICONS.analytics}
-              active={pathname.startsWith("/admin/sales-forecast")}
-            />
-          </>
-        )}
-
-        {/* Bildirişlər - yalnız admin və moderator */}
-        {['admin', 'moderator'].includes(userRole) && (
-          <>
-            <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-              Bildirişlər
-            </p>
-            <NavLink
-              href="/admin/messages"
-              label="Mesajlar"
-              icon={ICONS.mail}
-              active={pathname.startsWith("/admin/messages")}
-            />
-            <NavLink
-              href="/admin/newsletters"
-              label="Email Bülten"
-              icon={ICONS.mail}
-              active={pathname.startsWith("/admin/newsletters")}
-            />
-          </>
-        )}
-
-        {/* Parametrlər - yalnız admin */}
-        {canSeeSettings && (
-          <>
-            <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
-              Parametrlər
-            </p>
-            <NavLink
-              href="/admin/site-settings"
-              label="Sayt Parametrləri"
-              icon={ICONS.settings}
-              active={pathname.startsWith("/admin/site-settings")}
-            />
-            <NavLink
-              href="/admin/staff"
-              label="İşçilər"
-              icon={ICONS.staff}
-              active={pathname.startsWith("/admin/staff")}
-            />
-            <NavLink
-              href="/admin/audit"
-              label="Audit Jurnalı"
-              icon={ICONS.audit}
-              active={pathname.startsWith("/admin/audit")}
-            />
-          </>
-        )}
 
         {/* Profil */}
         <p className="mt-5 px-3 pb-2 font-ui text-[10px] uppercase tracking-[0.16em] text-cream/50 font-semibold">
@@ -640,6 +505,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             <NotificationBell userRole={session.role} />
           </div>
         </div>
+
+        {session.missingStaffDoc && (
+          <div role="alert" className="border-b border-amber-300 bg-amber-100 px-5 py-3 font-ui text-[13px] font-medium text-amber-900">
+            Hesabınız üçün staff sənədi yoxdur — Firestore yazma əməliyyatları rədd ediləcək. İşçilər bölməsindən özünüzü əlavə edin.
+          </div>
+        )}
 
         <main className="min-w-0 flex-1 bg-slate-50">
           <RoleGuard>{children}</RoleGuard>
