@@ -6,6 +6,7 @@
  */
 "use client";
 
+import { uploadFormData } from "@/lib/upload-client";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 
@@ -237,10 +238,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
       formData.append('file', file);
       formData.append('folder', 'covers');
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      const response = await uploadFormData(formData);
 
       if (!response.ok) {
         const responseClone = response.clone();
@@ -281,10 +279,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
       formData.append('file', file);
       formData.append('folder', 'inline-images');
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      const response = await uploadFormData(formData);
 
       if (!response.ok) {
         const responseClone = response.clone();
@@ -868,57 +863,37 @@ export default function ArticleEditor({ article }: { article?: Article }) {
           )}
         </div>
 
-        {/* Status Selection */}
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="flex-1 min-w-[200px]">
-            <label className="block font-ui text-[11px] uppercase tracking-[0.14em] text-muted mb-2">
-              Dərc seçimi
-            </label>
-            <select
-              value={draft.status}
-              onChange={(e) => setDraft({ ...draft, status: e.target.value as ArticleStatus })}
-              className="w-full rounded border border-line px-4 py-2.5 font-ui text-sm focus:border-bordo focus:outline-none"
-            >
-              <option value="draft">📝 Qaralama</option>
-              <option value="scheduled">⏰ Planlaşdırılmış</option>
-            </select>
-          </div>
-
+        {/* Əməliyyat düymələri — status həmin düymələrlə təyin olunur (ayrıca select yoxdur) */}
+        <div className="flex flex-wrap items-end gap-3">
           {draft.status === "scheduled" && (
             <div className="flex-1 min-w-[200px]">
-              <label className="block font-ui text-[11px] uppercase tracking-[0.14em] text-muted mb-2">
-                Dərc tarixi və vaxtı
-              </label>
-              <input
-                type="datetime-local"
-                value={draft.scheduledAt ?? ""}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    scheduledAt: event.target.value || undefined,
-                  }))
-                }
-                className="w-full rounded border border-line px-4 py-2.5 font-ui text-sm focus:border-bordo focus:outline-none"
-              />
+              <p className="font-ui text-[11px] uppercase tracking-[0.14em] text-muted">
+                Planlaşdırılmış dərc tarixi yuxarıdakı «Dərc tarixi» bölməsində seçilir
+              </p>
+              <p className="mt-1 font-ui text-xs text-muted">
+                {draft.scheduledAt
+                  ? `Dərc ediləcək vaxt: ${new Date(draft.scheduledAt).toLocaleString("az-AZ")}`
+                  : "Tarix seçilməyib"}
+              </p>
             </div>
           )}
 
-          <div className="flex gap-3 ml-auto">
-            <Button 
-              variant="ghost" 
-              onClick={() => router.back()} 
-              disabled={busy}
-            >
+          <div className="flex flex-wrap gap-3 ml-auto">
+            <Button variant="ghost" onClick={() => router.back()} disabled={busy}>
               Ləğv et
             </Button>
-            <Button variant="ghost" onClick={() => void handleSave("draft")} disabled={busy}>
+            <Button
+              variant="ghost"
+              onClick={() => void handleSave("draft")}
+              disabled={busy}
+            >
               Qaralama saxla
             </Button>
-            {draft.status === "scheduled" && (
-              <Button 
-                variant="ghost" 
-                onClick={() => void handleSave("scheduled")} 
-                disabled={busy || !draft.scheduledAt}
+            {draft.scheduledAt && new Date(draft.scheduledAt) > new Date() && (
+              <Button
+                variant="ghost"
+                onClick={() => void handleSave("scheduled")}
+                disabled={busy}
               >
                 {busy ? "Saxlanılır…" : "Planlaşdır"}
               </Button>

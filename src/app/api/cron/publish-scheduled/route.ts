@@ -21,9 +21,11 @@ export async function GET(request: NextRequest) {
 
     // Security: Cron secret key ilə qoruma
     const authHeader = request.headers.get("authorization");
-    const cronSecret = process.env.CRON_SECRET_KEY;
+    // Vercel Cron "CRON_SECRET" env-i göndərir; köhnə ad "CRON_SECRET_KEY" də qəbul olunur.
+    // Secret konfiqurasiya olunmayıbsa, endpoint həmişə bağlıdır (açıq qalmır).
+    const cronSecret = process.env.CRON_SECRET || process.env.CRON_SECRET_KEY;
 
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }

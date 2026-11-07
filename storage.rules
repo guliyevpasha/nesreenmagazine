@@ -83,6 +83,12 @@ service firebase.storage {
       allow write: if isStaff() && isPDF();
     }
 
+    // Ümumi media (admin Fayl idarəetməsi) - yalnız staff
+    match /media/{fileName} {
+      allow read: if true;
+      allow write: if isStaff() && (isImage() || isVideo() || isPDF());
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

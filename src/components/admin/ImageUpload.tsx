@@ -1,5 +1,6 @@
 "use client";
 
+import { uploadFormData } from "@/lib/upload-client";
 import { useState, useRef } from "react";
 
 // Helper function to get image dimensions
@@ -70,10 +71,7 @@ export default function ImageUpload({
       formData.append('file', file);
       formData.append('folder', folder);
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      const response = await uploadFormData(formData);
 
       if (!response.ok) {
         const errorData = await response.json();

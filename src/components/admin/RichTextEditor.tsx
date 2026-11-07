@@ -1,5 +1,6 @@
 "use client";
 
+import { uploadFormData } from "@/lib/upload-client";
 import { useEffect, useRef, useState } from "react";
 
 interface RichTextEditorProps {
@@ -128,10 +129,7 @@ export default function RichTextEditor({
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
+      const response = await uploadFormData(formData);
 
       if (!response.ok) {
         // Response-u clone et ki, bir neçə dəfə oxuya biləsən

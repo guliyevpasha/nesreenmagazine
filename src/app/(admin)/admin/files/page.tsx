@@ -1,5 +1,6 @@
 "use client";
 
+import { uploadFormData } from "@/lib/upload-client";
 import { useEffect, useState } from "react";
 import {
   listMediaFolders,
@@ -493,10 +494,7 @@ export default function FileManagerPage() {
               formData.append('file', file);
               formData.append('folder', selectedFolder || 'general');
 
-              const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData,
-              });
+              const response = await uploadFormData(formData);
 
               if (!response.ok) {
                 throw new Error(`${file.name} yüklənmədi`);

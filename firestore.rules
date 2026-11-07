@@ -1,4 +1,29 @@
-rules_version = '2';
+    /**
+     * Məqalə yazma icazəsi:
+     *  • admin — hər kateqoriyada
+     *  • editor / author — yalnız staff sənədindəki categories siyahısında olan
+     *    kateqoriyalarda (siyahı boşdursa, bütün kateqoriyalar açıqdır)
+     */
+    function canWriteArticle(category) {
+      return isAdmin() || (
+        isStaff()
+        && staffDoc().data.role in ['editor', 'author']
+        && (
+          !('categories' in staffDoc().data)
+          || staffDoc().data.categories.size() == 0
+          || category in staffDoc().data.categories
+        )
+      );
+    }
+
+    /** Məqalələr — hamı dərc olunmuşları oxuyur, yalnız səlahiyyətli staff yazır */
+    match /articles/{articleId} {
+      // Hamı published məqalələri oxuya bilər, staff hamısını görə bilər
+      allow read: if resource.data.status == 'published' || isStaff();
+      // Yaratmaq / yeniləmək: həm köhnə, həm yeni kateqoriya üzrə səlahiyyət lazımdır
+      allow create: if canWriteArticle(request.resource.data.category);
+      allow update: if canWriteArticle(resource.data.category)
+                    && canWriteArticle(request.resource.data.category);rules_version = '2';
 
 /**
  * NESREEN MAGAZINE — Firestore təhlükəsizlik qaydaları
@@ -64,6 +89,24 @@ service cloud.firestore {
       return isStaff() && staffDoc().data.role == 'admin';
     }
 
+    /**
+     * Məqalə yazma icazəsi:
+     *  • admin — bütün kateqoriyalarda
+     *  • editor / author — yalnız staff sənədindəki categories siyahısında olan
+     *    kateqoriyalarda (siyahı boşdursa, bütün kateqoriyalar açıqdır)
+     */
+    function canWriteArticle(category) {
+      return isAdmin() || (
+        isStaff()
+        && staffDoc().data.role in ['editor', 'author']
+        && (
+          !('categories' in staffDoc().data)
+          || staffDoc().data.categories.size() == 0
+          || category in staffDoc().data.categories
+        )
+      );
+    }
+
     /** Satış/CRM-ə icazəsi varmı? (admin, sales, finance) */
     function canAccessCrm() {
       return isStaff() && staffDoc().data.role in ['admin', 'sales', 'finance'];
@@ -82,8 +125,10 @@ service cloud.firestore {
     match /articles/{articleId} {
       // Hamı published məqalələri oxuya bilər, staff hamısını görə bilər
       allow read: if resource.data.status == 'published' || isStaff();
-      // Yazmaq yalnız staff üçün
-      allow create, update: if isStaff();
+      // Yaratmaq / yeniləmək: həm köhnə, həm yeni kateqoriya üzrə səlahiyyət lazımdır
+      allow create: if canWriteArticle(request.resource.data.category);
+      allow update: if canWriteArticle(resource.data.category)
+                    && canWriteArticle(request.resource.data.category);
       // Silmək yalnız admin üçün
       allow delete: if isAdmin();
     }
