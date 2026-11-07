@@ -110,6 +110,7 @@ export default function EditBannerPage({
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("folder", "banners");
 
       const response = await uploadFormData(formData);
 

@@ -1,6 +1,8 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
+import { requireStaffAuth } from "@/lib/auth/middleware";
+
 /**
  * On-Demand Revalidation API
  * Məqalə dərc edildikdə cache-i avtomatik təmizləyir
@@ -11,15 +13,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { paths, tags, slug, category } = body;
 
-    // Təhlükəsizlik yoxlaması - development modda token tələb etmirik
+    // Təhlükəsizlik: ya server tokeni (REVALIDATE_TOKEN — skriptlər üçün),
+    // ya da admin paneldən daxil olmuş aktiv staff üzvünün Firebase tokeni.
     const isDev = process.env.NODE_ENV === "development";
-    
+
     if (!isDev) {
       const authHeader = request.headers.get("authorization");
       const expectedToken = process.env.REVALIDATE_TOKEN;
-      const isValidToken = expectedToken && authHeader === `Bearer ${expectedToken}`;
+      const isServerToken = Boolean(expectedToken) && authHeader === `Bearer ${expectedToken}`;
+      const isStaff = isServerToken ? true : Boolean(await requireStaffAuth(request));
 
-      if (!isValidToken) {
+      if (!isStaff) {
         return NextResponse.json(
           { error: "Unauthorized - Invalid or missing token" },
           { status: 401 }

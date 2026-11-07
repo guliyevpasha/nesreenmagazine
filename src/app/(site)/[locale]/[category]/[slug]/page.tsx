@@ -88,9 +88,8 @@ export default async function ArticlePage({
 
   const article = await getArticleBySlug(slug, locale);
   
-  // Məqalə yoxdursa, kateqoriya uyğun gəlmirsə və ya draft statusundadırsa, "Coming Soon" göstər
-  // Published və scheduled məqalələr aktiv göstərilir
-  if (!article || article.category !== rawCategory || article.status === "draft") {
+  // Yalnız dərc olunmuş və bu bölməyə aid məqalə göstərilir; qalan hallarda «Tezliklə»
+  if (!article || article.category !== rawCategory || article.status !== "published") {
     return (
       <div className="container-mag flex min-h-[60vh] flex-col items-center justify-center py-20 text-center">
         <div className="mx-auto max-w-md">

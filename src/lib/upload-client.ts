@@ -10,7 +10,7 @@
  * qaydaları (storage.rules) isStaff() yoxlayır.
  */
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase/config";
+import { getFirebaseStorage } from "@/lib/firebase/client";
 
 /** Storage qaydalarında icazəli qovluqlar */
 const ALLOWED_FOLDERS = [
@@ -122,6 +122,7 @@ function safeFileName(name: string): string {
  * Faylı (şəkil, video və ya PDF) hazırlayır və Firebase Storage-a yükləyir.
  */
 export async function uploadMedia(file: File, folder?: FormDataEntryValue | null): Promise<UploadedMedia> {
+  const storage = getFirebaseStorage();
   if (!storage) {
     throw new MediaUploadError("Firebase Storage konfiqurasiya olunmayıb.");
   }
@@ -173,14 +174,22 @@ export async function uploadMedia(file: File, folder?: FormDataEntryValue | null
 export async function uploadFormData(formData: FormData): Promise<Response> {
   const file = formData.get("file");
   if (!(file instanceof File)) {
-    return Response.json({ error: "Fayl tapılmadı" }, { status: 400 });
+    return jsonResponse({ error: "Fayl tapılmadı" }, 400);
   }
   try {
     const result = await uploadMedia(file, formData.get("folder"));
-    return Response.json(result, { status: 200 });
+    return jsonResponse(result, 200);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Fayl yüklənmədi";
     const status = error instanceof MediaUploadError ? 400 : 500;
-    return Response.json({ error: message }, { status });
+    return jsonResponse({ error: message }, status);
   }
+}
+
+/** `Response.json()` köhnə Safari-də yoxdur — əl ilə qururuq */
+function jsonResponse(body: unknown, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 }

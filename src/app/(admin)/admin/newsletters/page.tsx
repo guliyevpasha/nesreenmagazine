@@ -1,5 +1,6 @@
 "use client";
 
+import { authorizedFetch } from "@/lib/auth/authorized-fetch";
 import { useState } from "react";
 import dynamic from 'next/dynamic';
 import { useAuth } from "@/lib/firebase/auth";
@@ -75,7 +76,7 @@ export default function NewslettersPage() {
         </div>
       `;
 
-      const response = await fetch('/api/admin/send-newsletter', {
+      const response = await authorizedFetch('/api/admin/send-newsletter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

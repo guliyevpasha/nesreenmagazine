@@ -6,6 +6,7 @@
  */
 "use client";
 
+import { authorizedFetch } from "@/lib/auth/authorized-fetch";
 import { uploadFormData } from "@/lib/upload-client";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
@@ -127,32 +128,52 @@ const MARKDOWN_HELP = `## Başlıq      ### Alt başlıq
 /**
  * Məqalə cache-ini təmizlə
  */
-async function revalidateArticleCache(slug: string, category: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    const response = await fetch("/api/revalidate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        slug,
-        category,
-      }),
-    });
+type ArticleLocation = {
+  category: string;
+  subcategory?: string;
+  slug: LocalizedText | string;
+};
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ Cache revalidation failed:", errorText);
-      return { success: false, error: errorText };
-    } else {
-      const result = await response.json();
-      console.log("✅ Cache successfully revalidated:", result);
-      return { success: true };
+/**
+ * Məqalənin saytdakı bütün ünvanlarını (5 dil × ana səhifə, kateqoriya,
+ * alt bölmə, məqalə) yeniləyir. Köhnə və yeni ünvan birlikdə verilir ki,
+ * slug və ya kateqoriya dəyişəndə köhnə səhifə də təmizlənsin.
+ */
+async function revalidateArticleCache(locations: ArticleLocation[]): Promise<boolean> {
+  const paths = new Set<string>();
+  for (const { category, subcategory, slug } of locations) {
+    for (const code of locales) {
+      paths.add(`/${code}`);
+      paths.add(`/${code}/${category}`);
+      if (subcategory) paths.add(`/${code}/${category}/bolme/${subcategory}`);
+      const localized = typeof slug === "string" ? slug : slug[code] || slug.az;
+      if (localized) paths.add(`/${code}/${category}/${localized}`);
     }
-  } catch (error) {
-    console.error("❌ Cache revalidation error:", error);
-    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
+
+  try {
+    const response = await authorizedFetch("/api/revalidate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paths: [...paths] }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+function saveResultMessage(status: ArticleStatus, wasPublished: boolean, cacheCleared: boolean): string {
+  const cacheNote = cacheCleared ? "" : " Sayt keşi təmizlənmədi — dəyişiklik 1 dəqiqə ərzində görünəcək.";
+  if (status === "published") {
+    return (wasPublished ? "Məqalə yeniləndi və saytda görünür." : "Məqalə dərc edildi və saytda görünür.") + cacheNote;
+  }
+  if (status === "scheduled") {
+    return "Məqalə planlaşdırıldı." + (wasPublished ? " Saytdan müvəqqəti çıxarıldı." + cacheNote : "");
+  }
+  return wasPublished
+    ? "Məqalə dərcdən çıxarıldı və qaralamaya keçirildi." + cacheNote
+    : "Qaralama yadda saxlanıldı.";
 }
 
 export default function ArticleEditor({ article }: { article?: Article }) {
@@ -195,6 +216,8 @@ export default function ArticleEditor({ article }: { article?: Article }) {
   );
   const [uploading, setUploading] = useState(false);
   const [uploadingInline, setUploadingInline] = useState(false);
+  /** Məqalə hazırda saytda dərc olunubmu (status yalnız saxlama ilə dəyişir) */
+  const isLive = Boolean(article) && draft.status === "published";
 
   const allowedCategories = categories.filter((category) =>
     canEditCategory(session, category.slug),
@@ -353,16 +376,26 @@ export default function ArticleEditor({ article }: { article?: Article }) {
       return;
     }
 
-    // İndi dərc et - avtomatik tarix set et
+    if (nextStatus === "scheduled" && draft.scheduledAt && new Date(draft.scheduledAt) <= new Date()) {
+      setMessage({ tone: "error", text: "Planlaşdırma tarixi gələcəkdə olmalıdır." });
+      return;
+    }
+
+    // Artıq dərc olunmuş məqalə yenilənəndə orijinal dərc tarixi saxlanılır;
+    // ilk dəfə dərc olunanda tarix «indi» olur.
+    const wasPublished = Boolean(article) && draft.status === "published";
+    const newStatus: ArticleStatus = nextStatus ?? draft.status;
     let finalPublishedAt = draft.publishedAt;
-    if (nextStatus === "published") {
+    if (newStatus === "published" && !wasPublished) {
       finalPublishedAt = new Date().toISOString();
+    } else if (newStatus === "scheduled" && draft.scheduledAt) {
+      finalPublishedAt = new Date(draft.scheduledAt).toISOString();
     }
 
     const payload: ArticleInput = {
       ...draft,
       slug: slugs,
-      status: nextStatus ?? draft.status,
+      status: newStatus,
       publishedAt: finalPublishedAt,
       readingMinutes:
         draft.readingMinutes > 0
@@ -370,9 +403,20 @@ export default function ArticleEditor({ article }: { article?: Article }) {
           : estimateReadingMinutes(draft.body.az || draft.body.en || ""),
     };
 
-    // Scheduled statusdursa scheduledAt əlavə et, deyilsə çıxart
-    if (nextStatus === "scheduled" && draft.scheduledAt) {
+    // Planlaşdırma tarixi yalnız «scheduled» statusunda saxlanılır
+    if (newStatus === "scheduled" && draft.scheduledAt) {
       payload.scheduledAt = draft.scheduledAt;
+    } else {
+      delete payload.scheduledAt;
+    }
+
+    // Saytda görünən hər dəyişiklikdə (dərc, yeniləmə, dərcdən çıxarma) cache təmizlənir
+    const affectsSite = newStatus === "published" || wasPublished;
+    const locations: ArticleLocation[] = [
+      { category: payload.category, subcategory: payload.subcategory, slug: payload.slug },
+    ];
+    if (article) {
+      locations.push({ category: article.category, subcategory: article.subcategory, slug: article.slug });
     }
 
     setBusy(true);
@@ -392,19 +436,11 @@ export default function ArticleEditor({ article }: { article?: Article }) {
         });
         setDraft(payload);
         
-        // Məqalə published statusuna keçdisə, cache-i təmizlə
-        if (nextStatus === "published" || payload.status === "published") {
-          const articleSlugAz = typeof article.slug === "string" ? article.slug : article.slug.az;
-          const revalidateResult = await revalidateArticleCache(articleSlugAz, article.category);
-          
-          if (revalidateResult.success) {
-            setMessage({ tone: "success", text: "✅ Məqalə dərc edildi və saytda görünür." });
-          } else {
-            setMessage({ tone: "success", text: "Məqalə yadda saxlanıldı. ⚠️ Cache təmizlənmədi - səhifəni yeniləyin." });
-          }
-        } else {
-          setMessage({ tone: "success", text: "Dəyişikliklər yadda saxlanıldı." });
-        }
+        const cacheCleared = affectsSite ? await revalidateArticleCache(locations) : true;
+        setMessage({
+          tone: "success",
+          text: saveResultMessage(newStatus, wasPublished, cacheCleared),
+        });
       } else {
         const id = await createArticle(payload);
         // Yeni məqalə üçün ilk versiya
@@ -416,19 +452,11 @@ export default function ArticleEditor({ article }: { article?: Article }) {
           currentVersion: 0,
         });
         
-        // Yeni məqalə published statusundadırsa, cache-i təmizlə
-        if (payload.status === "published") {
-          const payloadSlugAz = typeof payload.slug === "string" ? payload.slug : payload.slug.az;
-          const revalidateResult = await revalidateArticleCache(payloadSlugAz, payload.category);
-          
-          if (revalidateResult.success) {
-            setMessage({ tone: "success", text: "✅ Məqalə yaradıldı və saytda görünür." });
-          } else {
-            setMessage({ tone: "success", text: "Məqalə yaradıldı. ⚠️ Cache təmizlənmədi - səhifəni yeniləyin." });
-          }
-        } else {
-          setMessage({ tone: "success", text: "Məqalə yaradıldı." });
-        }
+        const cacheCleared = affectsSite ? await revalidateArticleCache(locations) : true;
+        setMessage({
+          tone: "success",
+          text: saveResultMessage(newStatus, false, cacheCleared),
+        });
         
         router.push(`/admin/articles/${id}`);
       }
@@ -884,10 +912,18 @@ export default function ArticleEditor({ article }: { article?: Article }) {
             </Button>
             <Button
               variant="ghost"
-              onClick={() => void handleSave("draft")}
+              onClick={() => {
+                if (
+                  isLive &&
+                  !window.confirm("Məqalə saytdan çıxarılıb qaralamaya keçiriləcək. Davam edilsin?")
+                ) {
+                  return;
+                }
+                void handleSave("draft");
+              }}
               disabled={busy}
             >
-              Qaralama saxla
+              {isLive ? "Dərcdən çıxar" : "Qaralama saxla"}
             </Button>
             {draft.scheduledAt && new Date(draft.scheduledAt) > new Date() && (
               <Button
@@ -899,7 +935,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
               </Button>
             )}
             <Button onClick={() => void handleSave("published")} disabled={busy}>
-              {busy ? "Saxlanılır…" : "Dərc et"}
+              {busy ? "Saxlanılır…" : isLive ? "Yenilə" : "Dərc et"}
             </Button>
           </div>
         </div>
