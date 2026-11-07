@@ -34,3 +34,18 @@ export async function getPublishedEjournals(): Promise<Ejournal[]> {
     return [];
   }
 }
+
+/** Pullu olub-olmaması: qiymət > 0 → satışdakı nəşr */
+export function isPaidIssue(issue: Pick<Ejournal, "price">): boolean {
+  return (issue.price ?? 0) > 0;
+}
+
+/** /e-jurnal — pulsuz PDF nömrələri */
+export async function getFreeEjournals(): Promise<Ejournal[]> {
+  return (await getPublishedEjournals()).filter((issue) => !isPaidIssue(issue));
+}
+
+/** /jurnallar — satışdakı nəşrlər (PDF linki açıq sənəddə yoxdur) */
+export async function getEditions(): Promise<Ejournal[]> {
+  return (await getPublishedEjournals()).filter(isPaidIssue);
+}

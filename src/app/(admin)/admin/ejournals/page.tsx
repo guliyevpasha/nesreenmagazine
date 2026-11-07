@@ -16,19 +16,34 @@ import {
 } from "@/components/admin/ui";
 import {
   addEjournal,
+  getEjournalDetailStats,
+  getEjournalPrivatePdf,
+  getEjournalStats,
   listEjournals,
   removeEjournal,
   saveEjournal,
+  setEjournalPrivatePdf,
   uploadFile,
-  getEjournalStats,
-  getEjournalDetailStats,
 } from "@/lib/data/admin";
+import { categories } from "@/lib/categories";
 import { isAdmin, useAuth } from "@/lib/firebase/auth";
 import { locales, type Locale } from "@/lib/i18n/config";
-import { emptyLocalized, type Ejournal, type EjournalInput, type EjournalStats } from "@/lib/types";
+import {
+  emptyLocalized,
+  SPECIAL_ISSUE_CATEGORY,
+  type Ejournal,
+  type EjournalInput,
+  type EjournalStats,
+} from "@/lib/types";
 
 const fileInputClass =
   "w-full font-ui text-[12px] text-ink-soft file:mr-3 file:border file:border-line file:bg-cream file:px-3 file:py-2 file:font-ui file:text-[11px] file:uppercase file:tracking-[0.14em] file:text-ink hover:file:border-bordo";
+
+/** Nəşr kateqoriyaları: saytın bölmələri + «Xüsusi buraxılış» */
+const ISSUE_CATEGORIES = [
+  ...categories.map((category) => ({ slug: category.slug, name: category.name.az })),
+  { slug: SPECIAL_ISSUE_CATEGORY, name: "Xüsusi buraxılış" },
+];
 
 function emptyIssue(): EjournalInput {
   return {
@@ -37,17 +52,30 @@ function emptyIssue(): EjournalInput {
     pdfUrl: "",
     title: emptyLocalized(),
     description: emptyLocalized(),
+    highlights: emptyLocalized(),
     publishedAt: new Date().toISOString().slice(0, 10),
     pages: 0,
+    price: 0,
+    category: "",
   };
+}
+
+function isPaid(issue: Pick<EjournalInput, "price">): boolean {
+  return (issue.price ?? 0) > 0;
 }
 
 export default function EjournalsPage() {
   const { session } = useAuth();
   const [issues, setIssues] = useState<Ejournal[] | null>(null);
   const [stats, setStats] = useState<EjournalStats | null>(null);
-  const [issueStats, setIssueStats] = useState<Record<string, { orders: number; revenue: number; downloads: number }>>({});
+  const [issueStats, setIssueStats] = useState<
+    Record<string, { orders: number; revenue: number; downloads: number }>
+  >({});
   const [draft, setDraft] = useState<EjournalInput>(emptyIssue);
+  /** Redaktə olunan nömrə (null = yeni nömrə) */
+  const [editingId, setEditingId] = useState<string | null>(null);
+  /** Pullu nömrənin gizli PDF linki (açıq sənəddə saxlanılmır) */
+  const [privatePdf, setPrivatePdf] = useState("");
   const [activeLocale, setActiveLocale] = useState<Locale>("az");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(
@@ -55,22 +83,10 @@ export default function EjournalsPage() {
   );
 
   const canDelete = isAdmin(session);
-
-  async function handleRemove(id: string) {
-    if (!window.confirm("Nömrə silinsin?")) return;
-    try {
-      await removeEjournal(id);
-      await refresh();
-    } catch (caught) {
-      setMessage({
-        tone: "error",
-        text: caught instanceof Error ? caught.message : "Nömrə silinmədi.",
-      });
-    }
-  }
+  const paid = isPaid(draft);
+  const pdfForDraft = paid ? privatePdf : draft.pdfUrl;
 
   async function refresh() {
-    // Nömrələr statistikadan asılı olmadan yüklənir
     let issuesData: Ejournal[] = [];
     try {
       issuesData = await listEjournals();
@@ -93,10 +109,7 @@ export default function EjournalsPage() {
     }
 
     const entries = await Promise.allSettled(
-      issuesData.map(async (issue) => {
-        const detailStats = await getEjournalDetailStats(issue.id);
-        return [issue.id, detailStats] as const;
-      }),
+      issuesData.map(async (issue) => [issue.id, await getEjournalDetailStats(issue.id)] as const),
     );
     setIssueStats(
       Object.fromEntries(
@@ -113,19 +126,48 @@ export default function EjournalsPage() {
     locales.map((code) => [code, Boolean(draft.title[code]?.trim())]),
   ) as Record<Locale, boolean>;
 
-  function setLocalized(field: "title" | "description", value: string) {
+  function setLocalized(field: "title" | "description" | "highlights", value: string) {
     setDraft((current) => ({
       ...current,
-      [field]: { ...current[field], [activeLocale]: value },
+      [field]: { ...(current[field] ?? emptyLocalized()), [activeLocale]: value },
     }));
   }
 
-  async function handleUpload(file: File, target: "coverImage" | "pdfUrl") {
+  function resetForm() {
+    setDraft(emptyIssue());
+    setEditingId(null);
+    setPrivatePdf("");
+    setActiveLocale("az");
+  }
+
+  async function startEdit(issue: Ejournal) {
+    const { id, ...rest } = issue;
+    setDraft({
+      ...emptyIssue(),
+      ...rest,
+      highlights: rest.highlights ?? emptyLocalized(),
+      price: rest.price ?? 0,
+      category: rest.category ?? "",
+    });
+    setEditingId(id);
+    setActiveLocale("az");
+    setMessage(null);
+    setPrivatePdf(isPaid(rest) ? await getEjournalPrivatePdf(id).catch(() => "") : "");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function handleUpload(file: File, target: "coverImage" | "pdf") {
     setBusy(true);
     setMessage(null);
     try {
-      const url = await uploadFile(file, target === "pdfUrl" ? "ejournals" : "ejournal-covers");
-      setDraft((current) => ({ ...current, [target]: url }));
+      const url = await uploadFile(file, target === "pdf" ? "ejournals" : "ejournal-covers");
+      if (target === "coverImage") {
+        setDraft((current) => ({ ...current, coverImage: url }));
+      } else if (paid) {
+        setPrivatePdf(url);
+      } else {
+        setDraft((current) => ({ ...current, pdfUrl: url }));
+      }
     } catch (caught) {
       setMessage({
         tone: "error",
@@ -136,31 +178,92 @@ export default function EjournalsPage() {
     }
   }
 
-  async function handleAdd() {
-    if (!draft.pdfUrl) {
-      setMessage({ tone: "error", text: "PDF fayl mütləqdir." });
-      return;
-    }
+  /** Dərc üçün minimum tələblər */
+  function publishProblem(issue: EjournalInput, pdf: string): string | null {
+    if (!issue.title.az.trim()) return "Azərbaycan dilində başlıq mütləqdir.";
+    if (!issue.coverImage) return "Dərc etmək üçün üz qabığı şəkli lazımdır.";
+    if (!isPaid(issue) && !pdf) return "Pulsuz nömrəni dərc etmək üçün PDF lazımdır.";
+    return null;
+  }
+
+  async function handleSubmit() {
     if (!draft.title.az.trim()) {
       setMessage({ tone: "error", text: "Azərbaycan dilində başlıq mütləqdir." });
+      setActiveLocale("az");
       return;
     }
+    if (draft.status === "published") {
+      const problem = publishProblem(draft, pdfForDraft);
+      if (problem) {
+        setMessage({ tone: "error", text: problem });
+        return;
+      }
+    }
+
+    // Pullu nömrədə PDF açıq sənədə yazılmır
+    const payload: EjournalInput = {
+      ...draft,
+      price: Math.max(0, Number(draft.price) || 0),
+      pdfUrl: paid ? "" : draft.pdfUrl,
+    };
 
     setBusy(true);
     setMessage(null);
     try {
-      await addEjournal(draft);
-      setDraft(emptyIssue());
-      setActiveLocale("az");
-      setMessage({ tone: "success", text: "Nömrə əlavə olundu." });
+      const id = editingId ?? (await addEjournal(payload));
+      if (editingId) await saveEjournal(editingId, payload);
+      if (paid && privatePdf) await setEjournalPrivatePdf(id, privatePdf);
+
+      setMessage({
+        tone: "success",
+        text: editingId ? "Nömrə yeniləndi." : "Nömrə əlavə olundu.",
+      });
+      resetForm();
       await refresh();
     } catch (caught) {
       setMessage({
         tone: "error",
-        text: caught instanceof Error ? caught.message : "Əlavə olunmadı.",
+        text: caught instanceof Error ? caught.message : "Yadda saxlanılmadı.",
       });
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function togglePublish(issue: Ejournal) {
+    setMessage(null);
+    try {
+      if (issue.status !== "published") {
+        const pdf = isPaid(issue) ? await getEjournalPrivatePdf(issue.id).catch(() => "") : issue.pdfUrl;
+        const problem = publishProblem(issue, pdf);
+        if (problem) {
+          setMessage({ tone: "error", text: `«${issue.title.az}»: ${problem}` });
+          return;
+        }
+      }
+      await saveEjournal(issue.id, {
+        status: issue.status === "published" ? "draft" : "published",
+      });
+      await refresh();
+    } catch (caught) {
+      setMessage({
+        tone: "error",
+        text: caught instanceof Error ? caught.message : "Status dəyişmədi.",
+      });
+    }
+  }
+
+  async function handleRemove(id: string) {
+    if (!window.confirm("Nömrə həmişəlik silinsin?")) return;
+    try {
+      await removeEjournal(id);
+      if (editingId === id) resetForm();
+      await refresh();
+    } catch (caught) {
+      setMessage({
+        tone: "error",
+        text: caught instanceof Error ? caught.message : "Nömrə silinmədi.",
+      });
     }
   }
 
@@ -169,8 +272,8 @@ export default function EjournalsPage() {
   return (
     <>
       <PageHeader
-        title="E-jurnal"
-        description="Jurnalın elektron nömrələri, satış və download statistikası"
+        title="E-jurnal və nəşrlər"
+        description="Pulsuz e-jurnal nömrələri (/e-jurnal) və satışdakı nəşrlər (/jurnallar). Nömrəni yaradıcıda hazırlayıb PDF kimi bağlaya bilərsiniz."
       />
 
       <div className="px-6 py-8 lg:px-10">
@@ -180,52 +283,23 @@ export default function EjournalsPage() {
           </div>
         )}
 
-        {/* Stats Cards */}
         {stats && (
-          <div className="mb-6 grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4">
-            <div className="bg-white p-4 rounded-lg border border-gray-200">
-              <div className="text-sm text-gray-600">Cəmi nömrə</div>
-              <div className="text-2xl font-bold">{stats.totalIssues}</div>
-            </div>
-            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-              <div className="text-sm text-green-700">Dərc olunub</div>
-              <div className="text-2xl font-bold text-green-800">{stats.publishedIssues}</div>
-            </div>
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <div className="text-sm text-blue-700">Cəmi satış</div>
-              <div className="text-2xl font-bold text-blue-800">{stats.totalSales}</div>
-            </div>
-            <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-              <div className="text-sm text-purple-700">Cəmi gəlir</div>
-              <div className="text-2xl font-bold text-purple-800">{stats.totalRevenue} ₼</div>
-            </div>
-            <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
-              <div className="text-sm text-indigo-700">Bu ay satış</div>
-              <div className="text-2xl font-bold text-indigo-800">{stats.thisMonthSales}</div>
-            </div>
-            <div className="bg-pink-50 p-4 rounded-lg border border-pink-200">
-              <div className="text-sm text-pink-700">Bu ay gəlir</div>
-              <div className="text-2xl font-bold text-pink-800">{stats.thisMonthRevenue} ₼</div>
-            </div>
-            <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-              <div className="text-sm text-orange-700">Downloads</div>
-              <div className="text-2xl font-bold text-orange-800">{stats.totalDownloads}</div>
-            </div>
-            <div className="bg-teal-50 p-4 rounded-lg border border-teal-200">
-              <div className="text-sm text-teal-700">Ort. qiymət</div>
-              <div className="text-2xl font-bold text-teal-800">{stats.avgPrice} ₼</div>
-            </div>
+          <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+            <StatBox label="Cəmi nömrə" value={stats.totalIssues} />
+            <StatBox label="Dərc olunub" value={stats.publishedIssues} />
+            <StatBox label="Satış" value={stats.totalSales} />
+            <StatBox label="Gəlir" value={`${stats.totalRevenue} ₼`} />
           </div>
         )}
 
         <div className="grid gap-6 xl:grid-cols-12">
-          {/* ------------------------- Yeni nömrə ------------------------- */}
+          {/* ---------------------- Nömrə forması ---------------------- */}
           <div className="xl:col-span-5">
-            <Panel title="Yeni nömrə">
+            <Panel title={editingId ? "Nömrəni redaktə et" : "Yeni nömrə"}>
               <div className="space-y-5">
                 <LocaleTabs active={activeLocale} onChange={setActiveLocale} filled={filled} />
 
-                <Field label="Başlıq" hint="Məsələn: «Sentyabr 2026»">
+                <Field label="Başlıq" hint="Məsələn: «Sentyabr 2026 · Payız modası»">
                   <input
                     type="text"
                     value={draft.title[activeLocale]}
@@ -234,39 +308,104 @@ export default function EjournalsPage() {
                   />
                 </Field>
 
-                <Field label="Nömrədə nə var">
+                <Field label="Qısa təsvir" hint="Kartda başlığın altında görünən 1–2 cümlə.">
                   <textarea
-                    rows={3}
+                    rows={2}
                     value={draft.description[activeLocale]}
                     onChange={(event) => setLocalized("description", event.target.value)}
                     className={`${inputClass} resize-y`}
                   />
                 </Field>
 
-                <Field label="PDF fayl" hint="Oxucu bu faylı açır və ya yükləyir.">
+                <Field label="Bu nömrədə" hint="Hər sətirə bir mövzu yazın — saytda siyahı kimi görünür.">
+                  <textarea
+                    rows={4}
+                    value={draft.highlights?.[activeLocale] ?? ""}
+                    onChange={(event) => setLocalized("highlights", event.target.value)}
+                    className={`${inputClass} resize-y`}
+                    placeholder={"Payız trendləri: 12 əsas obraz\nMüsahibə: …\nGözəllik: …"}
+                  />
+                </Field>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Qiymət (AZN)" hint="0 = pulsuz e-jurnal">
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.5"
+                      value={draft.price ?? 0}
+                      onChange={(event) =>
+                        setDraft((current) => ({ ...current, price: Number(event.target.value) || 0 }))
+                      }
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Kateqoriya">
+                    <select
+                      value={draft.category ?? ""}
+                      onChange={(event) =>
+                        setDraft((current) => ({ ...current, category: event.target.value }))
+                      }
+                      className={inputClass}
+                    >
+                      <option value="">— ümumi —</option>
+                      {ISSUE_CATEGORIES.map((item) => (
+                        <option key={item.slug} value={item.slug}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+
+                <div className="border border-line bg-cream/50 px-4 py-3 font-ui text-[12px] text-ink-soft">
+                  {paid ? (
+                    <>
+                      <strong>Satışdakı nəşr.</strong> Saytda «Nəşrlər» kataloqunda qiymət və «Sifariş et»
+                      düyməsi ilə görünür. PDF oxuculara açıq verilmir — sifarişlər «Mesajlar» bölməsinə
+                      düşür, ödənişdən sonra PDF-i alıcıya göndərirsiniz.
+                    </>
+                  ) : (
+                    <>
+                      <strong>Pulsuz e-jurnal.</strong> Saytda «E-jurnal» səhifəsində PDF hər kəs üçün açıq olur.
+                    </>
+                  )}
+                </div>
+
+                <Field
+                  label="PDF fayl"
+                  hint="Maks. 10 MB. PDF-i «Yaradıcı»da hazırlaya və ya hazır faylı yükləyə bilərsiniz."
+                >
                   <input
                     type="file"
                     accept="application/pdf"
                     onChange={(event) => {
                       const file = event.target.files?.[0];
-                      if (file) void handleUpload(file, "pdfUrl");
+                      if (file) void handleUpload(file, "pdf");
+                      event.target.value = "";
                     }}
                     className={fileInputClass}
                   />
-                  {draft.pdfUrl && (
-                    <p className="mt-2 truncate font-ui text-[11.5px] text-muted">
-                      {draft.pdfUrl}
-                    </p>
+                  {pdfForDraft && (
+                    <a
+                      href={pdfForDraft}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 block truncate font-ui text-[11.5px] text-bordo underline"
+                    >
+                      Yüklənmiş PDF-ə bax
+                    </a>
                   )}
                 </Field>
 
-                <Field label="Üz qabığı şəkli" hint="Boş qalsa naxışlı örtük göstərilir.">
+                <Field label="Üz qabığı şəkli" hint="Dərc üçün mütləqdir. Şaquli (3:4) şəkil seçin.">
                   <input
                     type="file"
                     accept="image/*"
                     onChange={(event) => {
                       const file = event.target.files?.[0];
                       if (file) void handleUpload(file, "coverImage");
+                      event.target.value = "";
                     }}
                     className={fileInputClass}
                   />
@@ -279,10 +418,10 @@ export default function EjournalsPage() {
                 </Field>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <Field label="Tarix">
+                  <Field label="Buraxılış tarixi">
                     <input
                       type="date"
-                      value={draft.publishedAt}
+                      value={draft.publishedAt.slice(0, 10)}
                       onChange={(event) =>
                         setDraft((current) => ({ ...current, publishedAt: event.target.value }))
                       }
@@ -295,10 +434,7 @@ export default function EjournalsPage() {
                       min={0}
                       value={draft.pages}
                       onChange={(event) =>
-                        setDraft((current) => ({
-                          ...current,
-                          pages: Number(event.target.value) || 0,
-                        }))
+                        setDraft((current) => ({ ...current, pages: Number(event.target.value) || 0 }))
                       }
                       className={inputClass}
                     />
@@ -316,19 +452,26 @@ export default function EjournalsPage() {
                     }
                     className={inputClass}
                   >
-                    <option value="draft">Qaralama</option>
+                    <option value="draft">Qaralama (saytda görünmür)</option>
                     <option value="published">Dərc olunub</option>
                   </select>
                 </Field>
 
-                <Button onClick={() => void handleAdd()} disabled={busy} className="w-full">
-                  {busy ? "Gözləyin…" : "Nömrəni əlavə et"}
-                </Button>
+                <div className="flex gap-3">
+                  <Button onClick={() => void handleSubmit()} disabled={busy} className="flex-1">
+                    {busy ? "Gözləyin…" : editingId ? "Dəyişiklikləri saxla" : "Nömrəni əlavə et"}
+                  </Button>
+                  {editingId && (
+                    <Button variant="ghost" onClick={resetForm} disabled={busy}>
+                      Ləğv et
+                    </Button>
+                  )}
+                </div>
               </div>
             </Panel>
           </div>
 
-          {/* ------------------------ Mövcud nömrələr --------------------- */}
+          {/* ---------------------- Mövcud nömrələr ---------------------- */}
           <div className="xl:col-span-7">
             <Panel title="Nömrələr">
               {!issues ? (
@@ -336,66 +479,58 @@ export default function EjournalsPage() {
               ) : issues.length === 0 ? (
                 <Empty
                   title="Hələ nömrə yoxdur"
-                  text="İlk PDF-i yükləyin — saytdakı «E-jurnal» bölməsi dərhal dolacaq."
+                  text="Soldakı formadan ilk nömrəni yaradın, sonra «Yaradıcı» ilə səhifələrini hazırlayın."
                 />
               ) : (
                 <ul className="divide-y divide-line">
                   {issues.map((issue) => {
-                    const issueStatData = issueStats[issue.id] || { orders: 0, revenue: 0, downloads: 0 };
+                    const detail = issueStats[issue.id] ?? { orders: 0, revenue: 0, downloads: 0 };
+                    const issuePaid = isPaid(issue);
                     return (
                       <li key={issue.id} className="py-4">
                         <div className="flex flex-wrap items-start gap-4">
                           <div className="h-20 w-14 shrink-0 border border-line bg-cream-deep">
                             {issue.coverImage && (
                               // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={issue.coverImage}
-                                alt=""
-                                className="h-full w-full object-cover"
-                              />
+                              <img src={issue.coverImage} alt="" className="h-full w-full object-cover" />
                             )}
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <p className="font-display text-[1.0625rem]">
-                              {issue.title.az || "—"}
-                            </p>
+                            <p className="font-display text-[1.0625rem]">{issue.title.az || "—"}</p>
                             <p className="mt-1 font-ui text-[11.5px] text-muted">
-                              {issue.publishedAt}
+                              {issue.publishedAt.slice(0, 10)}
                               {issue.pages > 0 && ` · ${issue.pages} səhifə`}
+                              {" · "}
+                              {issuePaid ? `${issue.price} ₼` : "Pulsuz"}
+                              {issue.category &&
+                                ` · ${ISSUE_CATEGORIES.find((item) => item.slug === issue.category)?.name ?? issue.category}`}
                             </p>
-                            <div className="mt-2 flex items-center gap-2">
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
                               <StatusPill status={issue.status} />
-                              {issue.status === "published" && (
-                                <>
-                                  <span className="text-xs text-blue-600">
-                                    💰 {issueStatData.orders} satış
-                                  </span>
-                                  <span className="text-xs text-green-600">
-                                    {issueStatData.revenue} ₼
-                                  </span>
-                                  <span className="text-xs text-purple-600">
-                                    📥 {issueStatData.downloads} download
-                                  </span>
-                                </>
+                              {issue.status === "published" && issuePaid && (
+                                <span className="font-ui text-[11px] text-muted">
+                                  {detail.orders} sifariş · {detail.revenue} ₼
+                                </span>
                               )}
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            <Link href={`/admin/ejournals/${issue.id}`}>
-                              <Button variant="ghost">📊 Statistika</Button>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Link href={`/admin/ejournals/builder/${issue.id}`}>
+                              <Button variant="ghost">Yaradıcı</Button>
                             </Link>
-                            <Button
-                              variant="ghost"
-                              onClick={() =>
-                                void saveEjournal(issue.id, {
-                                  status: issue.status === "published" ? "draft" : "published",
-                                }).then(refresh)
-                              }
-                            >
+                            <Button variant="ghost" onClick={() => void startEdit(issue)}>
+                              Redaktə
+                            </Button>
+                            <Button variant="ghost" onClick={() => void togglePublish(issue)}>
                               {issue.status === "published" ? "Gizlət" : "Dərc et"}
                             </Button>
+                            {issuePaid && (
+                              <Link href={`/admin/ejournals/${issue.id}`}>
+                                <Button variant="ghost">Satış</Button>
+                              </Link>
+                            )}
                             {canDelete && (
                               <Button variant="danger" onClick={() => void handleRemove(issue.id)}>
                                 Sil
@@ -413,5 +548,14 @@ export default function EjournalsPage() {
         </div>
       </div>
     </>
+  );
+}
+
+function StatBox({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="border border-line bg-paper px-4 py-3">
+      <p className="font-ui text-[10.5px] uppercase tracking-[0.14em] text-muted">{label}</p>
+      <p className="mt-1 font-display text-2xl text-ink">{value}</p>
+    </div>
   );
 }
