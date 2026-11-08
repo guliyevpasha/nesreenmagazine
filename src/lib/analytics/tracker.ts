@@ -149,8 +149,11 @@ export async function trackPage(params: {
       viewedAt: new Date().toISOString(),
     };
 
-    // Firestore-a yaz
-    await trackPageView(pageViewData);
+    // Firestore `undefined` dəyəri qəbul etmir — boş sahələr göndərilmir.
+    const clean = Object.fromEntries(
+      Object.entries(pageViewData).filter(([, v]) => v !== undefined),
+    ) as PageViewInput;
+    await trackPageView(clean);
 
     // Məqalə səhifəsidirsə, article analytics-i yenilə
     if (params.articleId) {
@@ -219,15 +222,10 @@ export function trackTimeOnPage(): void {
     }
   });
 
-  // Page unload olduqda müddəti qeyd et
-  window.addEventListener("beforeunload", () => {
-    if (isActive) {
-      const timeOnPage = Math.floor((Date.now() - startTime) / 1000);
-      // Navigator.sendBeacon istifadə edərək son məlumatı göndər
-      const data = JSON.stringify({ sessionId, timeOnPage });
-      navigator.sendBeacon("/api/analytics/time", data);
-    }
-  });
+  // Qeyd: əvvəllər burada mövcud olmayan /api/analytics/time ünvanına sendBeacon göndərilirdi (404).
+  // Açıq API endpoint yaratmamaq üçün (CLAUDE.md, qayda 4) beacon silindi.
+  void startTime;
+  void isActive;
 }
 
 /**

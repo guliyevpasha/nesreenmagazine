@@ -26,7 +26,9 @@ import {
   Figure,
   ListStyle,
   TEXT_EFFECTS,
+  TableLayout,
   TextEffect,
+  TextSpacing,
   VideoEmbed,
   WordBulletList,
   WordOrderedList,
@@ -51,7 +53,10 @@ import {
   saveCustomStyle,
   serializeBlocks,
   sortSelection,
+  setColumnWidth,
+  setRowHeight,
   stepFontSize,
+  headingStyleId,
   styleFromSelection,
   type BuiltinStyle,
   type CaseMode,
@@ -73,8 +78,6 @@ export function normalizeIncoming(content: string): string {
   if (!content) return "";
   const html = content.trim().startsWith("<") || /<(p|div|h\d)[\s>]/i.test(content) ? content : markdownToHtml(content);
   return html
-    .replace(/<h1(\s|>)/gi, "<h2$1")
-    .replace(/<\/h1>/gi, "</h2>")
     .replace(/<img[^>]+src=["']data:[^>]*>/gi, ""); // base64 şəkillər Firestore limitini aşır
 }
 
@@ -143,7 +146,7 @@ export default function WordEditor({ content, onChange, placeholder = "Məqalən
     shouldRerenderOnTransaction: false,
     extensions: [
       StarterKit.configure({
-        heading: { levels: [2, 3, 4, 5] },
+        heading: { levels: [1, 2, 3, 4, 5, 6] },
         bulletList: false,
         orderedList: false,
         link: {
@@ -158,12 +161,14 @@ export default function WordEditor({ content, onChange, placeholder = "Məqalən
       ListStyle,
       TextStyleKit,
       TextEffect,
+      TextSpacing,
       Highlight.configure({ multicolor: true }),
       // Word kimi: aşağı və yuxarı indeks eyni anda ola bilməz.
       Subscript.extend({ excludes: "superscript" }),
       Superscript.extend({ excludes: "subscript" }),
       WordTextAlign.configure({ types: ["heading", "paragraph"] }),
-      TableKit.configure({ table: { resizable: false } }),
+      TableKit.configure({ table: { resizable: true, cellMinWidth: 40 } }),
+      TableLayout,
       BlockFormat,
       Figure,
       VideoEmbed,
@@ -291,10 +296,15 @@ export default function WordEditor({ content, onChange, placeholder = "Məqalən
   }
 
   const ts = editor.getAttributes("textStyle");
+  const tableAttrs = editor.getAttributes("table") as { tableAlign?: string | null; cellPadding?: string | null; cellSpacing?: string | null; tableWidth?: string | null };
   const styleKey = activeStyle(editor);
   const align = (["left", "center", "right", "justify"] as const).find((a) => editor.isActive({ textAlign: a })) ?? "left";
   const block = editor.state.selection.$from.parent.attrs as Record<string, unknown>;
   const marksOn = formattingMarksVisible(editor.state);
+  let hasH1 = false;
+  editor.state.doc.forEach((n) => {
+    if (n.type.name === "heading" && n.attrs.level === 1) hasH1 = true;
+  });
   const words = editor.storage.characterCount?.words?.() ?? 0;
   const chars = editor.storage.characterCount?.characters?.() ?? 0;
   const ch = () => editor.chain().focus();
@@ -491,6 +501,47 @@ export default function WordEditor({ content, onChange, placeholder = "Məqalən
                         </>
                       )}
                     </Dropdown>
+                    <Dropdown title="Hərf və söz aralığı" testId="tb-textspacing" width={230} active={Boolean(ts.letterSpacing || ts.wordSpacing)} label={<span className="font-ui text-[12px] tracking-[0.15em]">A↔</span>}>
+                      {(close) => (
+                        <>
+                          <div className="px-2 pb-1 pt-0.5 font-ui text-[10px] uppercase tracking-[0.12em] text-muted">Hərf aralığı</div>
+                          {([["-0.05em", "Sıx"], [null, "Normal"], ["0.05em", "Geniş"], ["0.1em", "Daha geniş"], ["0.2em", "Çox geniş"]] as [string | null, string][]).map(([v, l]) => (
+                            <MenuItem key={String(v)} testId={`ls-${v ?? "normal"}`} active={(ts.letterSpacing ?? null) === v} onClick={() => { ch().setMark("textStyle", { letterSpacing: v }).removeEmptyTextStyle().run(); close(); }}>
+                              <span style={{ letterSpacing: v ?? undefined }}>{l}</span>
+                            </MenuItem>
+                          ))}
+                          <div className="my-1 border-t border-line" />
+                          <div className="px-2 pb-1 font-ui text-[10px] uppercase tracking-[0.12em] text-muted">Söz aralığı</div>
+                          {([[null, "Normal"], ["0.15em", "Geniş"], ["0.3em", "Daha geniş"], ["0.6em", "Çox geniş"]] as [string | null, string][]).map(([v, l]) => (
+                            <MenuItem key={String(v)} testId={`ws-${v ?? "normal"}`} active={(ts.wordSpacing ?? null) === v} onClick={() => { ch().setMark("textStyle", { wordSpacing: v }).removeEmptyTextStyle().run(); close(); }}>
+                              <span style={{ wordSpacing: v ?? undefined }}>{l} söz aralığı</span>
+                            </MenuItem>
+                          ))}
+                          <form
+                            className="mt-1 grid grid-cols-[1fr_1fr_auto] gap-1 border-t border-line p-1 pt-2"
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              const fd = new FormData(e.currentTarget);
+                              const l = String(fd.get("ls") || "").trim();
+                              const w = String(fd.get("ws") || "").trim();
+                              const ok = (v: string) => /^-?\d+(\.\d+)?$/.test(v);
+                              ch()
+                                .setMark("textStyle", {
+                                  ...(l ? { letterSpacing: ok(l) ? `${l}px` : null } : {}),
+                                  ...(w ? { wordSpacing: ok(w) ? `${w}px` : null } : {}),
+                                })
+                                .removeEmptyTextStyle()
+                                .run();
+                              close();
+                            }}
+                          >
+                            <input name="ls" type="number" step={0.5} min={-5} max={40} placeholder="hərf px" aria-label="Hərf aralığı (px)" data-testid="ls-input" className="h-7 min-w-0 rounded border border-line px-1.5 text-[12px]" />
+                            <input name="ws" type="number" step={1} min={-5} max={80} placeholder="söz px" aria-label="Söz aralığı (px)" data-testid="ws-input" className="h-7 min-w-0 rounded border border-line px-1.5 text-[12px]" />
+                            <button type="submit" className="h-7 rounded bg-bordo px-2 text-[11px] text-white" data-testid="spacing-text-apply">OK</button>
+                          </form>
+                        </>
+                      )}
+                    </Dropdown>
                     <Dropdown title="Mətnin vurğulanma rəngi" testId="tb-highlight" width={220} active={editor.isActive("highlight")} label={<span className="font-ui text-[12px] font-semibold" style={{ background: editor.getAttributes("highlight").color || "#fef08a", padding: "0 3px" }}>ab</span>}>
                       {(close) => (
                         <ColorGrid highlight testId="highlight-grid" resetLabel="Vurğusuz" onReset={() => { ch().unsetHighlight().run(); close(); }} onPick={(c) => { ch().setHighlight({ color: c }).run(); close(); }} />
@@ -603,6 +654,18 @@ export default function WordEditor({ content, onChange, placeholder = "Məqalən
                         </>
                       )}
                     </Dropdown>
+                    <Dropdown title="Girinti: ilk sətir / asılı" testId="tb-firstline" width={220} active={Boolean(block.firstLine)} label={<span className="font-ui text-[12px]">⇥¶</span>}>
+                      {(close) => (
+                        <>
+                          {([[0, "Xüsusi girinti yoxdur"], [1.5, "İlk sətir 1.5 em"], [3, "İlk sətir 3 em"], [-1.5, "Asılı 1.5 em"], [-3, "Asılı 3 em"]] as [number, string][]).map(([v, l]) => (
+                            <MenuItem key={String(v)} testId={`fl-${v}`} active={Number(block.firstLine || 0) === v} onClick={() => { ch().setBlockAttr("firstLine", v).run(); close(); }}>
+                              {l}
+                            </MenuItem>
+                          ))}
+                          <MenuItem testId="paragraph-dialog" onClick={() => { setDialog("spacing"); close(); }}>Abzas parametrləri…</MenuItem>
+                        </>
+                      )}
+                    </Dropdown>
                     <Dropdown title="Abzas çərçivəsi" testId="tb-borders" width={200} active={Boolean(block.border)} label={<Icon name="borders" />}>
                       {(close) =>
                         ([
@@ -639,7 +702,7 @@ export default function WordEditor({ content, onChange, placeholder = "Məqalən
                       data-testid={`style-${s.key}`}
                       aria-pressed={styleKey === s.key}
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => applyBuiltinStyle(editor, s.key as BuiltinStyle)}
+                      onClick={() => applyBuiltinStyle(editor, s.key as BuiltinStyle, customStyles)}
                       className={`nm-style-chip nm-style-${s.key} h-[58px] w-[78px] shrink-0 overflow-hidden rounded-[3px] border px-1.5 text-left ${
                         styleKey === s.key ? "border-bordo bg-bordo/5" : "border-line bg-white hover:border-bordo/50"
                       }`}
@@ -648,7 +711,7 @@ export default function WordEditor({ content, onChange, placeholder = "Məqalən
                       <span className="block truncate font-ui text-[10px] not-italic text-muted" style={{ fontSize: 10, fontWeight: 400, letterSpacing: 0, textTransform: "none" }}>{s.label}</span>
                     </button>
                   ))}
-                  {customStyles.map((s) => (
+                  {customStyles.filter((s) => !s.id.startsWith("h-")).map((s) => (
                     <button
                       key={s.id}
                       type="button"
@@ -672,7 +735,27 @@ export default function WordEditor({ content, onChange, placeholder = "Məqalən
                       <MenuItem testId="style-create" onClick={() => { setEditingStyle(styleFromSelection(editor, "")); setDialog("style"); close(); }}>
                         ＋ Seçimdən yeni üslub yarat
                       </MenuItem>
-                      {customStyles.map((s) => (
+                      <div className="px-2 pb-1 pt-2 font-ui text-[10px] uppercase tracking-[0.12em] text-muted">Başlıq üslubunu dəyiş</div>
+                      <div className="grid grid-cols-6 gap-1 px-1 pb-1">
+                        {[1, 2, 3, 4, 5, 6].map((n) => (
+                          <button
+                            key={n}
+                            type="button"
+                            data-testid={`heading-style-${n}`}
+                            title={`H${n} üslubunu dəyiş — sənəddəki bütün H${n} başlıqlarına tətbiq olunur`}
+                            className={`h-7 rounded border text-[12px] ${customStyles.some((x) => x.id === headingStyleId(n)) ? "border-bordo text-bordo" : "border-line"} hover:bg-cream-deep`}
+                            onClick={() => {
+                              setEditingStyle(customStyles.find((x) => x.id === headingStyleId(n)) ?? { id: headingStyleId(n), name: `Başlıq ${n}` });
+                              setDialog("style");
+                              close();
+                            }}
+                          >
+                            H{n}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="my-1 border-t border-line" />
+                      {customStyles.filter((s) => !s.id.startsWith("h-")).map((s) => (
                         <div key={s.id} className="flex items-center gap-1">
                           <MenuItem testId={`style-edit-${s.name}`} onClick={() => { setEditingStyle(s); setDialog("style"); close(); }}>
                             ✎ {s.name}
@@ -738,6 +821,63 @@ export default function WordEditor({ content, onChange, placeholder = "Məqalən
 
           {tab === "table" && inTable && (
             <>
+              <Group label="Düzülüş">
+                <Dropdown title="Cədvəl hizalaması və eni" testId="tbl-align" width={210} label={<Icon name="alignCenter" />}>
+                  {(close) => (
+                    <>
+                      {([["left", "Sola"], ["center", "Mərkəzə"], ["right", "Sağa"]] as [string, string][]).map(([v, l]) => (
+                        <MenuItem key={v} testId={`tbl-align-${v}`} active={tableAttrs.tableAlign === v} onClick={() => { ch().updateAttributes("table", { tableAlign: v, tableWidth: "auto" }).run(); close(); }}>{l}</MenuItem>
+                      ))}
+                      <div className="my-1 border-t border-line" />
+                      <MenuItem testId="tbl-width-auto" active={tableAttrs.tableWidth === "auto"} onClick={() => { ch().updateAttributes("table", { tableWidth: "auto" }).run(); close(); }}>En: məzmuna görə</MenuItem>
+                      <MenuItem testId="tbl-width-full" active={!tableAttrs.tableWidth} onClick={() => { ch().updateAttributes("table", { tableWidth: null, tableAlign: null }).run(); close(); }}>En: tam (100%)</MenuItem>
+                    </>
+                  )}
+                </Dropdown>
+                <Dropdown title="Xana daxili boşluq (padding)" testId="tbl-padding" width={170} label={<span className="text-[12px]">Padding</span>}>
+                  {(close) => ([["0", "Sıx"], [null, "Normal"], ["2", "Geniş"], ["3", "Çox geniş"]] as [string | null, string][]).map(([v, l]) => (
+                    <MenuItem key={String(v)} testId={`tbl-pad-${v ?? "1"}`} active={(tableAttrs.cellPadding ?? null) === v} onClick={() => { ch().updateAttributes("table", { cellPadding: v }).run(); close(); }}>{l}</MenuItem>
+                  ))}
+                </Dropdown>
+                <Dropdown title="Xanalararası məsafə (cell spacing)" testId="tbl-spacing" width={170} label={<span className="text-[12px]">Spacing</span>}>
+                  {(close) => ([[null, "Yoxdur"], ["1", "4 px"], ["2", "8 px"], ["3", "12 px"]] as [string | null, string][]).map(([v, l]) => (
+                    <MenuItem key={String(v)} testId={`tbl-space-${v ?? "0"}`} active={(tableAttrs.cellSpacing ?? null) === v} onClick={() => { ch().updateAttributes("table", { cellSpacing: v }).run(); close(); }}>{l}</MenuItem>
+                  ))}
+                </Dropdown>
+                <form
+                  className="flex items-center gap-1"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const fd = new FormData(e.currentTarget);
+                    const rh = String(fd.get("rh") || "");
+                    const cw = String(fd.get("cw") || "");
+                    if (rh !== "") setRowHeight(editor, Number(rh) > 0 ? Math.min(600, Number(rh)) : null);
+                    if (cw !== "") setColumnWidth(editor, Number(cw) > 0 ? Math.min(1200, Number(cw)) : null);
+                    e.currentTarget.reset();
+                  }}
+                >
+                  <input name="rh" type="number" min={0} max={600} placeholder="Sətir px" aria-label="Sətir hündürlüyü (px)" data-testid="tbl-row-height" className="h-8 w-[76px] rounded border border-line px-1.5 text-[12px]" />
+                  <input name="cw" type="number" min={0} max={1200} placeholder="Sütun px" aria-label="Sütun eni (px)" data-testid="tbl-col-width" className="h-8 w-[80px] rounded border border-line px-1.5 text-[12px]" />
+                  <button type="submit" className="h-8 rounded bg-bordo px-2 text-[11px] text-white" data-testid="tbl-size-apply">OK</button>
+                </form>
+              </Group>
+              <Group label="Xana">
+                <Dropdown title="Xana fonu" testId="tbl-cell-bg" width={220} label={<Icon name="shading" />}>
+                  {(close) => (
+                    <ColorGrid highlight testId="cell-bg-grid" resetLabel="Fonsuz" onReset={() => { ch().setCellAttribute("background", null).run(); close(); }} onPick={(c) => { ch().setCellAttribute("background", c).run(); close(); }} />
+                  )}
+                </Dropdown>
+                <Dropdown title="Xana çərçivəsi" testId="tbl-cell-border" width={190} label={<Icon name="borders" />}>
+                  {(close) => ([[null, "Standart"], ["thin", "Nazik"], ["thick", "Qalın qara"], ["bordo", "Bordo"], ["gold", "Qızılı"], ["dashed", "Qırıq xətt"], ["none", "Çərçivəsiz"]] as [string | null, string][]).map(([v, l]) => (
+                    <MenuItem key={String(v)} testId={`cell-border-${v ?? "default"}`} onClick={() => { ch().setCellAttribute("cellBorder", v).run(); close(); }}>{l}</MenuItem>
+                  ))}
+                </Dropdown>
+                <Dropdown title="Şaquli hizalama" testId="tbl-valign" width={160} label={<span className="text-[12px]">↕</span>}>
+                  {(close) => ([["top", "Yuxarı"], ["middle", "Orta"], ["bottom", "Aşağı"]] as [string, string][]).map(([v, l]) => (
+                    <MenuItem key={v} testId={`cell-valign-${v}`} onClick={() => { ch().setCellAttribute("verticalAlign", v).run(); close(); }}>{l}</MenuItem>
+                  ))}
+                </Dropdown>
+              </Group>
               <Group label="Sətirlər">
                 <Btn wide title="Yuxarıya sətir" testId="tbl-row-before" onClick={() => ch().addRowBefore().run()}>↑ Sətir</Btn>
                 <Btn wide title="Aşağıya sətir" testId="tbl-row-after" onClick={() => ch().addRowAfter().run()}>↓ Sətir</Btn>
@@ -776,6 +916,11 @@ export default function WordEditor({ content, onChange, placeholder = "Məqalən
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-line bg-[#fbf8f4] px-3 py-1.5 font-ui text-[11.5px] text-muted">
         <span data-testid="word-count">{words} söz</span>
         <span>{chars} simvol</span>
+        {hasH1 && (
+          <span className="text-bordo" data-testid="h1-warning" title="Səhifədə məqalə başlığı artıq H1-dir. SEO üçün mətndə H2–H6 istifadə edin.">
+            ⚠ Mətndə H1 var (SEO: H2 tövsiyə olunur)
+          </span>
+        )}
         <span>Üslub: {styleKey.startsWith("custom:") ? customStyles.find((s) => `custom:${s.id}` === styleKey)?.name : BUILTIN_STYLES.find((s) => s.key === styleKey)?.label}</span>
         <span className="ms-auto">{statusExtra}</span>
       </div>
@@ -792,9 +937,10 @@ export default function WordEditor({ content, onChange, placeholder = "Məqalən
             const next = await saveCustomStyle(s, customStyles);
             setCustomStyles(next);
             const isNew = !customStyles.some((x) => x.id === s.id);
-            if (isNew) applyCustomStyle(editor, s);
+            if (isNew && !s.id.startsWith("h-")) applyCustomStyle(editor, s);
             else reapplyCustomStyle(editor, s);
             setDialog(null);
+            editor.commands.focus();
           }}
         />
       )}
@@ -1076,8 +1222,12 @@ function SpacingDialog({ editor, onClose }: { editor: Editor; onClose: () => voi
   const [line, setLine] = useState<string | number>(a.lineHeight || "");
   const [before, setBefore] = useState<string | number>(num(a.spaceBefore));
   const [after, setAfter] = useState<string | number>(num(a.spaceAfter));
+  const fl = Number(a.firstLine || 0);
+  const [indent, setIndent] = useState<string | number>(Number(a.indent || 0));
+  const [special, setSpecial] = useState<"none" | "first" | "hanging">(fl > 0 ? "first" : fl < 0 ? "hanging" : "none");
+  const [by, setBy] = useState<string | number>(fl ? Math.abs(fl) : 1.5);
   return (
-    <Modal title="Abzas aralığı" onClose={onClose} testId="spacing-dialog">
+    <Modal title="Abzas parametrləri" onClose={onClose} testId="spacing-dialog">
       <form
         className="space-y-3"
         onSubmit={(e) => {
@@ -1089,10 +1239,30 @@ function SpacingDialog({ editor, onClose }: { editor: Editor; onClose: () => voi
             .setBlockAttr("lineHeight", lh)
             .setBlockAttr("spaceBefore", before === "" ? null : `${Math.max(0, Number(before))}pt`)
             .setBlockAttr("spaceAfter", after === "" ? null : `${Math.max(0, Number(after))}pt`)
+            .setBlockAttr("indent", Math.max(0, Math.min(8, Math.round(Number(indent) || 0))))
+            .setBlockAttr("firstLine", special === "none" ? 0 : (special === "first" ? 1 : -1) * Math.max(0, Math.min(10, Number(by) || 0)))
             .run();
           onClose();
         }}
       >
+        <div className="grid grid-cols-3 gap-3">
+          <label className="block">
+            <span className={labelCls}>Sol girinti (pillə, 2 em)</span>
+            <input type="number" min={0} max={8} value={indent} onChange={(e) => setIndent(e.target.value)} className={fieldCls} data-testid="para-indent" />
+          </label>
+          <label className="block">
+            <span className={labelCls}>Xüsusi</span>
+            <select value={special} onChange={(e) => setSpecial(e.target.value as "none")} className={fieldCls} data-testid="para-special">
+              <option value="none">Yoxdur</option>
+              <option value="first">İlk sətir</option>
+              <option value="hanging">Asılı</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className={labelCls}>Ölçü (em)</span>
+            <input type="number" step={0.25} min={0} max={10} value={by} disabled={special === "none"} onChange={(e) => setBy(e.target.value)} className={fieldCls} data-testid="para-by" />
+          </label>
+        </div>
         <label className="block">
           <span className={labelCls}>Sətirlərarası (məs. 1.15)</span>
           <input type="number" step={0.05} min={0.5} max={5} value={line} onChange={(e) => setLine(e.target.value)} className={fieldCls} data-testid="spacing-line" />

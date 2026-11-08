@@ -6,7 +6,7 @@ test.describe("Üslublar", () => {
   });
 
   const map: [string, string][] = [
-    ["style-h1", "h2"], ["style-h2", "h3"], ["style-h3", "h4"], ["style-h4", "h5"],
+    ["style-h1", "h1"], ["style-h2", "h2"], ["style-h3", "h3"], ["style-h4", "h4"], ["style-h5", "h5"], ["style-h6", "h6"],
     ["style-quote", "blockquote"],
   ];
   for (const [id, tag] of map) {
@@ -16,7 +16,9 @@ test.describe("Üslublar", () => {
       await expect(ed(page).locator(tag)).toHaveText("Üslub mətni");
       await expect(page.getByTestId(id)).toHaveAttribute("aria-pressed", "true");
       await expectHtml(page, new RegExp(`<${tag}[ >]`));
-      expect(await html(page)).not.toMatch(/<h1/);
+      // H1 həqiqi <h1>-dir; mətndə H1 olanda SEO xəbərdarlığı görünür
+      if (tag === "h1") await expect(page.getByTestId("h1-warning")).toBeVisible();
+      else await expect(page.getByTestId("h1-warning")).toHaveCount(0);
       await save(page);
       expect(await renderHtml(page)).toMatch(new RegExp(`<${tag}[ >]`));
     });
@@ -53,18 +55,18 @@ test.describe("Üslublar", () => {
   test("quote → heading: blockquote-dan çıxır", async ({ page }) => {
     await page.keyboard.type("Q");
     await page.getByTestId("style-quote").click();
-    await page.getByTestId("style-h1").click();
+    await page.getByTestId("style-h2").click();
     await expect(ed(page).locator("blockquote")).toHaveCount(0);
     await expect(ed(page).locator("h2")).toHaveText("Q");
   });
 
-  test("TOC: H2/H3 siyahıda, h1 yoxdur", async ({ page }) => {
+  test("TOC: H2/H3 siyahıda", async ({ page }) => {
     await page.keyboard.type("Birinci bölmə");
-    await page.getByTestId("style-h1").click();
+    await page.getByTestId("style-h2").click();
     await page.keyboard.press("Enter");
     await line(page, "mətn");
     await page.keyboard.type("Alt bölmə");
-    await page.getByTestId("style-h2").click();
+    await page.getByTestId("style-h3").click();
     await save(page);
     const toc = await page.getByTestId("harness-toc").innerText();
     expect(toc).toContain("Birinci bölmə");
@@ -109,22 +111,20 @@ test.describe("Üslublar", () => {
     expect(await renderHtml(page)).toMatch(/font-size: ?12pt/);
   });
 
-  test("SEO: yapışdırılan <h1> çıxışda yoxdur", async ({ page }) => {
+  test("yapışdırılan <h1> həqiqi H1 kimi qalır və xəbərdarlıq göstərilir", async ({ page }) => {
     await pasteHtml(page, "<h1>Böyük başlıq</h1><p>mətn</p>");
-    await expect(ed(page)).toContainText("Böyük başlıq");
+    await expect(ed(page).locator("h1")).toHaveText("Böyük başlıq");
+    await expect(page.getByTestId("h1-warning")).toBeVisible();
     await page.waitForTimeout(500);
-    expect(await html(page)).not.toMatch(/<h1/i);
     await save(page);
-    expect(await renderHtml(page)).not.toMatch(/<h1/i);
-    await expect(render(page)).toContainText("Böyük başlıq");
+    await expect(render(page).locator("h1")).toHaveText("Böyük başlıq");
   });
 
-  test("SEO: server sanitizatoru xam <h1> mənbəsini h2-yə çevirir (localStorage inject)", async ({ page }) => {
+  test("saxlanmış <h1> bərpa olunur, saytda h1 kimi render olunur", async ({ page }) => {
     await page.evaluate(() => localStorage.setItem("nm-editor-harness", JSON.stringify({ html: "<h1>Raw</h1><p>x</p>", locale: "az" })));
     await page.reload();
-    await expect(ed(page)).toContainText("Raw");
-    expect(await ed(page).innerHTML()).not.toMatch(/<h1/i);
+    await expect(ed(page).locator("h1")).toHaveText("Raw");
     await save(page);
-    await expect(render(page).locator("h1")).toHaveCount(0);
+    await expect(render(page).locator("h1")).toHaveText("Raw");
   });
 });

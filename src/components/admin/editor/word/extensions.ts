@@ -195,6 +195,21 @@ export const BlockFormat = Extension.create({
             parseHTML: (el) => el.getAttribute("data-style"),
             renderHTML: (attrs) => (attrs.customStyle ? { "data-style": attrs.customStyle } : {}),
           },
+          /** İlk sətir girintisi (em): müsbət = «İlk sətir», mənfi = «Asılı» (hanging). */
+          firstLine: {
+            default: 0,
+            parseHTML: (el) => {
+              const m = /^(-?d+(?:.d+)?)em$/.exec(el.style.textIndent || "");
+              return m ? Number(m[1]) : 0;
+            },
+            renderHTML: (attrs) => {
+              const v = Number(attrs.firstLine) || 0;
+              if (!v) return {};
+              return v > 0
+                ? { style: `text-indent: ${v}em` }
+                : { style: `text-indent: ${v}em; padding-inline-start: ${-v}em` };
+            },
+          },
         },
       },
     ];
@@ -317,6 +332,105 @@ export const TEXT_EFFECTS: Record<string, { label: string; css: string }> = {
   outline: { label: "Kontur", css: "-webkit-text-stroke: 1px #7b2233" },
   emboss: { label: "Relyef", css: "text-shadow: 1px 1px 0 #ffffff, -1px -1px 0 rgba(0, 0, 0, 0.25)" },
 };
+
+/** Hərf və söz aralığı — seçilmiş mətnə (textStyle span). */
+const SPACING_RE = /^-?d+(.d+)?(em|px|pt)$/;
+export const TextSpacing = Extension.create({
+  name: "textSpacing",
+  addGlobalAttributes() {
+    return [
+      {
+        types: ["textStyle"],
+        attributes: {
+          letterSpacing: {
+            default: null,
+            parseHTML: (el) => (SPACING_RE.test(el.style.letterSpacing) ? el.style.letterSpacing : null),
+            renderHTML: (attrs) =>
+              attrs.letterSpacing ? { style: `letter-spacing: ${attrs.letterSpacing}` } : {},
+          },
+          wordSpacing: {
+            default: null,
+            parseHTML: (el) => (SPACING_RE.test(el.style.wordSpacing) ? el.style.wordSpacing : null),
+            renderHTML: (attrs) => (attrs.wordSpacing ? { style: `word-spacing: ${attrs.wordSpacing}` } : {}),
+          },
+        },
+      },
+    ];
+  },
+});
+
+const CELL_BORDERS: Record<string, string> = {
+  thin: "1px solid #d8cdbf",
+  thick: "2px solid #2a2a2a",
+  bordo: "2px solid #7b2233",
+  gold: "2px solid #c9a227",
+  dashed: "1px dashed #857a6e",
+  none: "none",
+};
+
+/**
+ * Cədvəl düzülüşü: cədvəl hizalaması, xana daxili boşluğu (padding), xanalararası
+ * məsafə (spacing), eni; sətir hündürlüyü; xana fonu və çərçivəsi.
+ * Cədvəl səviyyəli seçimlər `nm-t*` sinifləri ilə, xana/sətir — inline style ilə saxlanılır.
+ */
+export const TableLayout = Extension.create({
+  name: "tableLayout",
+  addGlobalAttributes() {
+    const classAttr = (prefix: string, values: string[], key: string) => ({
+      default: null as string | null,
+      parseHTML: (el: HTMLElement) => {
+        const c = Array.from(el.classList).find((x) => x.startsWith(prefix));
+        const v = c?.slice(prefix.length) ?? null;
+        return v && values.includes(v) ? v : null;
+      },
+      renderHTML: (attrs: Record<string, unknown>) => (attrs[key] ? { class: `${prefix}${attrs[key]}` } : {}),
+    });
+    return [
+      {
+        types: ["table"],
+        attributes: {
+          tableAlign: classAttr("nm-talign-", ["left", "center", "right"], "tableAlign"),
+          cellPadding: classAttr("nm-tpad-", ["0", "1", "2", "3"], "cellPadding"),
+          cellSpacing: classAttr("nm-tspace-", ["0", "1", "2", "3"], "cellSpacing"),
+          tableWidth: classAttr("nm-tw-", ["auto", "full"], "tableWidth"),
+        },
+      },
+      {
+        types: ["tableRow"],
+        attributes: {
+          rowHeight: {
+            default: null,
+            parseHTML: (el) => (/^d+px$/.test(el.style.height) ? el.style.height : null),
+            renderHTML: (attrs) => (attrs.rowHeight ? { style: `height: ${attrs.rowHeight}` } : {}),
+          },
+        },
+      },
+      {
+        types: ["tableCell", "tableHeader"],
+        attributes: {
+          background: {
+            default: null,
+            parseHTML: (el) => el.style.backgroundColor || null,
+            renderHTML: (attrs) => (attrs.background ? { style: `background-color: ${attrs.background}` } : {}),
+          },
+          cellBorder: {
+            default: null,
+            parseHTML: (el) => el.getAttribute("data-border"),
+            renderHTML: (attrs) =>
+              attrs.cellBorder && CELL_BORDERS[attrs.cellBorder as string]
+                ? { "data-border": attrs.cellBorder, style: `border: ${CELL_BORDERS[attrs.cellBorder as string]}` }
+                : {},
+          },
+          verticalAlign: {
+            default: null,
+            parseHTML: (el) => (["top", "middle", "bottom"].includes(el.style.verticalAlign) ? el.style.verticalAlign : null),
+            renderHTML: (attrs) => (attrs.verticalAlign ? { style: `vertical-align: ${attrs.verticalAlign}` } : {}),
+          },
+        },
+      },
+    ];
+  },
+});
 
 export const TextEffect = Extension.create({
   name: "textEffect",

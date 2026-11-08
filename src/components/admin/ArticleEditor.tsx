@@ -689,7 +689,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                     <p>Ctrl+] / Ctrl+[ — şrifti böyüt / kiçilt</p>
                     <p>Tab / Shift+Tab — girinti, siyahıda alt səviyyə</p>
                     <p>Ctrl+Boşluq — formatı təmizlə</p>
-                    <p className="sm:col-span-2">«Başlıq 1» saytda H2 kimi saxlanılır — səhifənin yeganə H1-i məqalə başlığıdır (SEO).</p>
+                    <p className="sm:col-span-2">Başlıq 1–6 həqiqi H1–H6 elementləridir. Səhifədə məqalə başlığı artıq H1 olduğu üçün mətndə H2-dən başlamaq tövsiyə olunur (SEO).</p>
                   </div>
                 </details>
               </div>

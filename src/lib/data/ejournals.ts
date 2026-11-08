@@ -1,4 +1,4 @@
-import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 
 import { COLLECTIONS, isFirebaseConfigured } from "@/lib/firebase/config";
 import { getDb } from "@/lib/firebase/client";
@@ -21,14 +21,16 @@ export async function getPublishedEjournals(): Promise<Ejournal[]> {
     const snapshot = await getDocs(
       query(
         collection(db, COLLECTIONS.ejournals),
+        // Kompozit indeks (status + publishedAt) tələb etməsin deyə sıralama yaddaşda aparılır.
         where("status", "==", "published"),
-        orderBy("publishedAt", "desc"),
       ),
     );
-    return snapshot.docs.map((item) => ({
-      ...(item.data() as Omit<Ejournal, "id">),
-      id: item.id,
-    }));
+    return snapshot.docs
+      .map((item) => ({
+        ...(item.data() as Omit<Ejournal, "id">),
+        id: item.id,
+      }))
+      .sort((a, b) => String(b.publishedAt ?? "").localeCompare(String(a.publishedAt ?? "")));
   } catch (error) {
     console.error("[nesreen] E-jurnal nömrələri oxunmadı:", error);
     return [];

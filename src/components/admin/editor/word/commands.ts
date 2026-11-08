@@ -5,6 +5,7 @@
 import type { Editor } from "@tiptap/core";
 import { Fragment, type Node as PMNode } from "@tiptap/pm/model";
 import { TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
+import { selectedRect } from "@tiptap/pm/tables";
 import { collection, deleteDoc, doc, getDocs, setDoc } from "firebase/firestore";
 import { getDb } from "@/lib/firebase/client";
 
@@ -53,24 +54,34 @@ export type BuiltinStyle =
   | "h2"
   | "h3"
   | "h4"
+  | "h5"
+  | "h6"
   | "quote"
   | "intense";
 
-/** Word «Heading 1» → HTML H2: səhifənin yeganə H1-i məqalə başlığıdır (SEO). */
+/**
+ * Başlıqlar həqiqi HTML elementləridir: «H1» → <h1> … «H6» → <h6>.
+ * Səhifədə məqalə başlığı artıq H1 olduğuna görə mətndə H1 SEO xəbərdarlığı ilə göstərilir.
+ */
 export const BUILTIN_STYLES: { key: BuiltinStyle; label: string; tag: string }[] = [
   { key: "normal", label: "Normal", tag: "p" },
   { key: "nospacing", label: "Boşluqsuz", tag: "p" },
   { key: "title", label: "Başlıq (Title)", tag: "p" },
   { key: "subtitle", label: "Alt başlıq", tag: "p" },
-  { key: "h1", label: "Başlıq 1", tag: "H2" },
-  { key: "h2", label: "Başlıq 2", tag: "H3" },
-  { key: "h3", label: "Başlıq 3", tag: "H4" },
-  { key: "h4", label: "Başlıq 4", tag: "H5" },
+  { key: "h1", label: "Başlıq 1", tag: "H1" },
+  { key: "h2", label: "Başlıq 2", tag: "H2" },
+  { key: "h3", label: "Başlıq 3", tag: "H3" },
+  { key: "h4", label: "Başlıq 4", tag: "H4" },
+  { key: "h5", label: "Başlıq 5", tag: "H5" },
+  { key: "h6", label: "Başlıq 6", tag: "H6" },
   { key: "quote", label: "Sitat", tag: "blockquote" },
   { key: "intense", label: "Vurğulu sitat", tag: "blockquote" },
 ];
 
-export function applyBuiltinStyle(editor: Editor, key: BuiltinStyle) {
+/** Başlıq səviyyəsinin fərdi üslubunun id-si (Word «Modify Heading N»). */
+export const headingStyleId = (level: number) => `h-${level}`;
+
+export function applyBuiltinStyle(editor: Editor, key: BuiltinStyle, defs: CustomStyle[] = []) {
   const inQuote = editor.isActive("blockquote");
   let chain = editor.chain().focus();
   const wantsQuote = key === "quote" || key === "intense";
@@ -81,7 +92,9 @@ export function applyBuiltinStyle(editor: Editor, key: BuiltinStyle) {
     case "h2":
     case "h3":
     case "h4":
-      chain = chain.setHeading({ level: (Number(key[1]) + 1) as 2 | 3 | 4 | 5 }).updateAttributes("heading", reset);
+    case "h5":
+    case "h6":
+      chain = chain.setHeading({ level: Number(key[1]) as 1 | 2 | 3 | 4 | 5 | 6 }).updateAttributes("heading", reset);
       break;
     case "quote":
     case "intense":
@@ -95,6 +108,11 @@ export function applyBuiltinStyle(editor: Editor, key: BuiltinStyle) {
         .updateAttributes("paragraph", { ...reset, blockStyle: key === "normal" ? null : key });
   }
   chain.run();
+  // Başlığın fərdi üslubu varsa (məs. «H2: Playfair 24pt bordo») — seçilmiş başlığa tətbiq et.
+  if (/^h[1-6]$/.test(key)) {
+    const def = defs.find((d) => d.id === headingStyleId(Number(key[1])));
+    if (def) applyCustomStyle(editor, def);
+  }
 }
 
 export function activeStyle(editor: Editor): string {
@@ -104,8 +122,9 @@ export function activeStyle(editor: Editor): string {
     if (n.type.name === "blockquote") return n.attrs.blockStyle === "intense" ? "intense" : "quote";
   }
   const parent = $from.parent;
-  if (parent.attrs.customStyle) return `custom:${parent.attrs.customStyle}`;
-  if (parent.type.name === "heading") return `h${Math.min(4, Math.max(1, Number(parent.attrs.level) - 1))}`;
+  if (parent.attrs.customStyle && !String(parent.attrs.customStyle).startsWith("h-"))
+    return `custom:${parent.attrs.customStyle}`;
+  if (parent.type.name === "heading") return `h${parent.attrs.level}`;
   if (parent.type.name === "paragraph" && parent.attrs.blockStyle) return String(parent.attrs.blockStyle);
   return "normal";
 }
@@ -194,7 +213,9 @@ export async function deleteCustomStyle(id: string, all: CustomStyle[]): Promise
 
 function styleToBlock(tr: Transaction, node: PMNode, pos: number, style: CustomStyle) {
   const schema = tr.doc.type.schema;
-  const paragraph = schema.nodes.paragraph;
+  // Başlıq üslubu (h-N) başlığın özünü saxlayır, digər üslublar abzasa çevirir.
+  const keepHeading = node.type.name === "heading" && style.id.startsWith("h-");
+  const paragraph = keepHeading ? node.type : schema.nodes.paragraph;
   const attrs = {
     ...(node.type === paragraph ? node.attrs : {}),
     textAlign: style.align || null,
@@ -247,8 +268,12 @@ export function applyCustomStyle(editor: Editor, style: CustomStyle) {
 export function reapplyCustomStyle(editor: Editor, style: CustomStyle) {
   const { state, view } = editor;
   const tr = state.tr;
+  const level = style.id.startsWith("h-") ? Number(style.id.slice(2)) : 0;
   state.doc.descendants((node, pos) => {
-    if (node.isTextblock && node.attrs.customStyle === style.id) {
+    const match = level
+      ? node.type.name === "heading" && node.attrs.level === level
+      : node.isTextblock && node.attrs.customStyle === style.id;
+    if (match) {
       styleToBlock(tr, node, pos, style);
       return false;
     }
@@ -414,3 +439,62 @@ export function serializeBlocks(editor: Editor, getHTML: (fragment: Fragment) =>
 }
 
 export type { EditorState };
+
+/* ──────────────── Cədvəl düzülüşü ──────────────── */
+
+/** Seçilmiş sütun(lar)ın bütün xanalarına en verir (px); null — avtomatik. */
+export function setColumnWidth(editor: Editor, px: number | null): boolean {
+  const { state, view } = editor;
+  let rect;
+  try {
+    rect = selectedRect(state);
+  } catch {
+    return false;
+  }
+  const { map, table, tableStart, left, right } = rect;
+  const tr = state.tr;
+  const seen = new Set<number>();
+  for (let row = 0; row < map.height; row++) {
+    for (let col = left; col < right; col++) {
+      const cellPos = map.map[row * map.width + col];
+      if (seen.has(cellPos)) continue;
+      seen.add(cellPos);
+      const cell = table.nodeAt(cellPos);
+      if (!cell) continue;
+      const span = Number(cell.attrs.colspan) || 1;
+      tr.setNodeMarkup(tableStart + cellPos, undefined, {
+        ...cell.attrs,
+        colwidth: px ? Array.from({ length: span }, () => Math.round(px / span)) : null,
+      });
+    }
+  }
+  view.dispatch(tr);
+  return true;
+}
+
+/** Seçimdəki sətirlərin hündürlüyü (px); null — avtomatik. */
+export function setRowHeight(editor: Editor, px: number | null): boolean {
+  const { state, view } = editor;
+  const { from, to, $from } = state.selection;
+  const tr = state.tr;
+  let changed = false;
+  state.doc.nodesBetween(from, to, (node, pos) => {
+    if (node.type.name === "tableRow") {
+      tr.setNodeMarkup(pos, undefined, { ...node.attrs, rowHeight: px ? `${px}px` : null });
+      changed = true;
+      return false;
+    }
+    return true;
+  });
+  if (!changed) {
+    for (let d = $from.depth; d > 0; d--) {
+      if ($from.node(d).type.name === "tableRow") {
+        tr.setNodeMarkup($from.before(d), undefined, { ...$from.node(d).attrs, rowHeight: px ? `${px}px` : null });
+        changed = true;
+        break;
+      }
+    }
+  }
+  if (changed) view.dispatch(tr);
+  return changed;
+}
