@@ -245,6 +245,11 @@ service cloud.firestore {
     }
 
     /** Kontent planı — bütün staff üzvləri */
+    // Redaktorun xüsusi üslubları (Word «Styles») — bütün redaksiya üçün ortaq
+    match /editorStyles/{styleId} {
+      allow read, write: if isStaff();
+    }
+
     match /contentPlan/{itemId} {
       allow read, create, update, delete: if isStaff();
     }

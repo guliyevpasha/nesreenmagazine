@@ -9,7 +9,7 @@
 import { authorizedFetch } from "@/lib/auth/authorized-fetch";
 import { uploadFormData } from "@/lib/upload-client";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { categories, getSubcategories, type CategorySlug } from "@/lib/categories";
 import {
@@ -42,7 +42,7 @@ import {
   labelClass,
 } from "./ui";
 import AIContentAssistant from "./AIContentAssistant";
-import RichTextEditor from "./RichTextEditor";
+import WordEditor from "./editor/word/WordEditor";
 
 /** Başlıqdan URL üçün ünvan düzəldir - bütün 5 dili dəstəkləyir */
 function slugify(value: string, locale: Locale = "az"): string {
@@ -117,13 +117,6 @@ function emptyArticle(): ArticleInput {
   };
 }
 
-const MARKDOWN_HELP = `## Başlıq      ### Alt başlıq
-**qalın**     *maili*
-> sitat
-- siyahı      1. nömrəli siyahı
-[mətn](https://ünvan)
-![izah](şəkil.jpg)
----  (ayırıcı xətt)`;
 
 /**
  * Məqalə cache-ini təmizlə
@@ -242,13 +235,84 @@ export default function ArticleEditor({ article }: { article?: Article }) {
     };
   });
   const [activeLocale, setActiveLocale] = useState<Locale>("az");
-  const [preview, setPreview] = useState(false);
+  const [viewMode, setViewMode] = useState<"edit" | "split" | "preview">("edit");
+
+  /* ── Avtomatik saxlama (brauzerdə): yazılan mətn itməsin ── */
+  const autosaveKey = `nm-article-autosave:${article?.id ?? "new"}`;
+  const [baseline, setBaseline] = useState(() => JSON.stringify(draft));
+  const [restorable, setRestorable] = useState<{ savedAt: number; draft: ArticleInput } | null>(null);
+  const [autosavedAt, setAutosavedAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(autosaveKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { savedAt: number; draft: ArticleInput };
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- bir dəfəlik localStorage oxunuşu
+      if (parsed?.draft && JSON.stringify(parsed.draft) !== baseline) setRestorable(parsed);
+      else localStorage.removeItem(autosaveKey);
+    } catch {
+      /* gizli rejim və ya zədəli məlumat */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- yalnız açılışda
+  }, [autosaveKey]);
+
+  const dirty = JSON.stringify(draft) !== baseline;
+  useEffect(() => {
+    if (!dirty || restorable) return;
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(autosaveKey, JSON.stringify({ savedAt: Date.now(), draft }));
+        setAutosavedAt(Date.now());
+      } catch {
+        /* yaddaş dolub */
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [draft, dirty, autosaveKey, restorable]);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  function restoreAutosave() {
+    if (!restorable) return;
+    setDraft(restorable.draft);
+    setRestorable(null);
+  }
+
+  function discardAutosave() {
+    try {
+      localStorage.removeItem(autosaveKey);
+    } catch {
+      /* */
+    }
+    setRestorable(null);
+  }
+
+  function clearAutosave(saved: ArticleInput) {
+    setBaseline(JSON.stringify(saved));
+    try {
+      localStorage.removeItem(autosaveKey);
+    } catch {
+      /* */
+    }
+    setAutosavedAt(null);
+  }
+
+  const autosaveLabel = dirty
+    ? autosavedAt
+      ? `Avtomatik saxlanıldı (brauzerdə) · ${new Date(autosavedAt).toLocaleTimeString("az-AZ", { hour: "2-digit", minute: "2-digit" })}`
+      : "Saxlanmamış dəyişikliklər…"
+    : "Bütün dəyişikliklər saxlanılıb";
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(
     null,
   );
   const [uploading, setUploading] = useState(false);
-  const [uploadingInline, setUploadingInline] = useState(false);
   /**
    * Dərc modeli (cron tələb etmir):
    *   • Saytda      = status "published" və publishedAt ≤ indi
@@ -361,58 +425,6 @@ export default function ArticleEditor({ article }: { article?: Article }) {
     }
   }
 
-  async function handleInlineImageUpload(file: File) {
-    setUploadingInline(true);
-    setMessage(null);
-    try {
-      // Upload to Cloudinary via API route
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('folder', 'inline-images');
-
-      const response = await uploadFormData(formData);
-
-      if (!response.ok) {
-        const responseClone = response.clone();
-        let errorMessage = 'Yükləmə uğursuz oldu';
-        
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorData.details || errorMessage;
-        } catch {
-          try {
-            const errorText = await responseClone.text();
-            if (errorText) errorMessage = errorText;
-          } catch {
-            // Ignore
-          }
-        }
-        throw new Error(errorMessage);
-      }
-
-      const result = await response.json();
-      const url = result.url;
-
-      // Markdown formatında şəkil əlavə et
-      const imageMarkdown = `\n![Şəkil təsviri](${url})\n`;
-      setDraft((current) => ({
-        ...current,
-        body: {
-          ...current.body,
-          [activeLocale]: (current.body[activeLocale] || "") + imageMarkdown,
-        },
-      }));
-      setMessage({ tone: "success", text: "Şəkil mətinə əlavə edildi." });
-    } catch (error) {
-      setMessage({
-        tone: "error",
-        text: error instanceof Error ? error.message : "Şəkil yüklənmədi.",
-      });
-    } finally {
-      setUploadingInline(false);
-    }
-  }
-
   async function handleSave(nextStatus?: ArticleStatus) {
     setMessage(null);
 
@@ -505,6 +517,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
           userEmail: session?.email ?? "unknown",
         });
         setDraft(payload);
+        clearAutosave(payload);
         if (!scheduling) setPublishMode("now");
         
         const cacheCleared = affectsSite ? await revalidateArticleCache(locations) : true;
@@ -529,6 +542,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
           text: saveResultMessage(resultStatus, false, cacheCleared),
         });
         
+        clearAutosave(payload);
         router.push(`/admin/articles/${id}`);
       }
       router.refresh();
@@ -599,63 +613,83 @@ export default function ArticleEditor({ article }: { article?: Article }) {
 
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <label className={labelClass}>Mətn (Markdown)</label>
-                  <div className="flex items-center gap-3">
-                    {/* Şəkil yükləmə düyməsi */}
-                    <label className="cursor-pointer font-ui text-[11px] uppercase tracking-[0.14em] text-gold hover:text-bordo transition-colors">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        disabled={uploadingInline}
-                        onChange={(event) => {
-                          const file = event.target.files?.[0];
-                          if (file) void handleInlineImageUpload(file);
-                          event.target.value = ""; // Reset input
-                        }}
-                        className="hidden"
-                      />
-                      {uploadingInline ? "Yüklənir…" : "📷 Şəkil əlavə et"}
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setPreview((value) => !value)}
-                      className="font-ui text-[11px] uppercase tracking-[0.14em] text-bordo hover:opacity-70"
-                    >
-                      {preview ? "Redaktəyə qayıt" : "Önizləmə"}
-                    </button>
+                  <label className={labelClass}>Mətn</label>
+                  <div className="flex items-center gap-1" role="group" aria-label="Görünüş">
+                    {(
+                      [
+                        ["edit", "Redaktə"],
+                        ["split", "Canlı önizləmə"],
+                        ["preview", "Önizləmə"],
+                      ] as const
+                    ).map(([mode, label]) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        data-testid={`view-${mode}`}
+                        onClick={() => setViewMode(mode)}
+                        className={`px-2 py-1 font-ui text-[11px] uppercase tracking-[0.14em] ${
+                          viewMode === mode ? "text-bordo underline underline-offset-4" : "text-muted hover:text-bordo"
+                        } ${mode === "split" ? "hidden xl:inline" : ""}`}
+                      >
+                        {label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {preview ? (
-                  <div
-                    className="prose-mag min-h-[420px] border border-line bg-cream px-6 py-5"
-                    dangerouslySetInnerHTML={{
-                      __html: markdownToHtml(draft.body[activeLocale]),
-                    }}
-                  />
-                ) : (
-                  <RichTextEditor
-                    content={draft.body[activeLocale]}
-                    onChange={(html) => setLocalized("body", html)}
-                    placeholder="Məqalənin mətni…"
-                  />
+                {restorable && (
+                  <div className="mb-3 flex flex-wrap items-center gap-3 border border-gold/60 bg-gold/10 px-4 py-2.5 font-ui text-[13px] text-ink" data-testid="autosave-restore">
+                    <span>
+                      Saxlanmamış dəyişikliklər tapıldı ({new Date(restorable.savedAt).toLocaleString("az-AZ")}).
+                    </span>
+                    <button type="button" className="font-semibold text-bordo underline" onClick={restoreAutosave}>
+                      Bərpa et
+                    </button>
+                    <button type="button" className="text-muted underline" onClick={discardAutosave}>
+                      Sil
+                    </button>
+                  </div>
                 )}
+
+                <div className={viewMode === "split" ? "grid gap-4 xl:grid-cols-2" : ""}>
+                  {viewMode !== "preview" && (
+                    <WordEditor
+                      key={activeLocale}
+                      locale={activeLocale}
+                      content={draft.body[activeLocale]}
+                      onChange={(html) => setLocalized("body", html)}
+                      placeholder="Məqalənin mətni…"
+                      statusExtra={autosaveLabel}
+                    />
+                  )}
+                  {viewMode !== "edit" && (
+                    <div
+                      data-testid="live-preview"
+                      dir={activeLocale === "ar" ? "rtl" : "ltr"}
+                      className="prose-mag min-h-[420px] overflow-auto border border-line bg-cream px-6 py-5"
+                      dangerouslySetInnerHTML={{
+                        __html: markdownToHtml(draft.body[activeLocale]),
+                      }}
+                    />
+                  )}
+                </div>
 
                 <details className="mt-3">
                   <summary className="cursor-pointer font-ui text-[11.5px] text-muted hover:text-bordo">
-                    Formatlaşdırma məsləhətləri
+                    Klaviatura qısayolları
                   </summary>
-                  <div className="mt-2 border border-line bg-cream-deep/40 p-3 font-ui text-[12px] leading-relaxed text-ink-soft">
-                    <p className="font-semibold mb-1">⚠️ Başlıqlar haqqında:</p>
-                    <p>• Başlıqlar (H1-H6) bütün sətirə tətbiq olunur, tək sözə deyil</p>
-                    <p>• Hər sətirdə yalnız 1 başlıq olmalıdır</p>
-                    <p>• Başlıq 1 ən böyük (40px), Başlıq 6 ən kiçik (17px)</p>
-                    <hr className="my-2 border-line" />
-                    <p className="font-semibold mb-1">📝 Necə istifadə edək:</p>
-                    <p>• Şəkil əlavə etmək üçün 🖼️ düyməsinə basın</p>
-                    <p>• Link əlavə etmək üçün mətni seçib 🔗 düyməsinə basın</p>
-                    <p>• Tək sözü böyütmək üçün "Font Size" seçin</p>
-                    <p>• Mətn düzəlişi: qalın (B), maili (I), altdan xətt (U)</p>
+                  <div className="mt-2 grid gap-x-6 gap-y-1 border border-line bg-cream-deep/40 p-3 font-ui text-[12px] leading-relaxed text-ink-soft sm:grid-cols-2">
+                    <p>Ctrl+B / I / U — qalın / kursiv / altıxətli</p>
+                    <p>Ctrl+Z / Ctrl+Y — geri al / təkrarla</p>
+                    <p>Ctrl+K — hiperlink</p>
+                    <p>Ctrl+Shift+7 — nömrələnmiş siyahı</p>
+                    <p>Ctrl+Shift+L — markerli siyahı</p>
+                    <p>Ctrl+Shift+8 — formatlaşdırma işarələri ¶</p>
+                    <p>Ctrl+L / E / R / J — düzləndirmə</p>
+                    <p>Ctrl+] / Ctrl+[ — şrifti böyüt / kiçilt</p>
+                    <p>Tab / Shift+Tab — girinti, siyahıda alt səviyyə</p>
+                    <p>Ctrl+Boşluq — formatı təmizlə</p>
+                    <p className="sm:col-span-2">«Başlıq 1» saytda H2 kimi saxlanılır — səhifənin yeganə H1-i məqalə başlığıdır (SEO).</p>
                   </div>
                 </details>
               </div>

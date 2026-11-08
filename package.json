@@ -2,8 +2,11 @@
   "name": "nesreenmagazine",
   "version": "0.1.0",
   "private": true,
-  "description": "Modern Azərbaycan qadın jurnalı - Developed by Cradex Agency",
-  "author": "Cradex Agency <info@cradexagency.com> (https://cradexagency.com)",
+  "description": "Nesreen Magazine — qadınlar üçün beş dilli moda, gözəllik, astrologiya, biznes və gündəm jurnalı.",
+  "author": {
+    "name": "Cradex Agency",
+    "url": "https://cradexagency.com"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -19,7 +22,16 @@
     "@google-cloud/translate": "^10.3.0",
     "@tailwindcss/typography": "^0.5.20",
     "@tiptap/extension-font-family": "^3.32.0",
+    "@tiptap/extension-highlight": "^3.32.0",
+    "@tiptap/extension-subscript": "^3.32.0",
+    "@tiptap/extension-superscript": "^3.32.0",
+    "@tiptap/extension-table": "^3.32.0",
+    "@tiptap/extension-text-align": "^3.32.0",
     "@tiptap/extension-text-style": "^3.32.0",
+    "@tiptap/extensions": "^3.32.0",
+    "@tiptap/pm": "^3.32.0",
+    "@tiptap/react": "^3.32.0",
+    "@tiptap/starter-kit": "^3.32.0",
     "@types/nodemailer": "^8.0.2",
     "@upstash/ratelimit": "^2.2.0",
     "@upstash/redis": "^1.40.0",
@@ -32,24 +44,22 @@
     "nodemailer": "^10.3.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "react-markdown-editor-lite": "^1.4.2"
+    "react-markdown-editor-lite": "^1.4.2",
+    "sanitize-html": "^2.18.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/sanitize-html": "^2.16.2",
     "dotenv": "^18.0.9",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"
-  },
-  "description": "Nesreen Magazine — qadınlar üçün beş dilli moda, gözəllik, astrologiya, biznes və gündəm jurnalı.",
-  "author": {
-    "name": "Cradex Agency",
-    "url": "https://cradexagency.com"
   },
   "license": "UNLICENSED",
   "homepage": "https://nesreenmagazine.com"

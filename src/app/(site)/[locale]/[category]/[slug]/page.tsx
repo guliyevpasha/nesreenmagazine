@@ -16,8 +16,17 @@ import { siteUrl } from "@/lib/firebase/config";
 import { formatDate, isLocale, locales, type Locale } from "@/lib/i18n/config";
 import { getDictionary, interpolate } from "@/lib/i18n/dictionaries";
 import { markdownToHtml, markdownToPlainText } from "@/lib/markdown";
+import { addHeadingIds, sanitizeArticleHtml } from "@/lib/content/sanitize-article";
 import { routes } from "@/lib/routes";
 import { pick, pickTags } from "@/lib/types";
+
+const TOC_LABEL: Record<Locale, string> = {
+  az: "Mündəricat",
+  en: "Contents",
+  ru: "Содержание",
+  tr: "İçindekiler",
+  ar: "المحتويات",
+};
 
 export const revalidate = 60; // 60 saniyə - dərc edildikdən sonra tez görünsün
 export const dynamicParams = true; // bilinməyən slug-lar runtime-da render olsun
@@ -106,7 +115,8 @@ export default async function ArticlePage({
   const related = await getRelatedArticles(article, 3);
 
   // Mətni ikiyə bölürük ki, ortasına reklam sahəsi qoya bilək.
-  const html = markdownToHtml(body);
+  // Word redaktorunun HTML-i (və köhnə Markdown) serverdə təmizlənir (XSS).
+  const { html, toc } = addHeadingIds(sanitizeArticleHtml(markdownToHtml(body)));
   const blocks = html.split("\n");
   const splitAt = Math.max(3, Math.floor(blocks.length * 0.45));
   const firstHalf = blocks.slice(0, splitAt).join("\n");
@@ -218,6 +228,21 @@ export default async function ArticlePage({
               <ArticleBanners location="article-header" />
             </div>
 
+            {toc.length >= 3 && (
+              <nav aria-label={TOC_LABEL[locale]} className="mb-10 border-y border-line py-5" data-testid="article-toc">
+                <p className="eyebrow mb-3 text-muted">{TOC_LABEL[locale]}</p>
+                <ol className="space-y-1.5 font-ui text-[14px]">
+                  {toc.map((item) => (
+                    <li key={item.id} className={item.level === 3 ? "ps-5 text-[13px]" : ""}>
+                      <a href={`#${item.id}`} className="text-ink-soft hover:text-bordo">
+                        {item.text}
+                      </a>
+                    </li>
+                  ))}
+                </ol>
+              </nav>
+            )}
+
             <div className="prose-mag" dangerouslySetInnerHTML={{ __html: firstHalf }} />
 
             {secondHalf.trim().length > 0 && (
@@ -226,7 +251,7 @@ export default async function ArticlePage({
                 <div className="my-12">
                   <ArticleBanners location="article-inline" />
                 </div>
-                <div className="prose-mag" dangerouslySetInnerHTML={{ __html: secondHalf }} />
+                <div className="prose-mag nm-continued" dangerouslySetInnerHTML={{ __html: secondHalf }} />
               </>
             )}
 

@@ -448,7 +448,7 @@
     margin-bottom: 0;
   }
   /* İlk abzasda buraxılmış baş hərf - nümunədəki kimi sadə və balanslaşdırılmış */
-  .prose-mag > p:first-of-type::first-letter {
+  .prose-mag:not(.ProseMirror):not(.nm-continued) > p:first-of-type::first-letter {
     font-family: var(--font-display);
     float: inline-start;
     font-size: 3.2rem;
@@ -461,14 +461,14 @@
   }
   
   @media (max-width: 640px) {
-    .prose-mag > p:first-of-type::first-letter {
+    .prose-mag:not(.ProseMirror):not(.nm-continued) > p:first-of-type::first-letter {
       font-size: 2.5rem;
       line-height: 1;
     }
   }
   
   @media (min-width: 1024px) {
-    .prose-mag > p:first-of-type::first-letter {
+    .prose-mag:not(.ProseMirror):not(.nm-continued) > p:first-of-type::first-letter {
       font-size: 3.5rem;
       line-height: 1;
     }
@@ -682,3 +682,120 @@
   display: block;
 }
 
+
+/* ───────── Word redaktoru formatları (sayt + redaktor eyni CSS) ───────── */
+.prose-mag li > p { margin-block: 0; }
+.prose-mag p.nm-s-title {
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  line-height: 1.15;
+  color: #1f1a17;
+  margin-block: 0.3em 0.4em;
+}
+.prose-mag p.nm-s-subtitle {
+  font-family: var(--font-ui);
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+  margin-top: 0.2em;
+}
+.prose-mag p.nm-s-nospacing { margin-block: 0; }
+.prose-mag > p.nm-s-title::first-letter,
+.prose-mag > p.nm-s-subtitle::first-letter,
+.prose-mag > p[data-style]::first-letter {
+  float: none; font-size: inherit; font-family: inherit; color: inherit; padding: 0; margin: 0;
+}
+.prose-mag blockquote.nm-s-intense {
+  border-inline-start: 0;
+  border-block: 2px solid var(--color-gold);
+  padding: 1em 1.5em;
+  text-align: center;
+  font-style: normal;
+  font-weight: 500;
+  background: rgba(201, 162, 39, 0.06);
+}
+.prose-mag blockquote p { margin-block: 0.4em; color: inherit; }
+.prose-mag mark { background: #fef08a; color: inherit; padding: 0 0.15em; border-radius: 2px; }
+.prose-mag hr { border: 0; border-top: 1px solid var(--color-gold); margin-block: 2.5em; opacity: 0.75; }
+.prose-mag code {
+  font-family: ui-monospace, Consolas, "Courier New", monospace;
+  font-size: 0.88em;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+}
+.prose-mag pre {
+  background: #1f1a17; color: #f5efe6; padding: 1em 1.2em; border-radius: 4px;
+  overflow-x: auto; font-size: 0.875rem; line-height: 1.6;
+}
+.prose-mag pre code { background: none; padding: 0; color: inherit; }
+
+/* Siyahı marker növləri və çoxsəviyyəli nömrələmə */
+.prose-mag ul[data-marker] > li,
+.prose-mag ol[data-marker] > li { list-style: inherit; }
+.prose-mag ul[data-marker] > li::before { display: none; }
+.prose-mag ol ol:not([data-marker]) > li { list-style: lower-alpha; }
+.prose-mag ol ol ol:not([data-marker]) > li { list-style: lower-roman; }
+.prose-mag ul ul:not([data-marker]) > li::before { background: transparent; border: 1px solid var(--color-gold); }
+.prose-mag li > ul, .prose-mag li > ol { margin-top: 0.4em; }
+
+/* Cədvəl */
+.prose-mag table {
+  width: 100%; border-collapse: collapse; margin-block: 2em;
+  font-family: var(--font-ui); font-size: 0.95rem; color: #3a3a3a;
+}
+.prose-mag td, .prose-mag th {
+  border: 1px solid var(--color-line); padding: 0.55em 0.75em; vertical-align: top; position: relative;
+}
+.prose-mag th { background: #f5efe6; color: #2a2a2a; font-weight: 600; text-align: start; }
+.prose-mag td p, .prose-mag th p { margin: 0; }
+@media (max-width: 640px) {
+  .prose-mag table { display: block; overflow-x: auto; }
+}
+
+/* Şəkil (figure) — ölçü və düzləndirmə */
+.prose-mag figure.nm-fig { margin-block: 1.8em; max-width: 100%; }
+.prose-mag figure.nm-fig img { margin: 0; width: 100%; }
+.prose-mag .nm-fig-center { margin-inline: auto; }
+.prose-mag .nm-fig-left { float: left; margin: 0.3em 1.5em 1em 0; }
+.prose-mag .nm-fig-right { float: right; margin: 0.3em 0 1em 1.5em; }
+.prose-mag::after { content: ""; display: table; clear: both; }
+@media (max-width: 640px) {
+  .prose-mag .nm-fig-left, .prose-mag .nm-fig-right { float: none; width: 100% !important; margin-inline: 0; }
+}
+
+/* Video */
+.prose-mag .nm-video { position: relative; aspect-ratio: 16 / 9; margin-block: 2em; clear: both; }
+.prose-mag .nm-video iframe, .prose-mag .nm-video video {
+  width: 100%; height: 100%; border: 0; display: block; background: #000; border-radius: 4px;
+}
+.prose-mag .nm-video-file { aspect-ratio: auto; }
+
+/* Yalnız redaktor */
+.nm-word .ProseMirror { word-wrap: break-word; }
+.nm-word .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder); color: #b5aca3; float: left; height: 0; pointer-events: none;
+}
+.nm-word .ProseMirror .tableWrapper { overflow-x: auto; }
+.nm-word .ProseMirror .selectedCell::after {
+  content: ""; position: absolute; inset: 0; background: rgba(123, 34, 51, 0.12); pointer-events: none;
+}
+.nm-word .ProseMirror .ProseMirror-selectednode { outline: 2px solid var(--color-bordo); outline-offset: 3px; }
+.nm-word .ProseMirror .nm-video iframe { pointer-events: none; }
+.nm-word .nm-mark-space {
+  background: radial-gradient(circle, #9a8f86 1.2px, transparent 1.6px) center / 100% 100% no-repeat;
+}
+.nm-word .nm-mark-para {
+  color: #9a8f86; font-family: Arial, sans-serif; font-size: 0.85em; font-style: normal;
+  user-select: none; pointer-events: none; margin-inline-start: 2px;
+}
+.nm-style-chip > span:first-child { font-size: 13px; line-height: 1.6; }
+.nm-style-title > span:first-child { font-family: var(--font-display); font-size: 19px; }
+.nm-style-subtitle > span:first-child { color: var(--color-muted); letter-spacing: 0.04em; }
+.nm-style-h1 > span:first-child { font-family: var(--font-display); font-size: 16px; color: var(--color-bordo); }
+.nm-style-h2 > span:first-child { font-family: var(--font-display); font-size: 15px; color: var(--color-bordo); }
+.nm-style-h3 > span:first-child { font-size: 14px; font-weight: 700; color: #2a2a2a; }
+.nm-style-h4 > span:first-child { font-size: 13px; font-weight: 600; font-style: italic; color: #2a2a2a; }
+.nm-style-quote > span:first-child { font-family: var(--font-display); font-style: italic; color: var(--color-bordo); }
+.nm-style-intense > span:first-child { font-weight: 700; color: var(--color-bordo); border-block: 1px solid var(--color-gold); }
+.nm-style-nospacing > span:first-child { font-size: 12px; }

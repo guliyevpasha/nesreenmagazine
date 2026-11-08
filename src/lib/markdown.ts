@@ -56,7 +56,7 @@ function inline(text: string): string {
 export function markdownToHtml(markdown: string): string {
   if (!markdown) return "";
 
-  // Əgər mətn artıq HTML-dirsə (RichTextEditor-dan gəlirsə), onu təmizlə və qaytart
+  // Əgər mətn artıq HTML-dirsə (Word redaktorundan gəlirsə), onu təmizlə və qaytart
   if (markdown.trim().startsWith("<") || markdown.includes("<p>") || markdown.includes("<div>")) {
     return sanitizeHtml(markdown);
   }
@@ -176,8 +176,8 @@ function sanitizeHtml(html: string): string {
 
   // Təhlükəli script və iframe tag-larını sil
   cleaned = cleaned
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "");
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
+  // iframe-lər (YouTube/Vimeo) saytda sanitizeArticleHtml ilə host siyahısına görə yoxlanılır.
 
   return cleaned.trim();
 }
@@ -185,6 +185,10 @@ function sanitizeHtml(html: string): string {
 /** Mətndən nişanları çıxarıb təmiz mətn qaytarır — meta təsvirlər üçün. */
 export function markdownToPlainText(markdown: string, maxLength = 200): string {
   const text = markdown
+    .replace(/<\/(p|h\d|li|blockquote|figcaption|td|th)>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
     .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/[#>*_`-]/g, "")

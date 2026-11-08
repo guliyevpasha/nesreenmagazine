@@ -53,3 +53,7 @@ CLAUDE.md
 AGENTS.md
 .cursor/
 .aider*
+
+# Playwright
+/test-results/
+/playwright-report/
