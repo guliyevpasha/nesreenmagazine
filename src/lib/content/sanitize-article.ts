@@ -11,7 +11,7 @@ import sanitizeHtml from "sanitize-html";
 const COLOR = [/^#[0-9a-f]{3,8}$/i, /^rgba?\(\s*[\d.\s,%]+\)$/i, /^[a-z]+$/i];
 const LENGTH = [/^-?\d+(\.\d+)?(px|pt|em|rem|%)?$/];
 const LENGTHS = [/^(-?\d+(\.\d+)?(px|pt|em|rem|%)?\s*){1,4}$/];
-const BORDER = [/^\d+(\.\d+)?px\s+(solid|dashed|dotted|double)\s+(#[0-9a-f]{3,8}|rgba?\([\d.\s,%]+\)|[a-z]+)$/i];
+const BORDER = [/^none$/, /^\d+(\.\d+)?px\s+(solid|dashed|dotted|double)\s+(#[0-9a-f]{3,8}|rgba?\([\d.\s,%]+\)|[a-z]+)$/i];
 
 const STYLE_RULES: Record<string, RegExp[]> = {
   color: COLOR,
@@ -43,11 +43,16 @@ const STYLE_RULES: Record<string, RegExp[]> = {
   "list-style-type": [/^(disc|circle|square|decimal|lower-alpha|upper-alpha|lower-roman|upper-roman|none)$/],
   "text-shadow": [/^[-\d.\spx,#a-f()rgba]+$/i],
   "-webkit-text-stroke": [/^\d+(\.\d+)?px\s+(#[0-9a-f]{3,8}|[a-z]+)$/i],
-  "vertical-align": [/^(sub|super|baseline)$/],
+  "vertical-align": [/^(sub|super|baseline|top|middle|bottom)$/],
+  "letter-spacing": LENGTH,
+  "word-spacing": LENGTH,
+  "text-indent": LENGTH,
+  "padding-inline-start": LENGTH,
+  height: [/^\d+(\.\d+)?px$/],
 };
 
 const TAGS = [
-  "p", "h2", "h3", "h4", "h5", "h6", "br", "hr", "strong", "b", "em", "i", "u", "s", "del", "strike",
+  "p", "h1", "h2", "h3", "h4", "h5", "h6", "br", "hr", "strong", "b", "em", "i", "u", "s", "del", "strike",
   "sub", "sup", "mark", "span", "a", "ul", "ol", "li", "blockquote", "pre", "code",
   "figure", "figcaption", "img", "table", "thead", "tbody", "tfoot", "tr", "td", "th", "colgroup", "col",
   "div", "iframe", "video",
@@ -56,7 +61,7 @@ const TAGS = [
 const OPTIONS: sanitizeHtml.IOptions = {
   allowedTags: TAGS,
   allowedAttributes: {
-    "*": ["style", "class", "data-style", "data-effect", "data-marker", "data-color", "dir", "id"],
+    "*": ["style", "class", "data-style", "data-effect", "data-marker", "data-color", "data-border", "dir", "id"],
     a: ["href", "target", "rel", "title"],
     img: ["src", "alt", "width", "height", "loading"],
     iframe: ["src", "title", "loading", "allow", "allowfullscreen"],
@@ -73,7 +78,6 @@ const OPTIONS: sanitizeHtml.IOptions = {
   allowProtocolRelative: false,
   allowedIframeHostnames: ["www.youtube-nocookie.com", "www.youtube.com", "player.vimeo.com"],
   transformTags: {
-    h1: "h2",
     font: "span",
     a: (tagName, attribs) => {
       const out: Record<string, string> = { ...attribs };

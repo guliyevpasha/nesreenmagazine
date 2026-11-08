@@ -799,3 +799,25 @@
 .nm-style-quote > span:first-child { font-family: var(--font-display); font-style: italic; color: var(--color-bordo); }
 .nm-style-intense > span:first-child { font-weight: 700; color: var(--color-bordo); border-block: 1px solid var(--color-gold); }
 .nm-style-nospacing > span:first-child { font-size: 12px; }
+
+/* ───────── Başlıq H1 və H6 (mətndə) ───────── */
+.prose-mag h1 { font-size: 2.25rem; color: #1f1a17; margin-top: 2.6em; margin-bottom: 0.8em; line-height: 1.2; }
+.prose-mag h6 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.08em; }
+
+/* ───────── Cədvəl düzülüşü (Word «Table Layout») ───────── */
+.prose-mag table.nm-tw-auto { width: auto; min-width: 0; }
+.prose-mag table.nm-talign-left { margin-inline-end: auto; margin-inline-start: 0; }
+.prose-mag table.nm-talign-center { margin-inline: auto; }
+.prose-mag table.nm-talign-right { margin-inline-start: auto; margin-inline-end: 0; }
+.prose-mag table.nm-tpad-0 td, .prose-mag table.nm-tpad-0 th { padding: 0.15em 0.35em; }
+.prose-mag table.nm-tpad-2 td, .prose-mag table.nm-tpad-2 th { padding: 0.9em 1.1em; }
+.prose-mag table.nm-tpad-3 td, .prose-mag table.nm-tpad-3 th { padding: 1.3em 1.6em; }
+.prose-mag table.nm-tspace-1 { border-collapse: separate; border-spacing: 4px; }
+.prose-mag table.nm-tspace-2 { border-collapse: separate; border-spacing: 8px; }
+.prose-mag table.nm-tspace-3 { border-collapse: separate; border-spacing: 12px; }
+.nm-word .ProseMirror .column-resize-handle {
+  position: absolute; right: -2px; top: 0; bottom: -2px; width: 4px; background: var(--color-bordo); pointer-events: none;
+}
+.nm-word .ProseMirror.resize-cursor { cursor: col-resize; }
+.nm-style-h5 > span:first-child { font-size: 12.5px; font-weight: 600; color: #2a2a2a; }
+.nm-style-h6 > span:first-child { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #2a2a2a; }

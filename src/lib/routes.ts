@@ -12,8 +12,9 @@ export const routes = {
   category: (locale: Locale, category: CategorySlug) => `/${locale}/${category}`,
   subcategory: (locale: Locale, category: CategorySlug, subcategory: string) =>
     `/${locale}/${category}/bolme/${subcategory}`,
+  // Slug kiril/ərəb hərfləri ola bilər — Location başlığı və URL üçün kodlanır
   article: (locale: Locale, category: CategorySlug, slug: string) =>
-    `/${locale}/${category}/${slug}`,
+    `/${locale}/${category}/${encodeURIComponent(slug)}`,
   astrology: (locale: Locale) => `/${locale}/astrologiya`,
   zodiac: (locale: Locale, sign: string) => `/${locale}/astrologiya/burc/${sign}`,
   contact: (locale: Locale) => `/${locale}/elaqe`,

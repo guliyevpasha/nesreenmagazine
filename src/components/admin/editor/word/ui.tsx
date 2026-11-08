@@ -115,14 +115,18 @@ export function Dropdown({
   const panelRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0, maxH: 400 });
 
+  const place = useRef(() => {});
   useLayoutEffect(() => {
-    if (!open || !btnRef.current) return;
-    const r = btnRef.current.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const w = Math.min(width, vw - 16);
-    const left = Math.max(8, Math.min(r.left, vw - w - 8));
-    const top = r.bottom + 4;
-    setPos({ top, left, maxH: Math.max(160, window.innerHeight - top - 12) });
+    place.current = () => {
+      if (!btnRef.current) return;
+      const r = btnRef.current.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const w = Math.min(width, vw - 16);
+      const left = Math.max(8, Math.min(r.left, vw - w - 8));
+      const top = r.bottom + 4;
+      setPos({ top, left, maxH: Math.max(160, window.innerHeight - top - 12) });
+    };
+    if (open) place.current();
   }, [open, width]);
 
   useEffect(() => {
@@ -133,9 +137,10 @@ export function Dropdown({
       setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    // Səhifə/lent sürüşəndə menyu bağlanmır — düymənin yeni yerinə köçür.
     const onScroll = (e: Event) => {
       if (panelRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
+      place.current();
     };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);

@@ -57,3 +57,7 @@ AGENTS.md
 # Playwright
 /test-results/
 /playwright-report/
+/test-results-editor/
+/tests/audit/shots/
+/tests/audit/*.json
+/tests/audit/*.log

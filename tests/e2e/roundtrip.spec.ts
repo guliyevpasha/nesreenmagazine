@@ -8,7 +8,7 @@ test.describe("Roundtrip", () => {
     await open(page);
     // H2 + paraqraf
     await page.keyboard.type("Əsas başlıq");
-    await page.getByTestId("style-h1").click();
+    await page.getByTestId("style-h2").click();
     await page.keyboard.press("Enter");
     await page.keyboard.press("Control+b");
     await page.keyboard.type("Qalın");
@@ -27,7 +27,7 @@ test.describe("Roundtrip", () => {
     await page.keyboard.press("Enter");
     // alt başlıq
     await page.keyboard.type("Alt bölmə");
-    await page.getByTestId("style-h2").click();
+    await page.getByTestId("style-h3").click();
     await page.keyboard.press("Enter");
     // siyahılar
     await page.keyboard.press("Control+Shift+7");

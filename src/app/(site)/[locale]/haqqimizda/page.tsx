@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { isLocale, type Locale } from "@/lib/i18n/config";
+import { siteUrl } from "@/lib/firebase/config";
+import { isLocale, locales, type Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { routes } from "@/lib/routes";
 
@@ -20,6 +21,13 @@ export async function generateMetadata({
   return {
     title: dict.footer.about,
     description: dict.about.metaDescription,
+    // Kanonik və dil alternativləri (əks halda ana səhifənin kanoniki miras qalır)
+    alternates: {
+      canonical: `${siteUrl}${routes.about(locale)}`,
+      languages: Object.fromEntries(
+        locales.map((code) => [code, `${siteUrl}${routes.about(code)}`]),
+      ),
+    },
   };
 }
 

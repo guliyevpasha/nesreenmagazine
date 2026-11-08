@@ -20,6 +20,15 @@ import { addHeadingIds, sanitizeArticleHtml } from "@/lib/content/sanitize-artic
 import { routes } from "@/lib/routes";
 import { pick, pickTags } from "@/lib/types";
 
+/** Kiril/ərəb slug-lar URL-də percent-encoded gəlir, Firestore-da isə açıq mətn saxlanılır. */
+function decodeSlug(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 const TOC_LABEL: Record<Locale, string> = {
   az: "Mündəricat",
   en: "Contents",
@@ -42,7 +51,8 @@ export async function generateMetadata({
 }: {
   params: Promise<{ locale: string; category: string; slug: string }>;
 }): Promise<Metadata> {
-  const { locale: rawLocale, slug } = await params;
+  const { locale: rawLocale, slug: rawSlug } = await params;
+  const slug = decodeSlug(rawSlug);
   if (!isLocale(rawLocale)) return {};
 
   const locale = rawLocale as Locale;
@@ -89,7 +99,8 @@ export default async function ArticlePage({
 }: {
   params: Promise<{ locale: string; category: string; slug: string }>;
 }) {
-  const { locale: rawLocale, category: rawCategory, slug } = await params;
+  const { locale: rawLocale, category: rawCategory, slug: rawSlug } = await params;
+  const slug = decodeSlug(rawSlug);
   if (!isLocale(rawLocale) || !isCategorySlug(rawCategory)) notFound();
 
   const locale = rawLocale as Locale;

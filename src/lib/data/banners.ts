@@ -12,7 +12,14 @@ import {
   Timestamp,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
+import { getDb } from "@/lib/firebase/client";
+
+/** Server və brauzerdə işləyən Firestore nüsxəsi (config.ts-dəki db yalnız brauzerdədir). */
+function firestore() {
+  const d = getDb();
+  if (!d) throw new Error("Firebase konfiqurasiya olunmayıb");
+  return d;
+}
 import type { AdvancedAdBanner, AdvancedAdBannerInput, AdBannerLocation } from "@/lib/types";
 
 const COLLECTION = "advancedBanners";
@@ -21,7 +28,7 @@ const COLLECTION = "advancedBanners";
  * Bütün bannerləri gətir
  */
 export async function getAllBanners(): Promise<AdvancedAdBanner[]> {
-  const q = query(collection(db, COLLECTION), orderBy("priority", "desc"), orderBy("createdAt", "desc"));
+  const q = query(collection(firestore(), COLLECTION), orderBy("priority", "desc"), orderBy("createdAt", "desc"));
   const snap = await getDocs(q);
   return snap.docs.map((doc) => ({
     id: doc.id,
@@ -34,9 +41,9 @@ export async function getAllBanners(): Promise<AdvancedAdBanner[]> {
  */
 export async function getActiveBanners(): Promise<AdvancedAdBanner[]> {
   const q = query(
-    collection(db, COLLECTION),
+    collection(firestore(), COLLECTION),
+    // Kompozit indeks (active + priority) tələb etməsin deyə sıralama yaddaşda aparılır.
     where("active", "==", true),
-    orderBy("priority", "desc")
   );
   const snap = await getDocs(q);
   
@@ -52,7 +59,8 @@ export async function getActiveBanners(): Promise<AdvancedAdBanner[]> {
       if (banner.startsAt && banner.startsAt > now) return false;
       if (banner.endsAt && banner.endsAt < now) return false;
       return true;
-    });
+    })
+    .sort((a, b) => (Number(b.priority) || 0) - (Number(a.priority) || 0));
 }
 
 /**
@@ -67,7 +75,7 @@ export async function getBannersByLocation(location: AdBannerLocation): Promise<
  * Bir banner gətir
  */
 export async function getBanner(id: string): Promise<AdvancedAdBanner | null> {
-  const docRef = doc(db, COLLECTION, id);
+  const docRef = doc(firestore(), COLLECTION, id);
   const docSnap = await getDoc(docRef);
   
   if (!docSnap.exists()) return null;
@@ -85,7 +93,7 @@ export async function createBanner(
   input: AdvancedAdBannerInput,
   createdBy: string
 ): Promise<string> {
-  const docRef = await addDoc(collection(db, COLLECTION), {
+  const docRef = await addDoc(collection(firestore(), COLLECTION), {
     ...input,
     clicks: 0,
     impressions: 0,
@@ -103,7 +111,7 @@ export async function updateBanner(
   id: string,
   updates: Partial<AdvancedAdBannerInput>
 ): Promise<void> {
-  const docRef = doc(db, COLLECTION, id);
+  const docRef = doc(firestore(), COLLECTION, id);
   await updateDoc(docRef, {
     ...updates,
     updatedAt: new Date().toISOString(),
@@ -114,7 +122,7 @@ export async function updateBanner(
  * Banner-i sil
  */
 export async function deleteBanner(id: string): Promise<void> {
-  const docRef = doc(db, COLLECTION, id);
+  const docRef = doc(firestore(), COLLECTION, id);
   await deleteDoc(docRef);
 }
 
