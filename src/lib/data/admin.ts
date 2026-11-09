@@ -67,10 +67,8 @@ function db() {
 
 export async function listArticles(): Promise<Article[]> {
   try {
-    // 1. Firestore-dan məqalələr
-    const snapshot = await getDocs(
-      query(collection(db(), COLLECTIONS.articles), orderBy("publishedAt", "desc")),
-    );
+    // 1. Firestore-dan məqalələr (index problemi olmasın deyə sadə query)
+    const snapshot = await getDocs(collection(db(), COLLECTIONS.articles));
     
     const firestoreArticles = snapshot.docs
       .map((item) => {
