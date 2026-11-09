@@ -435,6 +435,9 @@
     display: block;
     margin: 1.5em auto;
     border-radius: 4px;
+    /* Yüksək keyfiyyətli render */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: high-quality;
   }
   .prose-mag p {
     margin-block: 1.5em;
