@@ -183,6 +183,20 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "analytics_daily",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "articleId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
