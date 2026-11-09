@@ -272,6 +272,22 @@ export default function ArticleEditor({ article }: { article?: Article }) {
       on ? [...current.filter((x) => x !== id), id] : current.filter((x) => x !== id),
     );
   };
+  /**
+   * Seçilmiş bölməyə uyğun ana səhifə bölmələri: hər bölmə üçün «Bu həftənin baş mövzusu»
+   * və «Ən son», üstəlik həmin bölmənin öz bloku varsa — «Redaksiya yazıları» (sol) və
+   * «Ən çox oxunanlar» (sağ). Başqa bölmənin bloku göstərilmir və saxlanmır.
+   */
+  const availableHomeOptions = HOMEPAGE_SECTION_OPTIONS.filter(
+    (option) =>
+      option.id === "weekly-main-topic" ||
+      option.id === "latest-articles" ||
+      option.id === `${draft.category}-editorial` ||
+      option.id === `${draft.category}-most-read`,
+  );
+  const effectiveHome = homeSections.filter((id) =>
+    availableHomeOptions.some((option) => option.id === id),
+  );
+  const categoryHasHomeBlock = availableHomeOptions.length > 2;
 
   const [viewMode, setViewMode] = useState<"edit" | "split" | "preview">("edit");
 
@@ -382,11 +398,11 @@ export default function ArticleEditor({ article }: { article?: Article }) {
     const catName = category?.name.az ?? draft.category;
     const hasBlock = ["moda", "gozellik", "heyat-terzi", "biznes"].includes(draft.category);
 
-    const homepage: string[] = homeSections.map(
+    const homepage: string[] = effectiveHome.map(
       (id) => `«${homepageSectionLabels[id]}» — seçilmiş (birinci yer)`,
     );
-    const trending = homeSections.some((id) => id.endsWith("-most-read"));
-    const featured = homeSections.includes("weekly-main-topic");
+    const trending = effectiveHome.some((id) => id.endsWith("-most-read"));
+    const featured = effectiveHome.includes("weekly-main-topic");
     if (draft.category === "gundem") {
       homepage.push("«Bu həftənin baş mövzusu» karuseli — Gündəmin ən yeni 6 məqaləsi arasında");
     } else {
@@ -411,7 +427,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
         : `Boş: ${missing.map((code) => code.toUpperCase()).join(", ")} — orada AZ mətni göstəriləcək`;
 
     return { homepage, pages, languages, languagesOk: missing.length === 0 };
-  }, [draft.category, draft.subcategory, homeSections, draft.title, draft.body]);
+  }, [draft.category, draft.subcategory, effectiveHome, draft.title, draft.body]);
 
   const allowedCategories = categories.filter((category) =>
     canEditCategory(session, category.slug),
@@ -542,9 +558,9 @@ export default function ArticleEditor({ article }: { article?: Article }) {
       ...draft,
       // Ana səhifə bölmə seçimi köhnə işarələri də idarə edir:
       // «Ən çox oxunanlar» → trending, «Bu həftənin baş mövzusu» → featured (Seçilənlər səhifəsi).
-      homepageSections: homeSections,
-      trending: homeSections.some((id) => id.endsWith("-most-read")),
-      featured: homeSections.includes("weekly-main-topic"),
+      homepageSections: effectiveHome,
+      trending: effectiveHome.some((id) => id.endsWith("-most-read")),
+      featured: effectiveHome.includes("weekly-main-topic"),
       slug: slugs,
       status: newStatus,
       publishedAt: finalPublishedAt,
@@ -573,7 +589,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
      */
     const syncHomepage = async (articleId: string): Promise<string> => {
       if (resultStatus !== "published") {
-        return homeSections.length > 0 && homeTouched
+        return effectiveHome.length > 0 && homeTouched
           ? " Ana səhifə bölmə seçimi yadda saxlandı — məqalə dərc olunanda tətbiq ediləcək."
           : "";
       }
@@ -582,7 +598,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
         return homeTouched ? " Ana səhifə bölmələrini yalnız admin və redaktor dəyişə bilər." : "";
       }
       try {
-        await syncArticleHomepageSections(articleId, homeSections, {
+        await syncArticleHomepageSections(articleId, effectiveHome, {
           email: session?.email ?? "unknown",
           name: session?.name ?? session?.email ?? "unknown",
         });
@@ -839,14 +855,16 @@ export default function ArticleEditor({ article }: { article?: Article }) {
               <Field label="Bölmə">
                 <select
                   value={draft.category}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    // Bölmə dəyişəndə köhnə bölmənin ana səhifə blokundan da çıxarılsın.
+                    if (homeSections.length > 0) setHomeTouched(true);
                     setDraft((current) => ({
                       ...current,
                       category: event.target.value as CategorySlug,
                       // Alt bölmələr bölməyə bağlıdır — bölmə dəyişəndə seçim sıfırlanır.
                       subcategory: "",
-                    }))
-                  }
+                    }));
+                  }}
                   className={inputClass}
                 >
                   {allowedCategories.map((category) => (
@@ -889,8 +907,8 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                   -ndə dəyişə bilərsiniz.
                 </p>
                 <div className="space-y-1.5">
-                  {HOMEPAGE_SECTION_OPTIONS.map((option) => {
-                    const checked = homeSections.includes(option.id);
+                  {availableHomeOptions.map((option) => {
+                    const checked = effectiveHome.includes(option.id);
                     return (
                       <label
                         key={option.id}
@@ -918,12 +936,17 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                     );
                   })}
                 </div>
+                {!categoryHasHomeBlock && (
+                  <p className="font-ui text-[11px] text-muted">
+                    Ana səhifədə bu bölmənin ayrıca «Redaksiya yazıları / Ən çox oxunanlar» bloku yoxdur.
+                  </p>
+                )}
                 {!canManageHomepage && (
                   <p className="font-ui text-[11px] text-amber-700">
                     Ana səhifə bölmələrini yalnız admin və redaktor seçə bilər.
                   </p>
                 )}
-                {homeSections.length > 0 && !isLive && (
+                {effectiveHome.length > 0 && !isLive && (
                   <p className="font-ui text-[11px] text-muted">
                     Seçim məqalə ilə saxlanır və «Dərc et» basılanda ana səhifəyə tətbiq olunur.
                   </p>
