@@ -237,3 +237,82 @@ export async function revalidateHomepageCache(locale?: Locale): Promise<boolean>
     return false;
   }
 }
+
+/** Məqalə redaktorunda göstərilən ana səhifə bölmələri (Ana Səhifə İdarəsi ilə eyni sıra). */
+export const HOMEPAGE_SECTION_OPTIONS: Array<{ id: HomepageSectionId; hint: string; icon: string }> = [
+  { id: "weekly-main-topic", hint: "Ən üst karusel", icon: "⭐" },
+  { id: "latest-articles", hint: "Yeni məqalələr lenti", icon: "🆕" },
+  { id: "moda-editorial", hint: "Sol tərəf", icon: "👗" },
+  { id: "moda-most-read", hint: "Sağ tərəf", icon: "📊" },
+  { id: "gozellik-editorial", hint: "Sol tərəf", icon: "💄" },
+  { id: "gozellik-most-read", hint: "Sağ tərəf", icon: "📊" },
+  { id: "heyat-terzi-editorial", hint: "Sol tərəf", icon: "🌟" },
+  { id: "heyat-terzi-most-read", hint: "Sağ tərəf", icon: "📊" },
+  { id: "biznes-editorial", hint: "Sol tərəf", icon: "💼" },
+  { id: "biznes-most-read", hint: "Sağ tərəf", icon: "📊" },
+];
+
+const ALL_LOCALES: Locale[] = ["az", "en", "ru", "tr", "ar"];
+
+/**
+ * Məqalə redaktorundan: məqaləni seçilmiş bölmələrə (bütün 5 dildə) əlavə edir,
+ * seçimi götürülmüş bölmələrdən çıxarır. Yeni əlavə olunan məqalə bölmənin
+ * əvvəlinə düşür; bölmə limiti aşılarsa sonuncu məqalə çıxır.
+ * Yalnız dərc olunmuş məqalə üçün çağırılmalıdır (rules: admin/editor).
+ */
+export async function syncArticleHomepageSections(
+  articleId: string,
+  selected: HomepageSectionId[],
+  by: { email: string; name: string },
+): Promise<{ added: number; removed: number }> {
+  const db = requireDb();
+  const wanted = new Set(selected);
+  let added = 0;
+  let removed = 0;
+
+  for (const option of HOMEPAGE_SECTION_OPTIONS) {
+    for (const locale of ALL_LOCALES) {
+      const ref = doc(db, COLLECTIONS.homepageEditorial, sectionDocId(option.id, locale));
+      const snap = await getDoc(ref);
+      const before: string[] =
+        snap.exists() && Array.isArray(snap.data().articleIds) ? (snap.data().articleIds as string[]) : [];
+      const has = before.includes(articleId);
+      const want = wanted.has(option.id);
+      if (has === want) continue;
+
+      const after = want
+        ? [articleId, ...before].slice(0, homepageSectionLimits[option.id].manage)
+        : before.filter((id) => id !== articleId);
+      if (want) added += 1;
+      else removed += 1;
+
+      const updatedAt = new Date().toISOString();
+      await setDoc(ref, {
+        sectionId: option.id,
+        locale,
+        articleIds: after,
+        updatedBy: by.email,
+        updatedByName: by.name,
+        updatedAt,
+        version: (snap.exists() ? Number(snap.data().version) || 0 : 0) + 1,
+      });
+      try {
+        await addDoc(collection(db, COLLECTIONS.homepageEditorialAudit), {
+          sectionId: option.id,
+          locale,
+          action: want ? "add" : "remove",
+          beforeArticleIds: before,
+          afterArticleIds: after,
+          description: `Article editor: ${want ? "added" : "removed"} ${articleId}`,
+          performedBy: by.email,
+          performedByName: by.name,
+          performedAt: updatedAt,
+        });
+      } catch (error) {
+        console.warn("Audit qeydi yazılmadı:", error);
+      }
+    }
+  }
+
+  return { added, removed };
+}

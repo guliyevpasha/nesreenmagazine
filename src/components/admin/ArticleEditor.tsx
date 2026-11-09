@@ -9,7 +9,7 @@
 import { authorizedFetch } from "@/lib/auth/authorized-fetch";
 import { uploadFormData } from "@/lib/upload-client";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { categories, getSubcategories, type CategorySlug } from "@/lib/categories";
 import {
@@ -45,6 +45,12 @@ import AIContentAssistant from "./AIContentAssistant";
 import WordEditor from "./editor/word/WordEditor";
 import ArticleHomepagePlacements from "./ArticleHomepagePlacements";
 import Link from "next/link";
+import {
+  HOMEPAGE_SECTION_OPTIONS,
+  getArticleHomepagePlacements,
+  syncArticleHomepageSections,
+} from "@/lib/data/admin-homepage";
+import { homepageSectionLabels, type HomepageSectionId } from "@/lib/types";
 
 /** Başlıqdan URL üçün ünvan düzəldir - bütün 5 dili dəstəkləyir */
 function slugify(value: string, locale: Locale = "az"): string {
@@ -237,6 +243,36 @@ export default function ArticleEditor({ article }: { article?: Article }) {
     };
   });
   const [activeLocale, setActiveLocale] = useState<Locale>("az");
+
+  /* ── Ana səhifə bölmələri (Ana Səhifə İdarəsi ilə eyni struktur) ── */
+  const canManageHomepage = session?.role === "admin" || session?.role === "editor";
+  const [homeSections, setHomeSections] = useState<HomepageSectionId[]>(
+    () => article?.homepageSections ?? [],
+  );
+  const [homeTouched, setHomeTouched] = useState(false);
+  const homeTouchedRef = useRef(false);
+  homeTouchedRef.current = homeTouched;
+  useEffect(() => {
+    // Dərc olunmuş məqalə üçün həqiqi vəziyyət homepageEditorial-dadır.
+    if (!article || article.status !== "published") return;
+    let cancelled = false;
+    getArticleHomepagePlacements(article.id).then((placements) => {
+      if (cancelled || placements.length === 0) return;
+      const ids = Array.from(new Set(placements.map((p) => p.sectionId)));
+      setHomeSections((current) => (homeTouchedRef.current ? current : ids));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [article?.id]);
+  const toggleHomeSection = (id: HomepageSectionId, on: boolean) => {
+    setHomeTouched(true);
+    setHomeSections((current) =>
+      on ? [...current.filter((x) => x !== id), id] : current.filter((x) => x !== id),
+    );
+  };
+
   const [viewMode, setViewMode] = useState<"edit" | "split" | "preview">("edit");
 
   /* ── Avtomatik saxlama (brauzerdə): yazılan mətn itməsin ── */
@@ -311,7 +347,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
       : "Saxlanmamış dəyişikliklər…"
     : "Bütün dəyişikliklər saxlanılıb";
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(
+  const [message, setMessage] = useState<{ tone: "success" | "error" | "warning"; text: string } | null>(
     null,
   );
   const [uploading, setUploading] = useState(false);
@@ -346,7 +382,11 @@ export default function ArticleEditor({ article }: { article?: Article }) {
     const catName = category?.name.az ?? draft.category;
     const hasBlock = ["moda", "gozellik", "heyat-terzi", "biznes"].includes(draft.category);
 
-    const homepage: string[] = [];
+    const homepage: string[] = homeSections.map(
+      (id) => `«${homepageSectionLabels[id]}» — seçilmiş (birinci yer)`,
+    );
+    const trending = homeSections.some((id) => id.endsWith("-most-read"));
+    const featured = homeSections.includes("weekly-main-topic");
     if (draft.category === "gundem") {
       homepage.push("«Bu həftənin baş mövzusu» karuseli — Gündəmin ən yeni 6 məqaləsi arasında");
     } else {
@@ -354,7 +394,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
     }
     if (hasBlock) {
       homepage.push(
-        draft.trending
+        trending
           ? `«${catName}» bloku — yan sütundakı «Çox oxunanlar» (ən yeni 5)`
           : `«${catName}» bloku — əsas lent (ən yeni 5)`,
       );
@@ -362,7 +402,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
 
     const pages = [`«${catName}» bölmə səhifəsi`];
     if (sub) pages.push(`«${sub.name.az}» alt bölmə səhifəsi`);
-    if (draft.featured || draft.trending) pages.push("«Seçilənlər» səhifəsi");
+    if (featured || trending) pages.push("«Seçilənlər» səhifəsi");
 
     const missing = locales.filter((code) => !draft.title[code]?.trim() || !draft.body[code]?.trim());
     const languages =
@@ -371,7 +411,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
         : `Boş: ${missing.map((code) => code.toUpperCase()).join(", ")} — orada AZ mətni göstəriləcək`;
 
     return { homepage, pages, languages, languagesOk: missing.length === 0 };
-  }, [draft.category, draft.subcategory, draft.featured, draft.trending, draft.title, draft.body]);
+  }, [draft.category, draft.subcategory, homeSections, draft.title, draft.body]);
 
   const allowedCategories = categories.filter((category) =>
     canEditCategory(session, category.slug),
@@ -500,6 +540,11 @@ export default function ArticleEditor({ article }: { article?: Article }) {
 
     const payload: ArticleInput = {
       ...draft,
+      // Ana səhifə bölmə seçimi köhnə işarələri də idarə edir:
+      // «Ən çox oxunanlar» → trending, «Bu həftənin baş mövzusu» → featured (Seçilənlər səhifəsi).
+      homepageSections: homeSections,
+      trending: homeSections.some((id) => id.endsWith("-most-read")),
+      featured: homeSections.includes("weekly-main-topic"),
       slug: slugs,
       status: newStatus,
       publishedAt: finalPublishedAt,
@@ -521,10 +566,39 @@ export default function ArticleEditor({ article }: { article?: Article }) {
       locations.push({ category: article.category, subcategory: article.subcategory, slug: article.slug });
     }
 
+    /**
+     * Seçilmiş ana səhifə bölmələrini homepageEditorial-a yazır (5 dilin hamısı).
+     * Yalnız saytda olan məqalə üçün; ilk dərcdə və ya seçim dəyişəndə.
+     * Qaytarır: istifadəçiyə əlavə qeyd (boş = problem yoxdur).
+     */
+    const syncHomepage = async (articleId: string): Promise<string> => {
+      if (resultStatus !== "published") {
+        return homeSections.length > 0 && homeTouched
+          ? " Ana səhifə bölmə seçimi yadda saxlandı — məqalə dərc olunanda tətbiq ediləcək."
+          : "";
+      }
+      if (!homeTouched && wasPublished) return "";
+      if (!canManageHomepage) {
+        return homeTouched ? " Ana səhifə bölmələrini yalnız admin və redaktor dəyişə bilər." : "";
+      }
+      try {
+        await syncArticleHomepageSections(articleId, homeSections, {
+          email: session?.email ?? "unknown",
+          name: session?.name ?? session?.email ?? "unknown",
+        });
+        setHomeTouched(false);
+        return "";
+      } catch (error) {
+        console.error("Ana səhifə bölmələri yazılmadı:", error);
+        return " Ana səhifə bölmələri yenilənmədi — Ana Səhifə İdarəsindən yoxlayın.";
+      }
+    };
+
     setBusy(true);
     try {
       if (article) {
         await saveArticle(article.id, payload);
+        const homeNote = await syncHomepage(article.id);
         // Versiya snapshot-u yarat
         await snapshotArticleVersion({
           articleId: article.id,
@@ -544,11 +618,12 @@ export default function ArticleEditor({ article }: { article?: Article }) {
         
         const cacheCleared = affectsSite ? await revalidateArticleCache(locations) : true;
         setMessage({
-          tone: "success",
-          text: saveResultMessage(resultStatus, wasPublished, cacheCleared),
+          tone: homeNote ? "warning" : "success",
+          text: saveResultMessage(resultStatus, wasPublished, cacheCleared) + homeNote,
         });
       } else {
         const id = await createArticle(payload);
+        const homeNote = await syncHomepage(id);
         // Yeni məqalə üçün ilk versiya
         await snapshotArticleVersion({
           articleId: id,
@@ -560,8 +635,8 @@ export default function ArticleEditor({ article }: { article?: Article }) {
         
         const cacheCleared = affectsSite ? await revalidateArticleCache(locations) : true;
         setMessage({
-          tone: "success",
-          text: saveResultMessage(resultStatus, false, cacheCleared),
+          tone: homeNote ? "warning" : "success",
+          text: saveResultMessage(resultStatus, false, cacheCleared) + homeNote,
         });
         
         clearAutosave(payload);
@@ -801,42 +876,58 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                 </Field>
               )}
 
+              {/* Ana səhifə bölmələri — «Ana Səhifə İdarəsi» ilə eyni struktur */}
               <fieldset className="space-y-2">
-                <legend className="mb-2 font-ui text-[11px] uppercase tracking-[0.14em] text-muted">
-                  İşarələr
+                <legend className="mb-1 font-ui text-[11px] uppercase tracking-[0.14em] text-muted">
+                  Ana səhifədə göstər
                 </legend>
-                {[
-                  {
-                    key: "trending" as const,
-                    title: "Çox oxunan",
-                    text: "Moda, Gözəllik, Həyat tərzi və Biznes bloklarında əsas lentə yox, yan «Çox oxunanlar» sütununa düşür.",
-                  },
-                  {
-                    key: "featured" as const,
-                    title: "Redaksiyanın seçimi",
-                    text: "«Seçilənlər» səhifəsində göstərilir. Ana səhifənin yerləşməsinə təsir etmir.",
-                  },
-                ].map((option) => (
-                  <label
-                    key={option.key}
-                    className={`flex cursor-pointer items-start gap-3 border px-3 py-2.5 transition-colors ${
-                      draft[option.key] ? "border-bordo bg-bordo/5" : "border-line hover:border-ink/30"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={Boolean(draft[option.key])}
-                      onChange={(event) =>
-                        setDraft((current) => ({ ...current, [option.key]: event.target.checked }))
-                      }
-                      className="mt-1 h-4 w-4 accent-[#7b2233]"
-                    />
-                    <span>
-                      <span className="block font-ui text-[13px] text-ink">{option.title}</span>
-                      <span className="block font-ui text-[11px] text-muted">{option.text}</span>
-                    </span>
-                  </label>
-                ))}
+                <p className="mb-2 font-ui text-[11px] leading-relaxed text-muted">
+                  Seçdiyiniz bölmələrə məqalə 5 dilin hamısında birinci yerə əlavə olunur. Sıranı{" "}
+                  <Link href="/admin/homepage-builder" className="text-bordo underline">
+                    Ana Səhifə İdarəsi
+                  </Link>
+                  -ndə dəyişə bilərsiniz.
+                </p>
+                <div className="space-y-1.5">
+                  {HOMEPAGE_SECTION_OPTIONS.map((option) => {
+                    const checked = homeSections.includes(option.id);
+                    return (
+                      <label
+                        key={option.id}
+                        className={`flex items-center gap-3 border px-3 py-2 transition-colors ${
+                          canManageHomepage ? "cursor-pointer" : "cursor-not-allowed opacity-60"
+                        } ${checked ? "border-bordo bg-bordo/5" : "border-line hover:border-ink/30"}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={!canManageHomepage}
+                          onChange={(event) => toggleHomeSection(option.id, event.target.checked)}
+                          className="h-4 w-4 shrink-0 accent-[#7b2233]"
+                        />
+                        <span aria-hidden className="text-base leading-none">
+                          {option.icon}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block font-ui text-[13px] leading-snug text-ink">
+                            {homepageSectionLabels[option.id]}
+                          </span>
+                          <span className="block font-ui text-[11px] text-muted">{option.hint}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {!canManageHomepage && (
+                  <p className="font-ui text-[11px] text-amber-700">
+                    Ana səhifə bölmələrini yalnız admin və redaktor seçə bilər.
+                  </p>
+                )}
+                {homeSections.length > 0 && !isLive && (
+                  <p className="font-ui text-[11px] text-muted">
+                    Seçim məqalə ilə saxlanır və «Dərc et» basılanda ana səhifəyə tətbiq olunur.
+                  </p>
+                )}
               </fieldset>
 
               <div className="space-y-3 border-t border-line pt-4">
@@ -844,7 +935,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                   Dərc olunanda görünəcək
                 </p>
                 {[
-                  { title: "Ana səhifə (avtomatik)", lines: placementSummary.homepage },
+                  { title: "Ana səhifə", lines: placementSummary.homepage },
                   { title: "Sayt səhifələri", lines: placementSummary.pages },
                 ].map((group) => (
                   <div key={group.title}>
@@ -874,8 +965,7 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                   <Link href="/admin/homepage-builder" className="text-bordo underline">
                     Ana Səhifə İdarəsi
                   </Link>
-                  -ndə əl ilə seçim edilibsə, avtomatik siyahı əvəzinə o seçim göstərilir. Məqaləni ora dərcdən
-                  sonra əlavə edə bilərsiniz.
+                  -ndə əl ilə seçim edilmiş bölmədə avtomatik siyahı əvəzinə o seçim göstərilir.
                 </p>
               </div>
             </div>

@@ -44,6 +44,8 @@ export type Article = {
   scheduledAt?: string;
   /** Rich media blocks (video, gallery, embeds). */
   mediaBlocks?: MediaBlock[];
+  /** Redaktorda seçilmiş ana səhifə bölmələri (dərc olunanda homepageEditorial-a yazılır). */
+  homepageSections?: HomepageSectionId[];
 };
 
 /** Firestore-a yazılan, id-siz forma. */

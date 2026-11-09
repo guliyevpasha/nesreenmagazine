@@ -41,9 +41,19 @@ export default async function HomePage({
       getArticlesByCategory("biznes", 15),
     ]);
 
-  /** Bölmə üçün redaksiya seçimi varsa onu, yoxdursa (boş/xətalı) əvvəlki avtomatik siyahını göstər. */
-  const pick = (editorial: HomepageArticleCache[] | undefined, fallback: Article[]): Article[] =>
-    editorial && editorial.length > 0 ? editorial.map(cacheToArticle) : fallback;
+  /**
+   * Bölmə: əvvəl redaksiya seçimi (sıra ilə), qalan yerlər avtomatik siyahı ilə doldurulur —
+   * redaktorda bir məqalə seçmək bloku bir məqaləyə endirməsin.
+   */
+  const pick = (editorial: HomepageArticleCache[] | undefined, fallback: Article[]): Article[] => {
+    if (!editorial || editorial.length === 0) return fallback;
+    const chosen = editorial.map(cacheToArticle);
+    const ids = new Set(chosen.map((a) => a.id));
+    return [...chosen, ...fallback.filter((a) => !ids.has(a.id))].slice(
+      0,
+      Math.max(chosen.length, fallback.length),
+    );
+  };
   const plain = (list: Article[]) => list.filter((a) => !a.trending).slice(0, 5);
   const trending = (list: Article[]) => list.filter((a) => a.trending).slice(0, 5);
 
