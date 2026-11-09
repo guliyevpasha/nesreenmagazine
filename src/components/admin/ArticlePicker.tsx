@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/firebase/auth";
 import { searchPublishedArticles } from "@/lib/data/admin-homepage";
 import type { Article, Locale, CategorySlug } from "@/lib/types";
 import { pick } from "@/lib/types";
@@ -29,6 +30,7 @@ export default function ArticlePicker({
   categoryFilter,
   maxReached,
 }: ArticlePickerProps) {
+  const { session, loading: authLoading } = useAuth();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategorySlug | "">(categoryFilter || "");
   const [subcategory, setSubcategory] = useState("");
@@ -72,6 +74,11 @@ export default function ArticlePicker({
   }, [query, category, subcategory]);
 
   const handleSearch = async (searchQuery: string = query) => {
+    if (authLoading || !session) {
+      setError("Auth yüklənir, bir az gözləyin...");
+      return;
+    }
+    
     setLoading(true);
     setError("");
     
@@ -88,8 +95,8 @@ export default function ArticlePicker({
       setResults(filtered);
       setShowResults(true);
     } catch (err) {
-      setError("Axtarış zamanı xəta baş verdi");
-      console.error(err);
+      setError("Axtarış zamanı xəta baş verdi: " + (err instanceof Error ? err.message : "Naməlum xəta"));
+      console.error("[ArticlePicker] Search error:", err);
     } finally {
       setLoading(false);
     }
@@ -99,6 +106,18 @@ export default function ArticlePicker({
 
   return (
     <div className="space-y-4">
+      {authLoading && (
+        <Alert tone="info">
+          🔄 İstifadəçi yüklənir, bir az gözləyin...
+        </Alert>
+      )}
+      
+      {!authLoading && !session && (
+        <Alert tone="error">
+          ⚠️ İstifadəçi giriş etməyib. Yenidən giriş edin.
+        </Alert>
+      )}
+      
       {maxReached && (
         <Alert tone="warning">
           Məqalə limiti dolub. Yeni məqalə əlavə etmək üçün əvvəlcə mövcud məqalələrdən birini silin.
