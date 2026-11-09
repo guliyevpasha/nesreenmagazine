@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 // MÜVƏQQƏTİ: reklam sahələri gizlədilib — geri qaytarmaq üçün bu sətri silin, aşağıdakı importu bərpa edin.
 // import AdSlot from "@/components/AdSlot";
+import AdvertisementBanner from "@/components/AdvertisementBanner";
 import ArticleCard from "@/components/ArticleCard";
 import HeroCarousel from "@/components/HeroCarousel";
 import { RoseMark } from "@/components/Logo";
@@ -105,11 +106,9 @@ export default async function HomePage({
       )}
 
       {/* ================= Reklam ================= */}
-      {/* MÜVƏQQƏTİ: reklam sahəsi gizlədilib — bu bloku şərhdən çıxarmaqla geri qaytarın.
       <div className="container-mag pb-16">
-        <AdSlot slot="home-leaderboard" locale={locale} />
+        <AdvertisementBanner locale={locale} />
       </div>
-      */}
 
       {/* ================= Redaktordan ================= */}
       <section className="relative overflow-hidden bg-bordo-deep py-10 text-cream sm:py-12 lg:py-14">

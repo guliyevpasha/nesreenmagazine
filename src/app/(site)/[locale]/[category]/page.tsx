@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 // MÜVƏQQƏTİ: reklam sahələri gizlədilib — geri qaytarmaq üçün bu sətri silin, aşağıdakı importu bərpa edin.
 // import AdSlot from "@/components/AdSlot";
+import AdvertisementBanner from "@/components/AdvertisementBanner";
 import ArticleCard from "@/components/ArticleCard";
 import AstrologyTabs, { type ReadingMap } from "@/components/AstrologyTabs";
 import { RoseMark } from "@/components/Logo";
@@ -103,6 +104,10 @@ export default async function CategoryPage({
         <AdSlot slot="category-top" locale={locale} />
       </div>
       */}
+
+      <div className="container-mag pt-10">
+        <AdvertisementBanner locale={locale} />
+      </div>
 
       {/* ---------- Astrologiya: bürc dairələri ---------- */}
       {isAstrology && (

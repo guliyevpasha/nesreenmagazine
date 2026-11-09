@@ -4,6 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import ArticleCard from "@/components/ArticleCard";
 import ArticleBanners from "@/components/ArticleBanners";
+import AdvertisementBanner from "@/components/AdvertisementBanner";
 import CoverArt from "@/components/CoverArt";
 import { RoseMark } from "@/components/Logo";
 import SectionHeading from "@/components/SectionHeading";
@@ -315,6 +316,11 @@ export default async function ArticlePage({
               {related.map((item) => (
                 <ArticleCard key={item.id} article={item} locale={locale} variant="compact" />
               ))}
+            </div>
+
+            {/* Reklam Banneri */}
+            <div className="mt-16">
+              <AdvertisementBanner locale={locale} />
             </div>
           </div>
         </section>
