@@ -68,20 +68,38 @@ function ArticleActionsMenu({
   const [busy, setBusy] = useState(false);
 
   async function handleDelete() {
-    if (!confirm(`"${getArticleTitle(article, "az")}" məqaləsi silinsin?`)) return;
+    const articleTitle = getArticleTitle(article, "az");
+    if (!confirm(`"${articleTitle}" məqaləsi silinsin?\n\nBu əməliyyat geri qaytarıla bilməz!`)) return;
     
     setBusy(true);
+    setOpen(false); // Menu-nu bağla
+    
     try {
-      console.log("🗑️ Məqalə silinir:", article.id);
+      console.log("🗑️ Məqalə silinir:", article.id, articleTitle);
+      
+      // Məqaləni sil
       await removeArticle(article.id);
-      console.log("✅ Məqalə silindi:", article.id);
-      setOpen(false);
+      
+      console.log("✅ Məqalə uğurla silindi!");
+      
+      // Siyahını yenilə
       onDelete();
+      
+      // Təsdiq mesajı
+      alert(`✅ "${articleTitle}" məqaləsi uğurla silindi!`);
+      
     } catch (error) {
       console.error("❌ Silmə xətası:", error);
-      const errorMessage = error instanceof Error ? error.message : "Naməlum xəta";
-      alert(`Məqalə silinmədi!\n\nXəta: ${errorMessage}\n\nMəqalə ID: ${article.id}\n\nBrauzerin console-unu (F12) yoxlayın.`);
+      
+      let errorMessage = "Naməlum xəta";
+      if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = String((error as Error).message);
+      }
+      
+      alert(`❌ Məqalə silinmədi!\n\nXəta: ${errorMessage}\n\nMəqalə ID: ${article.id}\n\nƏgər problem davam edərsə, Firebase Console-dan silməyi sınayın.`);
+      
       setBusy(false);
+      setOpen(true); // Menu-nu yenidən aç
     }
   }
 
