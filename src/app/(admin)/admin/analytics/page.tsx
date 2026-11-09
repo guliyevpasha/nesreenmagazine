@@ -10,6 +10,8 @@ import {
   getDailyTrend,
   getTopArticles,
   getCategoryStats,
+  getDeviceStats,
+  getSourceStats,
   type OverallStats,
   type ViewRecord,
   type ArticleViews,
@@ -32,6 +34,8 @@ export default function AnalyticsOverviewPage() {
   const [dailyTrend, setDailyTrend] = useState<ViewRecord[]>([]);
   const [topArticlesData, setTopArticlesData] = useState<ArticleViews[]>([]);
   const [categoryViews, setCategoryViews] = useState<Record<string, number>>({});
+  const [deviceStats, setDeviceStats] = useState({ desktop: 0, mobile: 0, tablet: 0 });
+  const [sourceStats, setSourceStats] = useState({ organic: 0, social: 0, direct: 0, referral: 0 });
 
   const days = dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : 90;
 
@@ -43,13 +47,15 @@ export default function AnalyticsOverviewPage() {
     setLoading(true);
     setError("");
     try {
-      const [arts, subs, stats, trend, tops, catStats] = await Promise.all([
+      const [arts, subs, stats, trend, tops, catStats, devStats, srcStats] = await Promise.all([
         listArticles(),
         countSubscribers(),
         getOverallStats(),
         getDailyTrend(days),
         getTopArticles(days, 10),
         getCategoryStats(days),
+        getDeviceStats(days),
+        getSourceStats(days),
       ]);
       
       setArticles(arts);
@@ -58,6 +64,8 @@ export default function AnalyticsOverviewPage() {
       setDailyTrend(trend);
       setTopArticlesData(tops);
       setCategoryViews(catStats);
+      setDeviceStats(devStats);
+      setSourceStats(srcStats);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Yüklənmə xətası");
     } finally {
@@ -228,31 +236,86 @@ export default function AnalyticsOverviewPage() {
             )}
           </Panel>
 
-          {/* Traffic Sources - GA4 olmadığı üçün placeholder */}
+          {/* Traffic Sources - Real data */}
           <Panel
             title="Trafik Mənbələri"
-            description="GA4 inteqrasiyası qoşulduqda real məlumat göstəriləcək"
+            description={`Son ${days} gün - Real məlumat`}
           >
-            <div className="py-8 text-center">
-              <p className="font-ui text-[12px] text-muted">
-                Google Analytics 4 inteqrasiyası tələb olunur
-              </p>
-              <p className="mt-2 font-ui text-[11px] text-muted">
-                .env.local-da GA4_PROPERTY_ID və GA4_SERVICE_ACCOUNT_KEY əlavə edin
-              </p>
-            </div>
+            {sourceStats.organic + sourceStats.social + sourceStats.direct + sourceStats.referral === 0 ? (
+              <div className="py-8 text-center">
+                <p className="font-ui text-[12px] text-muted">
+                  Hələ ki trafik mənbəyi məlumatı toplanmayıb
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {[
+                  { label: "Organic (Google, Bing)", value: sourceStats.organic, color: "bg-green-500" },
+                  { label: "Social (Facebook, Instagram)", value: sourceStats.social, color: "bg-blue-500" },
+                  { label: "Direct", value: sourceStats.direct, color: "bg-gray-500" },
+                  { label: "Referral (Digər saytlar)", value: sourceStats.referral, color: "bg-purple-500" },
+                ].map((source) => {
+                  const total = sourceStats.organic + sourceStats.social + sourceStats.direct + sourceStats.referral;
+                  const percentage = total > 0 ? ((source.value / total) * 100).toFixed(1) : "0.0";
+                  return (
+                    <div key={source.label} className="flex items-center gap-3">
+                      <span className="font-ui text-[12px] text-muted w-40">{source.label}</span>
+                      <div className="flex-1 bg-cream h-6 relative overflow-hidden">
+                        <div
+                          className={`absolute inset-y-0 left-0 ${source.color} opacity-60`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      <span className="font-ui text-[13px] text-ink w-20 text-right">
+                        {source.value.toLocaleString()}
+                      </span>
+                      <span className="font-ui text-[11px] text-muted w-12 text-right">{percentage}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </Panel>
 
-          {/* Device Stats - GA4 olmadığı üçün placeholder */}
+          {/* Device Stats - Real data */}
           <Panel
             title="Cihaz Statistikası"
-            description="GA4 inteqrasiyası qoşulduqda real məlumat göstəriləcək"
+            description={`Son ${days} gün - Real məlumat`}
           >
-            <div className="py-8 text-center">
-              <p className="font-ui text-[12px] text-muted">
-                Cihaz məlumatları üçün GA4 lazımdır
-              </p>
-            </div>
+            {deviceStats.desktop + deviceStats.mobile + deviceStats.tablet === 0 ? (
+              <div className="py-8 text-center">
+                <p className="font-ui text-[12px] text-muted">
+                  Hələ ki cihaz məlumatı toplanmayıb
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {[
+                  { label: "Desktop", value: deviceStats.desktop, icon: "🖥️" },
+                  { label: "Mobile", value: deviceStats.mobile, icon: "📱" },
+                  { label: "Tablet", value: deviceStats.tablet, icon: "📋" },
+                ].map((device) => {
+                  const total = deviceStats.desktop + deviceStats.mobile + deviceStats.tablet;
+                  const percentage = total > 0 ? ((device.value / total) * 100).toFixed(1) : "0.0";
+                  return (
+                    <div key={device.label} className="flex items-center gap-3">
+                      <span className="text-xl">{device.icon}</span>
+                      <span className="font-ui text-[12px] text-muted w-20">{device.label}</span>
+                      <div className="flex-1 bg-cream h-6 relative overflow-hidden">
+                        <div
+                          className="absolute inset-y-0 left-0 bg-bordo opacity-60"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      <span className="font-ui text-[13px] text-ink w-20 text-right">
+                        {device.value.toLocaleString()}
+                      </span>
+                      <span className="font-ui text-[11px] text-muted w-12 text-right">{percentage}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </Panel>
 
           {/* Performance Metrics */}
@@ -374,12 +437,19 @@ export default function AnalyticsOverviewPage() {
         {/* Info Notice */}
         <Alert tone="info">
           ℹ️ <strong>Real tracking:</strong> Bu səhifədə Firestore-da saxlanılan real məqalə baxış 
-          statistikaları göstərilir. GA4 inteqrasiyası əlavə edildikdə, trafik mənbələri, cihaz və 
-          coğrafi məlumatlar da görünəcək.
+          statistikaları göstərilir (device, trafik mənbəyi və coğrafi məlumatlar daxil olmaqla).
           <br />
           <br />
-          📌 <strong>Qeyd:</strong> Saytda məqalə səhifələrində /api/track-view endpoint-ini çağırın 
-          ki, baxışlar qeydə alınsın.
+          📊 <strong>Google Analytics 4:</strong> Saytda client-side GA4 tracking aktiv edilib. 
+          Əlavə təfsilatlı məlumatlar üçün birbaşa Google Analytics dashboard-una keçin: 
+          <a 
+            href={`https://analytics.google.com/analytics/web/#/p${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.replace('G-', '')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-bordo hover:underline ml-1"
+          >
+            Analytics açın
+          </a>
         </Alert>
       </div>
     </>

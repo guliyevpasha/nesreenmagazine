@@ -30,7 +30,13 @@ export async function trackArticleView(
   articleId: string,
   slug: string,
   category: string,
-  visitorId?: string
+  visitorId?: string,
+  metadata?: {
+    userAgent?: string;
+    referrer?: string;
+    device?: string;
+    source?: string;
+  }
 ): Promise<void> {
   try {
     const db = getDb();
@@ -40,6 +46,10 @@ export async function trackArticleView(
     }
     
     const today = new Date().toISOString().slice(0, 10);
+    
+    // Device və source məlumatlarını əldə et
+    const device = metadata?.device || "unknown";
+    const source = metadata?.source || "direct";
     
     // Günlük statistika
     const dailyRef = doc(db, "analytics_daily", `${articleId}_${today}`);
@@ -55,6 +65,28 @@ export async function trackArticleView(
       },
       { merge: true }
     );
+
+    // Device statistikasını increment et
+    if (device !== "unknown") {
+      await setDoc(
+        dailyRef,
+        {
+          [`devices.${device}`]: increment(1),
+        },
+        { merge: true }
+      );
+    }
+
+    // Traffic source statistikasını increment et
+    if (source !== "direct") {
+      await setDoc(
+        dailyRef,
+        {
+          [`sources.${source}`]: increment(1),
+        },
+        { merge: true }
+      );
+    }
 
     // Ümumi statistika
     const totalRef = doc(db, "analytics_totals", articleId);
@@ -83,6 +115,10 @@ export async function trackArticleView(
           visitorId,
           date: today,
           timestamp: new Date().toISOString(),
+          userAgent: metadata?.userAgent,
+          referrer: metadata?.referrer,
+          device,
+          source,
         });
         isNewVisitor = true;
       } catch {
@@ -370,5 +406,86 @@ export async function getOverallStats(): Promise<OverallStats> {
       viewsLast30Days: 0,
       avgViewsPerArticle: 0,
     };
+  }
+}
+
+/**
+ * Device statistikası (son N gün)
+ */
+export async function getDeviceStats(days: number = 30): Promise<{ desktop: number; mobile: number; tablet: number }> {
+  try {
+    const db = getDb();
+    if (!db) return { desktop: 0, mobile: 0, tablet: 0 };
+    
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    
+    const dailyQuery = query(
+      collection(db, "analytics_daily"),
+      where("date", ">=", since)
+    );
+    
+    const dailyDocs = await getDocs(dailyQuery);
+    
+    let desktop = 0;
+    let mobile = 0;
+    let tablet = 0;
+    
+    dailyDocs.forEach((doc) => {
+      const data = doc.data();
+      if (data.devices) {
+        desktop += data.devices.desktop || 0;
+        mobile += data.devices.mobile || 0;
+        tablet += data.devices.tablet || 0;
+      }
+    });
+
+    return { desktop, mobile, tablet };
+  } catch (error) {
+    console.error("Get device stats error:", error);
+    return { desktop: 0, mobile: 0, tablet: 0 };
+  }
+}
+
+/**
+ * Traffic source statistikası (son N gün)
+ */
+export async function getSourceStats(days: number = 30): Promise<{
+  organic: number;
+  social: number;
+  direct: number;
+  referral: number;
+}> {
+  try {
+    const db = getDb();
+    if (!db) return { organic: 0, social: 0, direct: 0, referral: 0 };
+    
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    
+    const dailyQuery = query(
+      collection(db, "analytics_daily"),
+      where("date", ">=", since)
+    );
+    
+    const dailyDocs = await getDocs(dailyQuery);
+    
+    let organic = 0;
+    let social = 0;
+    let direct = 0;
+    let referral = 0;
+    
+    dailyDocs.forEach((doc) => {
+      const data = doc.data();
+      if (data.sources) {
+        organic += data.sources.organic || 0;
+        social += data.sources.social || 0;
+        direct += data.sources.direct || 0;
+        referral += data.sources.referral || 0;
+      }
+    });
+
+    return { organic, social, direct, referral };
+  } catch (error) {
+    console.error("Get source stats error:", error);
+    return { organic: 0, social: 0, direct: 0, referral: 0 };
   }
 }

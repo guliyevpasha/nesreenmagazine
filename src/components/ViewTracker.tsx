@@ -40,6 +40,8 @@ export default function ViewTracker({ articleId, slug, category }: ViewTrackerPr
             slug,
             category,
             visitorId,
+            userAgent: navigator.userAgent,
+            referrer: document.referrer,
           }),
         });
       } catch (error) {
