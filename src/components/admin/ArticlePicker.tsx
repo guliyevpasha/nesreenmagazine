@@ -39,8 +39,29 @@ export default function ArticlePicker({
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (query.length >= 2 || category) {
-        handleSearch();
+      // URL-dən slug çıxarmaq
+      let cleanQuery = query.trim();
+      
+      // Əgər URL yazılıbsa, yalnız slug hissəsini götür
+      if (cleanQuery.includes('nesreenmagazine.com/')) {
+        const parts = cleanQuery.split('/');
+        // Son hissə slug-dur
+        cleanQuery = parts[parts.length - 1] || cleanQuery;
+      }
+      
+      // http:// və ya https:// ilə başlayırsa, son hissəni götür
+      if (cleanQuery.startsWith('http')) {
+        try {
+          const url = new URL(cleanQuery);
+          const pathParts = url.pathname.split('/').filter(p => p);
+          cleanQuery = pathParts[pathParts.length - 1] || cleanQuery;
+        } catch {
+          // URL parse xətası - davam et
+        }
+      }
+      
+      if (cleanQuery.length >= 2 || category) {
+        handleSearch(cleanQuery);
       } else {
         setResults([]);
         setShowResults(false);
@@ -50,12 +71,12 @@ export default function ArticlePicker({
     return () => clearTimeout(timer);
   }, [query, category, subcategory]);
 
-  const handleSearch = async () => {
+  const handleSearch = async (searchQuery: string = query) => {
     setLoading(true);
     setError("");
     
     try {
-      const articles = await searchPublishedArticles(query, {
+      const articles = await searchPublishedArticles(searchQuery, {
         category: category || undefined,
         subcategory: subcategory || undefined,
         locale,
@@ -152,6 +173,7 @@ export default function ArticlePicker({
                 <>
                   {results.length} məqalə tapıldı
                   {results.length === 0 && query && " — başqa açar sözlə cəhd edin"}
+                  {results.length === 0 && !query && category && " — kateqoriyada məqalə yoxdur"}
                 </>
               )}
             </p>
@@ -159,16 +181,26 @@ export default function ArticlePicker({
 
           <div className="max-h-96 overflow-y-auto">
             {results.length === 0 && !loading ? (
-              <div className="p-8 text-center">
+              <div className="p-8 text-center space-y-3">
                 <p className="font-ui text-sm text-muted">
                   {query || category
                     ? "Heç bir məqalə tapılmadı"
                     : "Axtarış üçün başlıq daxil edin və ya kateqoriya seçin"}
                 </p>
+                {(query || category) && (
+                  <div className="text-xs text-muted space-y-1">
+                    <p>💡 Tövsiyələr:</p>
+                    <ul className="list-disc list-inside text-left max-w-md mx-auto">
+                      <li>Daha qısa axtarış mətni istifadə edin</li>
+                      <li>Kateqoriya filtrini çıxardın</li>
+                      <li>Yalnız məqalə başlığından bir neçə söz yazın</li>
+                      <li>Yalnız "published" statuslu məqalələr göstərilir</li>
+                    </ul>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="divide-y divide-line">
-                {results.map((article) => {
+              <div className="divide-y divide-line">{results.map((article) => {
                   const title = pick(article.title, locale);
                   const excerpt = pick(article.excerpt, locale);
                   const cat = categoryName(article.category, locale);
