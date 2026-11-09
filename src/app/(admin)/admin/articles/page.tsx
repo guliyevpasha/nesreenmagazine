@@ -66,8 +66,17 @@ function ArticleActionsMenu({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  
+  // Seed məqalələri silinə bilməz
+  const isSeedArticle = article.id.startsWith('seed-');
+  const canDelete = isAdmin(session) && !isSeedArticle;
 
   async function handleDelete() {
+    if (isSeedArticle) {
+      alert("⚠️ Bu seed məqaləsidir və silinə bilməz!\n\nSeed məqalələr kod içində hard-coded olaraq saxlanılır.\n\nƏgər silmək istəyirsinizsə, src/lib/content/ qovluğundakı fayllardan silin.");
+      return;
+    }
+    
     const articleTitle = getArticleTitle(article, "az");
     if (!confirm(`"${articleTitle}" məqaləsi silinsin?\n\nBu əməliyyat geri qaytarıla bilməz!`)) return;
     
@@ -567,12 +576,14 @@ export default function ArticlesListPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {paginatedArticles.map((article) => (
+                  {paginatedArticles.map((article) => {
+                    const isSeed = article.id.startsWith('seed-');
+                    return (
                     <tr
                       key={article.id}
                       className={`transition-colors hover:bg-cream-deep/30 ${
                         selected.has(article.id) ? "bg-gold/5" : ""
-                      }`}
+                      } ${isSeed ? "bg-blue-50/30" : ""}`}
                     >
                       <td className="px-4 py-4">
                         <input
@@ -581,15 +592,26 @@ export default function ArticlesListPage() {
                           onChange={() => toggleSelect(article.id)}
                           className="h-4 w-4 accent-bordo"
                           aria-label={`${getArticleTitle(article, "az")} seç`}
+                          disabled={isSeed}
                         />
                       </td>
                       <td className="px-5 py-4">
-                        <Link
-                          href={`/admin/articles/${article.id}`}
-                          className="font-display text-[1.0625rem] leading-snug text-ink hover:text-bordo"
-                        >
-                          {getArticleTitle(article, "az")}
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/admin/articles/${article.id}`}
+                            className="font-display text-[1.0625rem] leading-snug text-ink hover:text-bordo"
+                          >
+                            {getArticleTitle(article, "az")}
+                          </Link>
+                          {isSeed && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 font-ui text-[9px] uppercase tracking-wide text-blue-700">
+                              <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+                              </svg>
+                              SEED
+                            </span>
+                          )}
+                        </div>
                         <p className="mt-1 font-mono text-[11px] text-muted">/{getArticleSlug(article, "az")}</p>
                         {article.scheduledAt && (
                           <p className="mt-0.5 font-ui text-[10px] text-blue-600">
@@ -651,7 +673,7 @@ export default function ArticlesListPage() {
                         <ArticleActionsMenu article={article} onDelete={load} canDelete={canManage} />
                       </td>
                     </tr>
-                  ))}
+                  )}))}
                 </tbody>
               </table>
 
