@@ -72,11 +72,15 @@ function ArticleActionsMenu({
     
     setBusy(true);
     try {
+      console.log("🗑️ Məqalə silinir:", article.id);
       await removeArticle(article.id);
+      console.log("✅ Məqalə silindi:", article.id);
       setOpen(false);
       onDelete();
     } catch (error) {
-      alert("Silinmədi: " + (error instanceof Error ? error.message : "Xəta"));
+      console.error("❌ Silmə xətası:", error);
+      const errorMessage = error instanceof Error ? error.message : "Naməlum xəta";
+      alert(`Məqalə silinmədi!\n\nXəta: ${errorMessage}\n\nMəqalə ID: ${article.id}\n\nBrauzerin console-unu (F12) yoxlayın.`);
       setBusy(false);
     }
   }

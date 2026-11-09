@@ -370,7 +370,22 @@ export async function saveArticle(id: string, input: ArticleInput): Promise<void
 }
 
 export async function removeArticle(id: string): Promise<void> {
-  await deleteDoc(doc(db(), COLLECTIONS.articles, id));
+  try {
+    console.log("[removeArticle] Silmə başladı:", id);
+    await deleteDoc(doc(db(), COLLECTIONS.articles, id));
+    console.log("[removeArticle] Uğurla silindi:", id);
+  } catch (error) {
+    console.error("[ERROR removeArticle] Silinə bilmədi:", id, error);
+    // Firebase xətasını daha aydın göstər
+    if (error && typeof error === 'object' && 'code' in error) {
+      const fbError = error as { code: string; message: string };
+      if (fbError.code === 'permission-denied') {
+        throw new Error("İcazə yoxdur. Admin olmadığınızı və ya session-un bitdiyini yoxlayın.");
+      }
+      throw new Error(`Firebase xətası: ${fbError.code} - ${fbError.message}`);
+    }
+    throw error;
+  }
 }
 
 /* -------------------------------- İşçilər ------------------------------- */
