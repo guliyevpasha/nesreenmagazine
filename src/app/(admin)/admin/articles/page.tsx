@@ -237,7 +237,16 @@ export default function ArticlesListPage() {
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { 
+    void load(); 
+  }, []);
+
+  // Məqalələr yükləndikdən sonra baxış statistikasını yüklə
+  useEffect(() => {
+    if (articles && articles.length > 0) {
+      void loadViewStats(articles);
+    }
+  }, [articles]);
 
   // Redaktor/müəllif yalnız öz bölmələrini görür (admin hamısını)
   const restrictToOwn = session?.role === "editor" || session?.role === "author";
