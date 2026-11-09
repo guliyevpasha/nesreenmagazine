@@ -5,12 +5,16 @@
 
 import { trackPageView, trackSession, incrementArticleView } from "@/lib/data/admin";
 import type { PageViewInput, SessionDataInput } from "@/lib/types";
+import * as gtag from "./google-analytics";
 
 // Session ID - browser session üçün unikal identifikator
 let sessionId: string | null = null;
 let sessionStartTime: number | null = null;
 let pageViewCount = 0;
 let landingPage: string | null = null;
+
+// Google Analytics initialized flag
+let gaInitialized = false;
 
 /**
  * Session ID yaradır və ya mövcud olanı qaytarır.
@@ -241,15 +245,26 @@ export function initAnalytics(params: {
 }): void {
   if (typeof window === "undefined") return;
 
+  // Google Analytics-i initialize et (yalnız bir dəfə)
+  if (!gaInitialized && gtag.GA_MEASUREMENT_ID) {
+    gtag.initGA();
+    gaInitialized = true;
+  }
+
   // İlk track
   trackPage(params);
+
+  // Google Analytics page view
+  if (gtag.GA_MEASUREMENT_ID) {
+    gtag.pageview(params.path);
+  }
 
   // Time tracking
   trackTimeOnPage();
 }
 
 /**
- * Custom event tracking (gələcək genişləmə üçün).
+ * Custom event tracking - Google Analytics ilə inteqrasiya.
  */
 export function trackEvent(params: {
   eventName: string;
@@ -257,6 +272,20 @@ export function trackEvent(params: {
   label?: string;
   value?: number;
 }): void {
-  console.log("[Analytics] Custom event:", params);
-  // Custom event tracking implementasiyası (gələcək)
+  if (typeof window === "undefined") return;
+
+  // Google Analytics event
+  if (gtag.GA_MEASUREMENT_ID) {
+    gtag.event({
+      action: params.eventName,
+      category: params.category,
+      label: params.label,
+      value: params.value,
+    });
+  }
+
+  // Console log (development üçün)
+  if (process.env.NODE_ENV === "development") {
+    console.log("[Analytics] Custom event:", params);
+  }
 }
