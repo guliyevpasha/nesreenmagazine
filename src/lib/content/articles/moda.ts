@@ -150,56 +150,6 @@ export const modaArticles: Article[] = [
     readingMinutes: 4,
   },
   // ===== SOL TƏRƏF: 5 MƏQALƏ =====
-  // #1 Küçə modası
-  {
-    id: "seed-moda-copenhagen-street",
-    slug: "copenhagen-kuce-modasi-7-qayda",
-    category: "moda",
-    subcategory: "kuce-modasi",
-    status: "published",
-    featured: false,
-    trending: false,
-    coverImage: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=1200&q=80",
-    coverCredit: "Photo by Alyssa Strohmann on Unsplash",
-    coverAlt: {
-      az: "Kopenhagen küçəsində yürüyən qadın",
-      en: "Woman walking in Copenhagen street",
-      ru: "Женщина на улице Копенгагена",
-      tr: "Kopenhag sokağında yürüyen kadın",
-      ar: "امرأة تمشي في شارع كوبنهاغن",
-    },
-    title: {
-      az: "Kopenhagen effekti: İskandinav küçə modasının 7 qaydası",
-      en: "The Copenhagen Effect: Seven Rules of Scandinavian Street Style",
-      ru: "Копенгагенский эффект: семь правил скандинавской уличной моды",
-      tr: "Kopenhag etkisi: İskandinav sokak modasının 7 kuralı",
-      ar: "تأثير كوبنهاغن: سبع قواعد لموضة الشارع الإسكندنافية",
-    },
-    excerpt: {
-      az: "İskandinav küçə modasının qurduğu formul: minimalizm yox, sadəlik.",
-      en: "The formula Scandinavian street style builds: not minimalism but simplicity.",
-      ru: "Формула скандинавской уличной моды: не минимализм, а простота.",
-      tr: "İskandinav sokak modasının kurduğu formül: minimalizm değil sadelik.",
-      ar: "المعادلة: ليست البساطة المجرّدة بل البساطة.",
-    },
-    body: {
-      az: "Kopenhagen küçə modasında rəng həmişə ikinci planda qalır. Bir güclü parça kifayətdir. Ayaqqabı həmişə təmiz. Çanta funksionaldır.",
-      en: "In Copenhagen street style colour stays in the background. One strong piece is enough. Shoes are always clean. The bag is functional.",
-      ru: "В копенгагенской уличной моде цвет на заднем плане. Одной сильной вещи достаточно. Обувь всегда чистая. Сумка функциональна.",
-      tr: "Kopenhag sokak modasında renk arka planda kalır. Tek güçlü parça yeterli. Ayakkabı her zaman temiz. Çanta fonksiyoneldir.",
-      ar: "في كوبنهاغن يبقى اللون في الخلفية. قطعة قوية واحدة تكفي. الحذاء دائمًا نظيف. الحقيبة وظيفية.",
-    },
-    tags: {
-      az: ["Küçə modası", "Kopenhagen"],
-      en: ["Street style", "Copenhagen"],
-      ru: ["Уличная мода", "Копенгаген"],
-      tr: ["Sokak modası", "Kopenhag"],
-      ar: ["موضة الشارع", "كوبنهاغن"],
-    },
-    author: "Nesreen",
-    publishedAt: "2026-09-25",
-    readingMinutes: 3,
-  },
   // #2 Podium
   {
     id: "seed-moda-hermes-autumn",
