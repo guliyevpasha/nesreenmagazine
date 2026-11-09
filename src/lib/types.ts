@@ -35,6 +35,8 @@ export type Article = {
   body: LocalizedText;
   tags: LocalizedTags;
   author: string;
+  /** Müəllif adı hər dildə (yeni format). Yoxdursa author field-dən götürülür. */
+  authorLocalized?: LocalizedText;
   /** ISO tarix — məs. "2026-09-04". */
   publishedAt: string;
   updatedAt?: string;

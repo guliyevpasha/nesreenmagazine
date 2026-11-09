@@ -21,6 +21,14 @@ import { addHeadingIds, sanitizeArticleHtml } from "@/lib/content/sanitize-artic
 import { routes } from "@/lib/routes";
 import { pick, pickTags } from "@/lib/types";
 
+/** Müəllif adını dildə götürür. authorLocalized yoxdursa, author field-dən götürür. */
+function getAuthorName(article: { author: string; authorLocalized?: Record<string, string> }, locale: Locale): string {
+  if (article.authorLocalized && article.authorLocalized[locale]) {
+    return article.authorLocalized[locale];
+  }
+  return article.author || "Nesreen Magazine";
+}
+
 /** Kiril/ərəb slug-lar URL-də percent-encoded gəlir, Firestore-da isə açıq mətn saxlanılır. */
 function decodeSlug(value: string): string {
   try {
@@ -84,7 +92,7 @@ export async function generateMetadata({
       url,
       publishedTime: article.publishedAt,
       modifiedTime: article.updatedAt ?? article.publishedAt,
-      authors: [article.author || "Nesreen Magazine"],
+      authors: [getAuthorName(article, locale)],
       images: article.coverImage ? [{ url: article.coverImage }] : undefined,
     },
     twitter: {
@@ -125,6 +133,7 @@ export default async function ArticlePage({
   const tags = pickTags(article.tags, locale);
   const section = categoryName(article.category, locale);
   const related = await getRelatedArticles(article, 3);
+  const authorName = getAuthorName(article, locale);
 
   // Mətni ikiyə bölürük ki, ortasına reklam sahəsi qoya bilək.
   // Word redaktorunun HTML-i (və köhnə Markdown) serverdə təmizlənir (XSS).
@@ -142,7 +151,7 @@ export default async function ArticlePage({
     inLanguage: locale,
     datePublished: article.publishedAt,
     dateModified: article.updatedAt ?? article.publishedAt,
-    author: { "@type": "Organization", name: article.author || "Nesreen Magazine" },
+    author: { "@type": "Organization", name: authorName },
     publisher: {
       "@type": "Organization",
       name: "Nesreen Magazine",
@@ -195,7 +204,7 @@ export default async function ArticlePage({
 
         <div className="mt-6 flex flex-col items-center gap-1">
           <p className="font-ui text-[11px] uppercase tracking-[0.16em] text-ink">
-            {article.author || "Nesreen Magazine"}
+            {authorName}
           </p>
           <p className="font-ui text-[11px] tracking-[0.16em] text-muted">
             {formatDate(article.publishedAt, locale)} · {interpolate(dict.common.minRead, { n: article.readingMinutes || 1 })}
