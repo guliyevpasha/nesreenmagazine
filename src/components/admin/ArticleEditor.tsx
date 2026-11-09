@@ -31,6 +31,7 @@ import {
   type LocalizedTags,
   type LocalizedText,
 } from "@/lib/types";
+import { transliterateAuthorName } from "@/lib/transliterate-author";
 
 import {
   Alert,
@@ -1074,11 +1075,21 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                 <input
                   type="text"
                   value={draft.author}
-                  onChange={(event) =>
-                    setDraft((current) => ({ ...current, author: event.target.value }))
-                  }
+                  onChange={(event) => {
+                    const authorName = event.target.value;
+                    setDraft((current) => ({
+                      ...current,
+                      author: authorName,
+                      // Avtomatik transliterasiya
+                      authorLocalized: authorName.trim() ? transliterateAuthorName(authorName) : undefined,
+                    }));
+                  }}
                   className={inputClass}
+                  placeholder="Məs: Paşa Quliyev"
                 />
+                <p className="mt-2 font-ui text-[10px] text-muted">
+                  💡 Avtomatik olaraq 5 dilə transliterasiya ediləcək
+                </p>
               </Field>
 
               <Field label="Oxu müddəti (dəq.)" hint="0 yazsanız mətnə görə avtomatik hesablanır.">

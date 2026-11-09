@@ -20,13 +20,22 @@ import { markdownToHtml, markdownToPlainText } from "@/lib/markdown";
 import { addHeadingIds, sanitizeArticleHtml } from "@/lib/content/sanitize-article";
 import { routes } from "@/lib/routes";
 import { pick, pickTags } from "@/lib/types";
+import { transliterateAuthorName } from "@/lib/transliterate-author";
 
-/** Müəllif adını dildə götürür. authorLocalized yoxdursa, author field-dən götürür. */
+/** Müəllif adını dildə götürür. authorLocalized yoxdursa, author field-dən transliterasiya edir. */
 function getAuthorName(article: { author: string; authorLocalized?: Record<string, string> }, locale: Locale): string {
+  // Əgər authorLocalized varsa və o dildə tərcümə varsa
   if (article.authorLocalized && article.authorLocalized[locale]) {
     return article.authorLocalized[locale];
   }
-  return article.author || "Nesreen Magazine";
+  
+  // Köhnə məqalələr üçün - avtomatik transliterasiya
+  if (article.author) {
+    const transliterated = transliterateAuthorName(article.author);
+    return transliterated[locale];
+  }
+  
+  return "Nesreen Magazine";
 }
 
 /** Kiril/ərəb slug-lar URL-də percent-encoded gəlir, Firestore-da isə açıq mətn saxlanılır. */
