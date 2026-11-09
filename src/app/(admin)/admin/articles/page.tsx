@@ -223,12 +223,15 @@ export default function ArticlesListPage() {
   async function loadViewStats(articleList: Article[]) {
     setLoadingViews(true);
     try {
+      console.log('📊 Loading view stats for', articleList.length, 'articles');
       const viewsData = await Promise.all(
         articleList.map(async (article) => {
           const views = await getArticleViews(article.id);
+          console.log('📈 Views for', article.id, ':', views);
           return [article.id, views] as const;
         })
       );
+      console.log('✅ View stats loaded:', viewsData.length, 'articles');
       setViewsMap(new Map(viewsData));
     } catch (error) {
       console.error('❌ Error loading view stats:', error);
