@@ -46,6 +46,7 @@ function Icon({ d, className = "h-[18px] w-[18px]" }: { d: string; className?: s
 const ICONS = {
   dashboard: "M4 13h7V4H4v9Zm0 7h7v-5H4v5Zm9 0h7v-9h-7v9Zm0-16v5h7V4h-7Z",
   articles: "M5 4h11l3 3v13H5V4Zm11 0v3h3M8 11h8M8 15h8M8 7h4",
+  homepage: "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9ZM9 22V12h6v10",
   stars: "M12 3l2.3 5.2L20 9.3l-4 3.9.9 5.8L12 16.3 7.1 19l.9-5.8-4-3.9 5.7-1.1L12 3Z",
   banner: "M3 6h18v9H3V6Zm4 13h10M12 15v4",
   ejournal: "M5 4h9l5 5v11H5V4Zm9 0v5h5M9 13h6M9 16h4",
@@ -325,6 +326,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
     {
       title: "Kontent",
       items: [
+        { href: "/admin/homepage-builder", label: "Ana Səhifə İdarəsi", icon: ICONS.homepage, active: startsWith("/admin/homepage-builder") },
         { href: "/admin/articles", label: "Məqalələr", icon: ICONS.articles, active: pathname === "/admin/articles" && !activeCategory },
         ...categories
           .slice(0, 5)
