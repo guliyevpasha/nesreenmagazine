@@ -44,6 +44,7 @@ import {
 import AIContentAssistant from "./AIContentAssistant";
 import WordEditor from "./editor/word/WordEditor";
 import ArticleHomepagePlacements from "./ArticleHomepagePlacements";
+import Link from "next/link";
 
 /** Başlıqdan URL üçün ünvan düzəldir - bütün 5 dili dəstəkləyir */
 function slugify(value: string, locale: Locale = "az"): string {
@@ -333,23 +334,43 @@ export default function ArticleEditor({ article }: { article?: Article }) {
     isScheduled ? toLocalInput(draft.scheduledAt ?? draft.publishedAt) : "",
   );
 
-  /** «Saytda yerləşmə» paneli üçün sadə dildə xülasə */
+  /**
+   * «Saytda yerləşmə» xülasəsi — ana səhifənin HƏQİQİ avtomatik məntiqinə uyğun
+   * (src/app/(site)/[locale]/page.tsx): karusel = Gündəmin ən yeni 6 məqaləsi;
+   * «Ən son» = hər bölmənin ən yeni 1 məqaləsi; Moda/Gözəllik/Həyat tərzi/Biznes
+   * blokları = ən yeni 5 adi + yan sütunda ən yeni 5 «çox oxunan».
+   */
   const placementSummary = useMemo(() => {
     const category = categories.find((item) => item.slug === draft.category);
     const sub = getSubcategories(draft.category).find((item) => item.slug === draft.subcategory);
-    const lines = [
-      draft.featured ? "Ana səhifə — yuxarıdakı böyük karusel" : "Ana səhifə — son məqalələr lenti",
-      `«${category?.name.az ?? draft.category}» bölməsi`,
-    ];
-    if (sub) lines.push(`«${sub.name.az}» alt bölməsi`);
-    if (draft.trending) lines.push("«Çox oxunanlar» siyahısı");
+    const catName = category?.name.az ?? draft.category;
+    const hasBlock = ["moda", "gozellik", "heyat-terzi", "biznes"].includes(draft.category);
+
+    const homepage: string[] = [];
+    if (draft.category === "gundem") {
+      homepage.push("«Bu həftənin baş mövzusu» karuseli — Gündəmin ən yeni 6 məqaləsi arasında");
+    } else {
+      homepage.push(`«Ən son» lenti — «${catName}» bölməsinin ən yeni məqaləsi kimi`);
+    }
+    if (hasBlock) {
+      homepage.push(
+        draft.trending
+          ? `«${catName}» bloku — yan sütundakı «Çox oxunanlar» (ən yeni 5)`
+          : `«${catName}» bloku — əsas lent (ən yeni 5)`,
+      );
+    }
+
+    const pages = [`«${catName}» bölmə səhifəsi`];
+    if (sub) pages.push(`«${sub.name.az}» alt bölmə səhifəsi`);
+    if (draft.featured || draft.trending) pages.push("«Seçilənlər» səhifəsi");
+
     const missing = locales.filter((code) => !draft.title[code]?.trim() || !draft.body[code]?.trim());
-    lines.push(
+    const languages =
       missing.length === 0
         ? "5 dildə tam"
-        : `Boş dillər: ${missing.map((code) => code.toUpperCase()).join(", ")} — orada AZ mətni göstəriləcək`,
-    );
-    return lines;
+        : `Boş: ${missing.map((code) => code.toUpperCase()).join(", ")} — orada AZ mətni göstəriləcək`;
+
+    return { homepage, pages, languages, languagesOk: missing.length === 0 };
   }, [draft.category, draft.subcategory, draft.featured, draft.trending, draft.title, draft.body]);
 
   const allowedCategories = categories.filter((category) =>
@@ -782,23 +803,32 @@ export default function ArticleEditor({ article }: { article?: Article }) {
 
               <fieldset className="space-y-2">
                 <legend className="mb-2 font-ui text-[11px] uppercase tracking-[0.14em] text-muted">
-                  Ana səhifədə
+                  İşarələr
                 </legend>
                 {[
-                  { featured: false, title: "Adi məqalə", text: "Ana səhifənin və bölmənin lentində, tarixə görə." },
-                  { featured: true, title: "Baş məqalə", text: "Ana səhifənin yuxarısındakı böyük karuseldə." },
+                  {
+                    key: "trending" as const,
+                    title: "Çox oxunan",
+                    text: "Moda, Gözəllik, Həyat tərzi və Biznes bloklarında əsas lentə yox, yan «Çox oxunanlar» sütununa düşür.",
+                  },
+                  {
+                    key: "featured" as const,
+                    title: "Redaksiyanın seçimi",
+                    text: "«Seçilənlər» səhifəsində göstərilir. Ana səhifənin yerləşməsinə təsir etmir.",
+                  },
                 ].map((option) => (
                   <label
-                    key={option.title}
+                    key={option.key}
                     className={`flex cursor-pointer items-start gap-3 border px-3 py-2.5 transition-colors ${
-                      draft.featured === option.featured ? "border-bordo bg-bordo/5" : "border-line hover:border-ink/30"
+                      draft[option.key] ? "border-bordo bg-bordo/5" : "border-line hover:border-ink/30"
                     }`}
                   >
                     <input
-                      type="radio"
-                      name="placement"
-                      checked={draft.featured === option.featured}
-                      onChange={() => setDraft((current) => ({ ...current, featured: option.featured }))}
+                      type="checkbox"
+                      checked={Boolean(draft[option.key])}
+                      onChange={(event) =>
+                        setDraft((current) => ({ ...current, [option.key]: event.target.checked }))
+                      }
                       className="mt-1 h-4 w-4 accent-[#7b2233]"
                     />
                     <span>
@@ -807,28 +837,46 @@ export default function ArticleEditor({ article }: { article?: Article }) {
                     </span>
                   </label>
                 ))}
-                <label className="flex items-center gap-3 pt-1 font-ui text-[13px] text-ink">
-                  <input
-                    type="checkbox"
-                    checked={draft.trending}
-                    onChange={(event) =>
-                      setDraft((current) => ({ ...current, trending: event.target.checked }))
-                    }
-                    className="h-4 w-4 accent-[#7b2233]"
-                  />
-                  Həmçinin «Çox oxunanlar» siyahısında göstər
-                </label>
               </fieldset>
 
-              <div className="border-t border-line pt-4">
+              <div className="space-y-3 border-t border-line pt-4">
                 <p className="font-ui text-[11px] uppercase tracking-[0.14em] text-muted">
                   Dərc olunanda görünəcək
                 </p>
-                <ul className="mt-2 space-y-1 font-ui text-[12px] text-ink-soft">
-                  {placementSummary.map((line) => (
-                    <li key={line}>• {line}</li>
-                  ))}
-                </ul>
+                {[
+                  { title: "Ana səhifə (avtomatik)", lines: placementSummary.homepage },
+                  { title: "Sayt səhifələri", lines: placementSummary.pages },
+                ].map((group) => (
+                  <div key={group.title}>
+                    <p className="font-ui text-[12px] font-medium text-ink">{group.title}</p>
+                    <ul className="mt-1 space-y-1 font-ui text-[12px] text-ink-soft">
+                      {group.lines.map((line) => (
+                        <li key={line} className="flex gap-2">
+                          <span className="text-bordo">•</span>
+                          <span>{line}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+                <div>
+                  <p className="font-ui text-[12px] font-medium text-ink">Dillər</p>
+                  <p
+                    className={`mt-1 font-ui text-[12px] ${
+                      placementSummary.languagesOk ? "text-ink-soft" : "text-amber-700"
+                    }`}
+                  >
+                    {placementSummary.languages}
+                  </p>
+                </div>
+                <p className="bg-cream/60 px-3 py-2 font-ui text-[11px] leading-relaxed text-muted">
+                  Ana səhifə bölməsi üçün{" "}
+                  <Link href="/admin/homepage-builder" className="text-bordo underline">
+                    Ana Səhifə İdarəsi
+                  </Link>
+                  -ndə əl ilə seçim edilibsə, avtomatik siyahı əvəzinə o seçim göstərilir. Məqaləni ora dərcdən
+                  sonra əlavə edə bilərsiniz.
+                </p>
               </div>
             </div>
           </Panel>
