@@ -43,6 +43,7 @@ import {
 } from "./ui";
 import AIContentAssistant from "./AIContentAssistant";
 import WordEditor from "./editor/word/WordEditor";
+import ArticleHomepagePlacements from "./ArticleHomepagePlacements";
 
 /** Başlıqdan URL üçün ünvan düzəldir - bütün 5 dili dəstəkləyir */
 function slugify(value: string, locale: Locale = "az"): string {
@@ -1008,6 +1009,9 @@ export default function ArticleEditor({ article }: { article?: Article }) {
               </Field>
             </div>
           </Panel>
+
+          {/* Ana səhifə yerləşdirmələri */}
+          {article && <ArticleHomepagePlacements articleId={article.id} articleStatus={draft.status} />}
 
           {/* AI Kontent Köməkçisi */}
           <AIContentAssistant

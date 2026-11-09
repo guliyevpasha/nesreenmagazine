@@ -186,7 +186,7 @@ export function Alert({
   children,
   className = "",
 }: {
-  tone?: "info" | "error" | "success";
+  tone?: "info" | "error" | "success" | "warning";
   children: ReactNode;
   className?: string;
 }) {
@@ -194,6 +194,7 @@ export function Alert({
     info: "border-gold bg-gold/10 text-ink-soft",
     error: "border-bordo bg-bordo/5 text-bordo",
     success: "border-gold bg-gold/15 text-ink",
+    warning: "border-amber-500 bg-amber-50 text-amber-800",
   }[tone];
 
   return (

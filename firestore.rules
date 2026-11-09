@@ -421,6 +421,30 @@ service cloud.firestore {
     match /restoreOperations/{id}    { allow read, write: if isAdmin(); }
 
     // ═══════════════════════════════════════════
+    //  Ana səhifə redaksiya idarəetməsi
+    // ═══════════════════════════════════════════
+
+    /**
+     * Ana səhifə editorial konfiqurasiyaları
+     * Oxumaq — hamı (public homepage üçün)
+     * Yazmaq — yalnız admin və editor
+     */
+    match /homepageEditorial/{sectionId} {
+      allow read: if true;  // Public homepage rendering üçün lazımdır
+      allow write: if isStaff() && staffDoc().data.role in ['admin', 'editor'];
+    }
+
+    /**
+     * Ana səhifə redaksiya audit loqu — IMMUTABLE
+     * Yalnız yaradılır, dəyişdirilə və silinə bilməz
+     */
+    match /homepageEditorialAudit/{logId} {
+      allow read:   if isStaff();
+      allow create: if isStaff() && staffDoc().data.role in ['admin', 'editor'];
+      allow update, delete: if false;
+    }
+
+    // ═══════════════════════════════════════════
     //  Default — hər şey bağlıdır
     // ═══════════════════════════════════════════
 

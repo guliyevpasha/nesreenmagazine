@@ -131,6 +131,9 @@ export const COLLECTIONS = {
   databaseBackups: "databaseBackups",
   backupSchedules: "backupSchedules",
   restoreOperations: "restoreOperations",
+  // Ana səhifə redaksiya idarəetməsi
+  homepageEditorial: "homepageEditorial",
+  homepageEditorialAudit: "homepageEditorialAudit",
 } as const;
 
 /** Saytın kanonik ünvanı — metadata və sitemap üçün. */

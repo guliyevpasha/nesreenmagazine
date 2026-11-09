@@ -1,8 +1,8 @@
 import type { CategorySlug } from "@/lib/categories";
 import type { Locale } from "@/lib/i18n/config";
 
-// Re-export Locale for convenience
-export type { Locale };
+// Re-export types for convenience
+export type { Locale, CategorySlug };
 
 /** Beş dildə mətn. Admin paneldə hər dil üçün ayrıca xana var. */
 export type LocalizedText = Record<Locale, string>;
@@ -2290,3 +2290,205 @@ export const DEFAULT_BANNER_TEXT = {
   contact: "WhatsApp: 0503807787",
   animation: "pulse" as const,
 };
+
+
+/* ======================================================================
+   ANA SƏHİFƏ REDAKSİYA İDARƏETMƏSİ
+   ====================================================================== */
+
+/**
+ * Ana səhifədə redaksiya tərəfindən idarə olunan bölmələr.
+ * Hər bölmə üçün ayrı-ayrı məqalə seçimi və sıralama.
+ */
+export type HomepageSectionId =
+  | "weekly-main-topic"        // Bu həftənin baş mövzusu (20 məqalə)
+  | "latest-articles"          // Ən son (20 idarə, 15 göstərilir)
+  | "moda-editorial"           // Moda - Sol tərəf (20 idarə, 9 göstərilir)
+  | "moda-most-read"           // Moda - Ən çox oxunanlar (20 idarə, 7 göstərilir)
+  | "gozellik-editorial"       // Gözəllik - Sol tərəf (20 idarə, 9 göstərilir)
+  | "gozellik-most-read"       // Gözəllik - Ən çox oxunanlar (20 idarə, 7 göstərilir)
+  | "heyat-terzi-editorial"    // Həyat tərzi - Sol tərəf (20 idarə, 9 göstərilir)
+  | "heyat-terzi-most-read"    // Həyat tərzi - Ən çox oxunanlar (20 idarə, 7 göstərilir)
+  | "biznes-editorial"         // Biznes - Sol tərəf (20 idarə, 9 göstərilir)
+  | "biznes-most-read";        // Biznes - Ən çox oxunanlar (20 idarə, 7 göstərilir)
+
+export const homepageSectionLabels: Record<HomepageSectionId, string> = {
+  "weekly-main-topic":      "Bu həftənin baş mövzusu",
+  "latest-articles":        "Ən son",
+  "moda-editorial":         "Moda — Redaksiya yazıları",
+  "moda-most-read":         "Moda — Ən çox oxunanlar",
+  "gozellik-editorial":     "Gözəllik — Redaksiya yazıları",
+  "gozellik-most-read":     "Gözəllik — Ən çox oxunanlar",
+  "heyat-terzi-editorial":  "Həyat tərzi — Redaksiya yazıları",
+  "heyat-terzi-most-read":  "Həyat tərzi — Ən çox oxunanlar",
+  "biznes-editorial":       "Biznes — Redaksiya yazıları",
+  "biznes-most-read":       "Biznes — Ən çox oxunanlar",
+};
+
+/**
+ * Bölmə üçün maksimum məqalə sayı və nə qədəri ana səhifədə göstərilir.
+ */
+export const homepageSectionLimits: Record<HomepageSectionId, { manage: number; display: number }> = {
+  "weekly-main-topic":      { manage: 20, display: 20 },
+  "latest-articles":        { manage: 20, display: 15 },
+  "moda-editorial":         { manage: 20, display: 9 },
+  "moda-most-read":         { manage: 20, display: 7 },
+  "gozellik-editorial":     { manage: 20, display: 9 },
+  "gozellik-most-read":     { manage: 20, display: 7 },
+  "heyat-terzi-editorial":  { manage: 20, display: 9 },
+  "heyat-terzi-most-read":  { manage: 20, display: 7 },
+  "biznes-editorial":       { manage: 20, display: 9 },
+  "biznes-most-read":       { manage: 20, display: 7 },
+};
+
+/**
+ * Ana səhifə redaksiya konfiqurasiyası — bir bölmə üçün.
+ * Kolleksiya: `homepageEditorial/{sectionId}-{locale}`
+ * Məsələn: `homepageEditorial/moda-editorial-az`
+ */
+export type HomepageEditorialSection = {
+  id: string;
+  /** Bölmənin identifikatoru */
+  sectionId: HomepageSectionId;
+  /** Dil */
+  locale: Locale;
+  /** Seçilmiş məqalələrin ID-ləri, sıralı (position 1-dən başlayır) */
+  articleIds: string[];
+  /** Son yeniləmə tarixi */
+  updatedAt: string;
+  /** Yeniləyən admin */
+  updatedBy: string;
+  /** Admin adı (cache üçün) */
+  updatedByName: string;
+  /** Konfiqurasiya versiyası (optimistic concurrency üçün) */
+  version: number;
+};
+
+export type HomepageEditorialSectionInput = Omit<HomepageEditorialSection, "id">;
+
+/**
+ * Ana səhifə üçün məqalə məlumatları (cache-lənmiş).
+ * Frontend performans üçün — bütün məqalə məlumatlarını ayrı-ayrı yükləməmək.
+ */
+export type HomepageArticleCache = {
+  id: string;
+  title: LocalizedText;
+  excerpt: LocalizedText;
+  slug: LocalizedText | string;
+  category: CategorySlug;
+  subcategory?: string;
+  coverImage: string;
+  coverAlt: LocalizedText;
+  publishedAt: string;
+  readingMinutes: number;
+  author: string;
+  status: ArticleStatus;
+};
+
+/**
+ * Ana səhifə bölməsi üçün tam məlumat (articles + metadata).
+ * Frontend API cavabı.
+ */
+export type HomepageSectionData = {
+  sectionId: HomepageSectionId;
+  locale: Locale;
+  articles: HomepageArticleCache[];
+  updatedAt: string;
+  updatedBy: string;
+  updatedByName: string;
+};
+
+/**
+ * Məqalənin hansı ana səhifə bölmələrində olduğunu göstərən metadata.
+ * Admin paneldə məqalə redaktəsi zamanı istifadə olunur.
+ */
+export type ArticleHomepagePlacements = {
+  articleId: string;
+  /** Hər dil üçün hansı bölmələrdə və hansı mövqedə */
+  placements: Partial<Record<Locale, Array<{ sectionId: HomepageSectionId; position: number }>>>;
+  updatedAt: string;
+};
+
+/**
+ * Ana səhifə redaksiya dəyişikliyinin audit loqu.
+ */
+export type HomepageEditorialAuditLog = {
+  id: string;
+  sectionId: HomepageSectionId;
+  locale: Locale;
+  action: "add" | "remove" | "reorder" | "replace";
+  /** Əvvəlki məqalə ID-ləri */
+  beforeArticleIds: string[];
+  /** Yeni məqalə ID-ləri */
+  afterArticleIds: string[];
+  /** Dəyişiklik təsviri */
+  description: string;
+  performedBy: string;
+  performedByName: string;
+  performedAt: string;
+};
+
+export type HomepageEditorialAuditLogInput = Omit<HomepageEditorialAuditLog, "id">;
+
+/**
+ * Məqalə silinəndə avtomatik yoxlama və təmizləmə üçün.
+ */
+export type DeletedArticleCleanup = {
+  id: string;
+  articleId: string;
+  articleTitle: string;
+  /** Hansı bölmələrdən silinməli */
+  affectedSections: Array<{
+    sectionId: HomepageSectionId;
+    locale: Locale;
+    position: number;
+  }>;
+  cleanedAt?: string;
+  cleanedBy?: string;
+};
+
+/**
+ * Frontend üçün ana səhifə strukturu (bütün bölmələr).
+ */
+export type HomepageContentData = {
+  weeklyMainTopic: HomepageArticleCache[];
+  latestArticles: HomepageArticleCache[];
+  moda: {
+    editorial: HomepageArticleCache[];
+    mostRead: HomepageArticleCache[];
+  };
+  gozellik: {
+    editorial: HomepageArticleCache[];
+    mostRead: HomepageArticleCache[];
+  };
+  heyatTerzi: {
+    editorial: HomepageArticleCache[];
+    mostRead: HomepageArticleCache[];
+  };
+  biznes: {
+    editorial: HomepageArticleCache[];
+    mostRead: HomepageArticleCache[];
+  };
+  /** Son yeniləmə tarixi */
+  lastUpdated: string;
+};
+
+/**
+ * Məqalədən cache üçün lazım olan məlumatları çıxarır.
+ */
+export function articleToCache(article: Article): HomepageArticleCache {
+  return {
+    id: article.id,
+    title: article.title,
+    excerpt: article.excerpt,
+    slug: article.slug,
+    category: article.category,
+    subcategory: article.subcategory,
+    coverImage: article.coverImage,
+    coverAlt: article.coverAlt,
+    publishedAt: article.publishedAt,
+    readingMinutes: article.readingMinutes,
+    author: article.author,
+    status: article.status,
+  };
+}

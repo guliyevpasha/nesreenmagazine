@@ -1,97 +1,69 @@
 /**
- * Article köməkçi funksiyaları
+ * Məqalə helper funksiyaları
  * 
- * Bu funksiyalar məqalə məlumatlarını oxumaq və emal etmək üçün type-safe yollar təmin edir.
+ * Developed by Cradex Agency
  */
 
-import type { Article, LocalizedText } from "./types";
-import type { Locale } from "./i18n/config";
+import type { Article, HomepageArticleCache, LocalizedText, Locale } from "@/lib/types";
 
 /**
- * Məqalənin başlığını oxu (type-safe)
- * 
- * Köhnə formatlı məqalələrdə title string ola bilər,
- * yeni formatlarda LocalizedText obyektidir.
+ * Məqalədən başlıq götürür (localized)
  */
-export function getArticleTitle(article: Article, locale: Locale = "az"): string {
-  if (!article.title) {
-    // Slug da LocalizedText ola bilər
-    if (typeof article.slug === "string") {
-      return article.slug || "Başlıqsız";
-    }
-    return article.slug?.[locale] || article.slug?.az || "Başlıqsız";
-  }
-  
-  // Type guard - string yoxsa LocalizedText?
-  if (typeof article.title === "string") {
-    return article.title;
-  }
-  
-  // LocalizedText obyektindən oxu
-  return article.title[locale] || article.title.az || article.title.en || "Başlıqsız";
+export function getArticleTitle(article: Article | HomepageArticleCache, locale: Locale): string {
+  if (typeof article.title === "string") return article.title;
+  return article.title[locale] || article.title.az || article.title.en || "";
 }
 
 /**
- * Məqalənin excerpt-ini oxu (type-safe)
+ * Məqalədən slug götürür (localized)
  */
-export function getArticleExcerpt(article: Article, locale: Locale = "az"): string {
-  if (!article.excerpt) return "";
-  
-  if (typeof article.excerpt === "string") {
-    return article.excerpt;
-  }
-  
-  return article.excerpt[locale] || article.excerpt.az || article.excerpt.en || "";
+export function getArticleSlug(article: Article | HomepageArticleCache, locale: Locale): string {
+  if (typeof article.slug === "string") return article.slug;
+  return article.slug[locale] || article.slug.az || "";
 }
 
 /**
- * Məqalənin body-sini oxu (type-safe)
+ * Məqalədən excerpt götürür (localized)
  */
-export function getArticleBody(article: Article, locale: Locale = "az"): string {
-  if (!article.body) return "";
-  
-  if (typeof article.body === "string") {
-    return article.body;
-  }
-  
-  return article.body[locale] || article.body.az || article.body.en || "";
+export function getArticleExcerpt(article: Article | HomepageArticleCache, locale: Locale): string {
+  if (typeof article.excerpt === "string") return article.excerpt;
+  return article.excerpt[locale] || article.excerpt.az || "";
 }
 
 /**
- * Məqalənin slug-unu oxu (type-safe)
- * 
- * Köhnə formatlı məqalələrdə slug string-dir,
- * yeni formatlarda LocalizedText obyektidir.
+ * Məqalədən cover alt götürür (localized)
  */
-export function getArticleSlug(article: Article, locale: Locale = "az"): string {
-  if (!article.slug) return "";
-  
-  // Type guard - string yoxsa LocalizedText?
-  if (typeof article.slug === "string") {
-    return article.slug;
-  }
-  
-  // LocalizedText obyektindən oxu
-  return article.slug[locale] || article.slug.az || article.slug.en || "";
+export function getArticleCoverAlt(article: Article | HomepageArticleCache, locale: Locale): string {
+  if (typeof article.coverAlt === "string") return article.coverAlt;
+  return article.coverAlt[locale] || article.coverAlt.az || "";
 }
 
 /**
- * Məqalənin bütün mövcud tərcümələrini yoxla
+ * HomepageArticleCache-i Article formatına çevirir (component uyğunluğu üçün)
  */
-export function getAvailableLocales(article: Article): Locale[] {
-  const locales: Locale[] = ["az", "en", "ru", "tr", "ar"];
-  return locales.filter((locale) => {
-    if (typeof article.title === "string") return false;
-    if (typeof article.body === "string") return false;
-    return Boolean(article.title?.[locale]?.trim() && article.body?.[locale]?.trim());
-  });
+export function cacheToArticle(cache: HomepageArticleCache): Article {
+  return {
+    ...cache,
+    // Missing fields from full Article type - add defaults
+    body: typeof cache.excerpt === "string" 
+      ? cache.excerpt 
+      : cache.excerpt,
+    tags: { az: [], en: [], ru: [], tr: [], ar: [] },
+    coverCredit: "",
+    featured: false,
+    trending: false,
+    updatedAt: cache.publishedAt,
+  } as Article;
 }
 
 /**
- * Məqalənin müəyyən dildə tam olub-olmadığını yoxla
+ * Məqalənin verilmiş dildə tam doldurulub-doldurulmadığını yoxlayır
  */
 export function isArticleComplete(article: Article, locale: Locale): boolean {
-  const title = getArticleTitle(article, locale);
-  const body = getArticleBody(article, locale);
-  return Boolean(title.trim() && body.trim());
+  const title = typeof article.title === "string" ? article.title : article.title[locale];
+  const excerpt = typeof article.excerpt === "string" ? article.excerpt : article.excerpt[locale];
+  const body = typeof article.body === "string" ? article.body : article.body[locale];
+  const slug = typeof article.slug === "string" ? article.slug : article.slug[locale];
+  
+  return !!(title && excerpt && body && slug);
 }

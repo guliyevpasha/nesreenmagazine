@@ -9,13 +9,11 @@ import { RoseMark } from "@/components/Logo";
 import SectionHeading from "@/components/SectionHeading";
 import ZodiacStrip from "@/components/ZodiacStrip";
 import { categories } from "@/lib/categories";
-import {
-  getArticlesByCategory,
-  getTrendingArticles,
-} from "@/lib/data/articles";
 import { isLocale, type Locale } from "@/lib/i18n/config";
 import { getDictionary, interpolate } from "@/lib/i18n/dictionaries";
 import { routes } from "@/lib/routes";
+import { getHomepageContent } from "@/lib/data/homepage-editorial";
+import { cacheToArticle } from "@/lib/article-helpers";
 
 export const revalidate = 60; // 60 saniyə - yeni məqalələr tez görünsün
 
@@ -29,46 +27,28 @@ export default async function HomePage({
   const locale = raw as Locale;
   const dict = getDictionary(locale);
 
-  const [heroArticles, gundemLatest, modaLatest, gozellikLatest, heyatTerziLatest, astrologiyaLatest, biznesLatest, allModa, allGozellik, allHeyatTerzi, allBiznes] = await Promise.all([
-    getArticlesByCategory("gundem", 6), // Carousel üçün 6 məqalə
-    getArticlesByCategory("gundem", 1),
-    getArticlesByCategory("moda", 1),
-    getArticlesByCategory("gozellik", 1),
-    getArticlesByCategory("heyat-terzi", 1),
-    getArticlesByCategory("astrologiya", 1),
-    getArticlesByCategory("biznes", 1),
-    getArticlesByCategory("moda", 15),
-    getArticlesByCategory("gozellik", 15),
-    getArticlesByCategory("heyat-terzi", 15),
-    getArticlesByCategory("biznes", 15),
-  ]);
+  // Yeni editorial sistem ilə məqalələri yüklə
+  const homepageData = await getHomepageContent(locale);
 
-  // Moda məqalələrini ayıraq: sol tərəfdə trending:false, sağda trending:true
-  const moda = allModa.filter(article => !article.trending).slice(0, 5);
-  const modaTrending = allModa.filter(article => article.trending).slice(0, 5);
+  // Editorial seçimləri Article formatına çevir
+  const weeklyMainTopic = homepageData.weeklyMainTopic.map(cacheToArticle);
+  const latestArticles = homepageData.latestArticles.map(cacheToArticle);
   
-  // Gözəllik məqalələrini ayıraq
-  const gozellik = allGozellik.filter(article => !article.trending).slice(0, 5);
-  const gozellikTrending = allGozellik.filter(article => article.trending).slice(0, 5);
+  // Kateqoriya məqalələri
+  const moda = homepageData.moda.editorial.map(cacheToArticle);
+  const modaTrending = homepageData.moda.mostRead.map(cacheToArticle);
   
-  // Həyat tərzi məqalələrini ayıraq
-  const heyatTerzi = allHeyatTerzi.filter(article => !article.trending).slice(0, 5);
-  const heyatTerziTrending = allHeyatTerzi.filter(article => article.trending).slice(0, 5);
+  const gozellik = homepageData.gozellik.editorial.map(cacheToArticle);
+  const gozellikTrending = homepageData.gozellik.mostRead.map(cacheToArticle);
   
-  // Biznes məqalələrini ayıraq
-  const biznes = allBiznes.filter(article => !article.trending).slice(0, 5);
-  const biznesTrending = allBiznes.filter(article => article.trending).slice(0, 5);
+  const heyatTerzi = homepageData.heyatTerzi.editorial.map(cacheToArticle);
+  const heyatTerziTrending = homepageData.heyatTerzi.mostRead.map(cacheToArticle);
+  
+  const biznes = homepageData.biznes.editorial.map(cacheToArticle);
+  const biznesTrending = homepageData.biznes.mostRead.map(cacheToArticle);
 
-  // Hər kateqoriyadan 1 məqalə — filtrlə carousel məqalələrini çıxarırıq
-  const heroIds = new Set(heroArticles.map((a) => a.id));
-  const latest = [
-    ...gundemLatest,
-    ...modaLatest,
-    ...gozellikLatest,
-    ...heyatTerziLatest,
-    ...astrologiyaLatest,
-    ...biznesLatest,
-  ].filter((article) => !heroIds.has(article.id));
+  // Hero carousel üçün ilk 6 məqalə (weekly main topic-dən)
+  const heroArticles = weeklyMainTopic.slice(0, 6);
 
   return (
     <>
@@ -80,14 +60,14 @@ export default async function HomePage({
       <div className="rule-gold" />
 
       {/* ================= Ən son ================= */}
-      {latest.length > 0 && (
+      {latestArticles.length > 0 && (
         <section className="container-mag py-16 lg:py-20">
           <SectionHeading
             title={dict.home.latestTitle}
             subtitle={dict.home.latestSub}
           />
           <div className="mt-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
-            {latest.slice(0, 6).map((article) => (
+            {latestArticles.slice(0, 15).map((article) => (
               <ArticleCard key={article.id} article={article} locale={locale} variant="compact" />
             ))}
           </div>
@@ -171,7 +151,7 @@ export default async function HomePage({
               }}
             />
             <div className="mt-8 grid gap-9 sm:grid-cols-2 lg:grid-cols-3 lg:gap-7">
-              {moda.map((article) => (
+              {moda.slice(0, 9).map((article) => (
                 <ArticleCard
                   key={article.id}
                   article={article}
@@ -187,7 +167,7 @@ export default async function HomePage({
               {dict.home.trendingTitle}
             </p>
             <div className="mt-5 space-y-5">
-              {modaTrending.map((article, index) => (
+              {modaTrending.slice(0, 7).map((article, index) => (
                 <ArticleCard
                   key={article.id}
                   article={article}
@@ -216,7 +196,7 @@ export default async function HomePage({
                   }}
                 />
                 <div className="mt-8 grid gap-9 sm:grid-cols-2 lg:grid-cols-3 lg:gap-7">
-                  {gozellik.map((article) => (
+                  {gozellik.slice(0, 9).map((article) => (
                     <ArticleCard
                       key={article.id}
                       article={article}
@@ -232,7 +212,7 @@ export default async function HomePage({
                   {dict.home.trendingTitle}
                 </p>
                 <div className="mt-5 space-y-5">
-                  {gozellikTrending.map((article, index) => (
+                  {gozellikTrending.slice(0, 7).map((article, index) => (
                     <ArticleCard
                       key={article.id}
                       article={article}
@@ -262,7 +242,7 @@ export default async function HomePage({
                 }}
               />
               <div className="mt-8 grid gap-9 sm:grid-cols-2 lg:grid-cols-3 lg:gap-7">
-                {heyatTerzi.map((article) => (
+                {heyatTerzi.slice(0, 9).map((article) => (
                   <ArticleCard
                     key={article.id}
                     article={article}
@@ -278,7 +258,7 @@ export default async function HomePage({
                 {dict.home.trendingTitle}
               </p>
               <div className="mt-5 space-y-5">
-                {heyatTerziTrending.map((article, index) => (
+                {heyatTerziTrending.slice(0, 7).map((article, index) => (
                   <ArticleCard
                     key={article.id}
                     article={article}
@@ -308,7 +288,7 @@ export default async function HomePage({
                   }}
                 />
                 <div className="mt-8 grid gap-9 sm:grid-cols-2 lg:grid-cols-3 lg:gap-7">
-                  {biznes.map((article) => (
+                  {biznes.slice(0, 9).map((article) => (
                     <ArticleCard
                       key={article.id}
                       article={article}
@@ -324,7 +304,7 @@ export default async function HomePage({
                   {dict.home.trendingTitle}
                 </p>
                 <div className="mt-5 space-y-5">
-                  {biznesTrending.map((article, index) => (
+                  {biznesTrending.slice(0, 7).map((article, index) => (
                     <ArticleCard
                       key={article.id}
                       article={article}
