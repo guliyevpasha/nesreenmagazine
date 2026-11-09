@@ -61,11 +61,11 @@ function ArticleActionsMenu({
 }: {
   article: Article;
   onDelete: () => void;
-  canDelete: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const { session } = useAuth();
   
   // Seed məqalələri silinə bilməz
   const isSeedArticle = article.id.startsWith('seed-');
@@ -670,7 +670,7 @@ export default function ArticlesListPage() {
                         <ArticleStatusPill status={article.status} publishedAt={article.publishedAt} />
                       </td>
                       <td className="px-5 py-4">
-                        <ArticleActionsMenu article={article} onDelete={load} canDelete={canManage} />
+                        <ArticleActionsMenu article={article} onDelete={load} />
                       </td>
                     </tr>
                   );
