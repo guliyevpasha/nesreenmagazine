@@ -57,7 +57,6 @@ function ArticleStatusPill({ status, publishedAt }: { status: string; publishedA
 function ArticleActionsMenu({
   article,
   onDelete,
-  canDelete,
 }: {
   article: Article;
   onDelete: () => void;
