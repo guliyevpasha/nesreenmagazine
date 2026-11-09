@@ -36,6 +36,7 @@ import type {
 } from "@/lib/types";
 import { articleToCache } from "@/lib/types";
 import { logger } from "@/lib/logger";
+import { seedArticles } from "@/lib/content";
 
 /**
  * Bölmə ID-si və dil üçün Firestore sənəd ID-si yaradır.
@@ -101,6 +102,11 @@ export async function getHomepageSectionWithArticles(
   // Məqalə məlumatlarını paralel oxuyaq
   const articlePromises = section.articleIds.map(async (articleId) => {
     try {
+      // Hazır (seed) məqalələr Firestore-da yoxdur — koddakı siyahıdan oxunur
+      if (articleId.startsWith("seed-")) {
+        const seed = seedArticles.find((a) => a.id === articleId);
+        return seed && seed.status === "published" ? articleToCache(seed) : null;
+      }
       const articleDoc = await getDoc(doc(db, COLLECTIONS.articles, articleId));
       if (!articleDoc.exists()) {
         logger.warn(`Article ${articleId} not found in section ${sectionId}-${locale}`);

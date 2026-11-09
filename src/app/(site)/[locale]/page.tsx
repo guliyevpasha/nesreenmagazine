@@ -14,6 +14,8 @@ import { getDictionary, interpolate } from "@/lib/i18n/dictionaries";
 import { routes } from "@/lib/routes";
 import { getHomepageContent } from "@/lib/data/homepage-editorial";
 import { cacheToArticle } from "@/lib/article-helpers";
+import { getArticlesByCategory } from "@/lib/data/articles";
+import type { Article, HomepageArticleCache } from "@/lib/types";
 
 export const revalidate = 60; // 60 saniyə - yeni məqalələr tez görünsün
 
@@ -27,28 +29,46 @@ export default async function HomePage({
   const locale = raw as Locale;
   const dict = getDictionary(locale);
 
-  // Yeni editorial sistem ilə məqalələri yüklə
-  const homepageData = await getHomepageContent(locale);
+  // Redaksiya seçimləri + əvvəlki avtomatik sorğular (fallback) paralel
+  const [homepageData, allGundem, allModa, allGozellik, allHeyatTerzi, allAstrologiya, allBiznes] =
+    await Promise.all([
+      getHomepageContent(locale).catch(() => null),
+      getArticlesByCategory("gundem", 6),
+      getArticlesByCategory("moda", 15),
+      getArticlesByCategory("gozellik", 15),
+      getArticlesByCategory("heyat-terzi", 15),
+      getArticlesByCategory("astrologiya", 1),
+      getArticlesByCategory("biznes", 15),
+    ]);
 
-  // Editorial seçimləri Article formatına çevir
-  const weeklyMainTopic = homepageData.weeklyMainTopic.map(cacheToArticle);
-  const latestArticles = homepageData.latestArticles.map(cacheToArticle);
-  
-  // Kateqoriya məqalələri
-  const moda = homepageData.moda.editorial.map(cacheToArticle);
-  const modaTrending = homepageData.moda.mostRead.map(cacheToArticle);
-  
-  const gozellik = homepageData.gozellik.editorial.map(cacheToArticle);
-  const gozellikTrending = homepageData.gozellik.mostRead.map(cacheToArticle);
-  
-  const heyatTerzi = homepageData.heyatTerzi.editorial.map(cacheToArticle);
-  const heyatTerziTrending = homepageData.heyatTerzi.mostRead.map(cacheToArticle);
-  
-  const biznes = homepageData.biznes.editorial.map(cacheToArticle);
-  const biznesTrending = homepageData.biznes.mostRead.map(cacheToArticle);
+  /** Bölmə üçün redaksiya seçimi varsa onu, yoxdursa (boş/xətalı) əvvəlki avtomatik siyahını göstər. */
+  const pick = (editorial: HomepageArticleCache[] | undefined, fallback: Article[]): Article[] =>
+    editorial && editorial.length > 0 ? editorial.map(cacheToArticle) : fallback;
+  const plain = (list: Article[]) => list.filter((a) => !a.trending).slice(0, 5);
+  const trending = (list: Article[]) => list.filter((a) => a.trending).slice(0, 5);
 
-  // Hero carousel üçün ilk 6 məqalə (weekly main topic-dən)
-  const heroArticles = weeklyMainTopic.slice(0, 6);
+  // Baş mövzu carousel (əvvəl: Gündəmdən 6 məqalə)
+  const heroArticles = pick(homepageData?.weeklyMainTopic, allGundem).slice(0, 6);
+
+  // Ən son (əvvəl: hər bölmədən 1 məqalə, carousel-dəkilər çıxılmaqla)
+  const heroIds = new Set(heroArticles.map((a) => a.id));
+  const latestFallback = [allGundem, allModa, allGozellik, allHeyatTerzi, allAstrologiya, allBiznes]
+    .map((list) => list[0])
+    .filter((a): a is Article => Boolean(a) && !heroIds.has(a.id))
+    .slice(0, 6);
+  const latestArticles = pick(homepageData?.latestArticles, latestFallback);
+
+  const moda = pick(homepageData?.moda.editorial, plain(allModa));
+  const modaTrending = pick(homepageData?.moda.mostRead, trending(allModa));
+
+  const gozellik = pick(homepageData?.gozellik.editorial, plain(allGozellik));
+  const gozellikTrending = pick(homepageData?.gozellik.mostRead, trending(allGozellik));
+
+  const heyatTerzi = pick(homepageData?.heyatTerzi.editorial, plain(allHeyatTerzi));
+  const heyatTerziTrending = pick(homepageData?.heyatTerzi.mostRead, trending(allHeyatTerzi));
+
+  const biznes = pick(homepageData?.biznes.editorial, plain(allBiznes));
+  const biznesTrending = pick(homepageData?.biznes.mostRead, trending(allBiznes));
 
   return (
     <>

@@ -62,16 +62,15 @@ export default function ArticlePicker({
         }
       }
       
-      if (cleanQuery.length >= 2 || category) {
-        handleSearch(cleanQuery);
-      } else {
-        setResults([]);
-        setShowResults(false);
-      }
+      // Boş axtarışda da bütün dərc olunmuş məqalələr siyahılanır
+      if (authLoading || !session) return;
+      if (cleanQuery.length === 1) return;
+      handleSearch(cleanQuery);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, category, subcategory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, category, subcategory, authLoading, session]);
 
   const handleSearch = async (searchQuery: string = query) => {
     if (authLoading || !session) {
@@ -87,7 +86,7 @@ export default function ArticlePicker({
         category: category || undefined,
         subcategory: subcategory || undefined,
         locale,
-        limit: 30,
+        limit: 200,
       });
       
       // Artıq seçilmiş məqalələri çıxar
