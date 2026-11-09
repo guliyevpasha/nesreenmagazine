@@ -673,7 +673,7 @@ export default function ArticlesListPage() {
                         <ArticleActionsMenu article={article} onDelete={load} canDelete={canManage} />
                       </td>
                     </tr>
-                  )}))}
+                  ))}
                 </tbody>
               </table>
 
