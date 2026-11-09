@@ -106,7 +106,36 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Invalid locale" }, { status: 400 });
     }
 
-    const data = await getHomepageSectionWithArticles(sectionId, locale);
+    let data = await getHomepageSectionWithArticles(sectionId, locale);
+
+    // Əgər sənəd yoxdursa, boş yaradırıq
+    if (!data) {
+      const firebaseAdmin = getFirebaseAdmin();
+      if (firebaseAdmin) {
+        const firestore = getFirestore(firebaseAdmin);
+        const docId = getHomepageSectionDocId(sectionId, locale);
+        const emptySection = {
+          sectionId,
+          locale,
+          articleIds: [],
+          updatedBy: admin.uid,
+          updatedByName: admin.name,
+          updatedAt: new Date().toISOString(),
+          version: 1,
+        };
+        
+        await firestore.collection("homepageEditorial").doc(docId).set(emptySection);
+        
+        data = {
+          sectionId,
+          locale,
+          articles: [],
+          updatedAt: emptySection.updatedAt,
+          updatedBy: emptySection.updatedBy,
+          updatedByName: emptySection.updatedByName,
+        };
+      }
+    }
 
     return NextResponse.json(data);
   } catch (error) {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader, Panel, Alert, Button, LocaleTabs } from "@/components/admin/ui";
+import { authorizedFetch } from "@/lib/auth/authorized-fetch";
 import type { Locale, HomepageSectionId } from "@/lib/types";
 import { homepageSectionLabels } from "@/lib/types";
 
@@ -13,6 +14,37 @@ import { homepageSectionLabels } from "@/lib/types";
 export default function HomepageBuilderPage() {
   const router = useRouter();
   const [locale, setLocale] = useState<Locale>("az");
+  const [seeding, setSeeding] = useState(false);
+  const [seedResult, setSeedResult] = useState<{
+    created: number;
+    existing: number;
+    total: number;
+  } | null>(null);
+
+  const handleSeedSections = async () => {
+    if (!confirm("Bütün bölmələr üçün boş sənədlər yaradılsın?")) return;
+    
+    setSeeding(true);
+    setSeedResult(null);
+    
+    try {
+      const response = await authorizedFetch("/api/admin/homepage-editorial/seed", {
+        method: "POST",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Seed failed");
+      }
+      
+      const data = await response.json();
+      setSeedResult(data);
+    } catch (error) {
+      console.error("Seed error:", error);
+      alert("Xəta baş verdi");
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   const sections: Array<{
     id: HomepageSectionId;
@@ -100,9 +132,28 @@ export default function HomepageBuilderPage() {
           dərc olunan məqalələrdən axtarış edib əlavə edin.
         </Alert>
 
-        {/* Dil seçimi */}
+        {seedResult && (
+          <Alert tone="success">
+            <strong>Uğurla tamamlandı!</strong>
+            <ul className="mt-2 space-y-1 text-sm">
+              <li>✅ Yaradıldı: {seedResult.created}</li>
+              <li>⏭️ Mövcud idi: {seedResult.existing}</li>
+              <li>📦 Ümumi: {seedResult.total}</li>
+            </ul>
+          </Alert>
+        )}
+
+        {/* Dil seçimi və seed düyməsi */}
         <div className="flex items-center justify-between">
           <LocaleTabs active={locale} onChange={setLocale} />
+          
+          <Button
+            onClick={handleSeedSections}
+            disabled={seeding}
+            variant="ghost"
+          >
+            {seeding ? "Yaradılır..." : "🌱 Boş bölmələr yarat"}
+          </Button>
         </div>
 
         {/* Bölmələr */}
