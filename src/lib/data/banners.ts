@@ -9,8 +9,7 @@ import {
   query,
   where,
   orderBy,
-  Timestamp,
-  serverTimestamp,
+  increment,
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase/client";
 
@@ -66,9 +65,28 @@ export async function getActiveBanners(): Promise<AdvancedAdBanner[]> {
 /**
  * Müəyyən yerləşmə üçün aktiv bannerləri gətir
  */
-export async function getBannersByLocation(location: AdBannerLocation): Promise<AdvancedAdBanner[]> {
+export async function getBannersByLocation(
+  location: AdBannerLocation,
+  category?: string | null,
+): Promise<AdvancedAdBanner[]> {
   const allActiveBanners = await getActiveBanners();
-  return allActiveBanners.filter((banner) => banner.locations.includes(location));
+  return allActiveBanners.filter(
+    (banner) => (banner.locations ?? []).includes(location) && bannerMatchesCategory(banner, category),
+  );
+}
+
+/**
+ * Banner verilmiş bölmədə göstərilə bilərmi?
+ * `categories` boşdursa — hər yerdə; doludursa — yalnız həmin bölmələrdə
+ * (bölməsi olmayan səhifələrdə, məs. ana səhifədə, göstərilmir).
+ */
+export function bannerMatchesCategory(
+  banner: Pick<AdvancedAdBanner, "categories">,
+  category?: string | null,
+): boolean {
+  const allowed = banner.categories;
+  if (!allowed || allowed.length === 0) return true;
+  return !!category && allowed.includes(category);
 }
 
 /**
@@ -152,24 +170,15 @@ export async function duplicateBanner(
  * Banner impressions artır
  */
 export async function incrementImpressions(id: string): Promise<void> {
-  const banner = await getBanner(id);
-  if (!banner) return;
-  
-  await updateBanner(id, {
-    impressions: banner.impressions + 1,
-  } as any);
+  // Yalnız bu sahə yazılır (+1) — Firestore qaydası anonim sayğacı məhz bu formada qəbul edir.
+  await updateDoc(doc(firestore(), COLLECTION, id), { impressions: increment(1) });
 }
 
 /**
  * Banner clicks artır
  */
 export async function incrementClicks(id: string): Promise<void> {
-  const banner = await getBanner(id);
-  if (!banner) return;
-  
-  await updateBanner(id, {
-    clicks: banner.clicks + 1,
-  } as any);
+  await updateDoc(doc(firestore(), COLLECTION, id), { clicks: increment(1) });
 }
 
 /**

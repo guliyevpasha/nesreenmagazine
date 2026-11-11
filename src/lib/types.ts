@@ -2254,6 +2254,12 @@ export type AdvancedAdBanner = {
   altText: string;
   /** Banner yerləşmələri (çoxlu seçim). */
   locations: AdBannerLocation[];
+  /**
+   * Hansı bölmələrdə (kateqoriya slug-ı) göstərilsin. Boş/yoxdur = hamısında.
+   * Bölmə seçiləndə onun bütün alt bölmələri də daxildir (məqalənin `category` sahəsi ilə uyğunlaşır).
+   * Seçim edilibsə, banner ana səhifə kimi bölməsiz yerlərdə göstərilmir.
+   */
+  categories?: string[];
   /** Aktiv/Deaktiv. */
   active: boolean;
   /** Hansı device-da göstərilsin. */

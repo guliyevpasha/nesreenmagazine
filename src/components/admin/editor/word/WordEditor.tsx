@@ -405,6 +405,27 @@ export default function WordEditor({ content, onChange, placeholder = "Məqalən
                 </Btn>
               </Group>
 
+              {/* Başlıqlar həmişə görünən yerdə (Üslublar qalereyası lentin sonunda gizlənə bilir) */}
+              <Group label="Başlıq">
+                <div className="grid grid-cols-4 gap-0.5" data-testid="quick-headings">
+                  <Btn title="Normal abzas" testId="qh-p" active={styleKey === "normal"} onClick={() => applyBuiltinStyle(editor, "normal", customStyles)}>
+                    <span className="text-[12px] font-semibold">¶</span>
+                  </Btn>
+                  {([1, 2, 3, 4, 5, 6] as const).map((n) => (
+                    <Btn
+                      key={n}
+                      title={`Başlıq ${n} (<h${n}>) — Ctrl+Alt+${n}`}
+                      testId={`qh-h${n}`}
+                      active={styleKey === `h${n}`}
+                      onClick={() => applyBuiltinStyle(editor, `h${n}` as BuiltinStyle, customStyles)}
+                    >
+                      <span className="text-[12px] font-bold">H{n}</span>
+                    </Btn>
+                  ))}
+                  <span className="col-span-1" />
+                </div>
+              </Group>
+
               <Group label="Şrift">
                 <div className="flex flex-col gap-0.5">
                   <div className="flex items-center gap-0.5">

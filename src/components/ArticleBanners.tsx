@@ -1,140 +1,107 @@
 /**
- * Məqalə bannerlər sistemi
- * 
+ * Saytdakı reklam bannerləri (məqalə, kateqoriya və ana səhifə yerləşmələri)
+ *
  * Developed by Cradex Agency
  * https://cradexagency.com
  */
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-// Yalnız brauzer versiyası: sanitize yalnız useEffect içində (client-də) çağırılır.
-// `isomorphic-dompurify` serverdə jsdom yükləyir və Vercel-də məqalə səhifəsini 500 ilə çökdürürdü.
-import DOMPurify from "dompurify";
+import { createPortal } from "react-dom";
 import BannerDisplay from "./BannerDisplay";
 import type { AdvancedAdBanner, AdBannerLocation } from "@/lib/types";
-import { defaultLocale, isLocale } from "@/lib/i18n/config";
-import { getDictionary } from "@/lib/i18n/dictionaries";
 
 interface ArticleBannersProps {
   location: AdBannerLocation;
+  /** Səhifənin bölməsi (kateqoriya slug-ı). Bölmə üzrə hədəflənmiş bannerlər üçün lazımdır. */
+  category?: string;
+  /** Uyğun banner yoxdursa standart «Reklamınız burada ola bilər» bloku göstərilsin. */
+  placeholder?: boolean;
   className?: string;
 }
 
+async function fetchBanner(location: AdBannerLocation, category?: string): Promise<AdvancedAdBanner | null> {
+  const qs = category ? `?category=${encodeURIComponent(category)}` : "";
+  try {
+    const res = await fetch(`/api/banners/${location}${qs}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data.banner as AdvancedAdBanner) || null;
+  } catch (err) {
+    console.error("Banner yüklənmədi:", err);
+    return null;
+  }
+}
+
 /**
- * Məqalə bannerlərini yükləyir və göstərir
+ * Bir yerləşmə üçün banneri yükləyir və göstərir
  */
-export default function ArticleBanners({ location, className = "" }: ArticleBannersProps) {
+export default function ArticleBanners({
+  location,
+  category,
+  placeholder = true,
+  className = "",
+}: ArticleBannersProps) {
   const [banner, setBanner] = useState<AdvancedAdBanner | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadBanner();
-  }, [location]);
-
-  async function loadBanner() {
-    try {
-      const res = await fetch(`/api/banners/${location}`);
-      if (res.ok) {
-        const data = await res.json();
-        setBanner(data.banner || null);
-      }
-    } catch (err) {
-      console.error("Banner yüklənmədi:", err);
-    } finally {
+    let alive = true;
+    setLoading(true);
+    fetchBanner(location, category).then((b) => {
+      if (!alive) return;
+      setBanner(b);
       setLoading(false);
-    }
-  }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [location, category]);
 
-  if (loading) {
-    return null;
-  }
+  if (loading) return null;
 
-  return <BannerDisplay banner={banner || undefined} showPlaceholder={true} className={className} />;
+  return <BannerDisplay banner={banner || undefined} showPlaceholder={placeholder} className={className} />;
 }
 
+/** Məqalə mətnində H2/H3 başlıqlar arasına qoyulan boş yer tutucunun atributu. */
+export const BANNER_SLOT_ATTR = "data-nm-banner-slot";
+
 /**
- * H2 və H3 başlıqlar arasında banner yerləşdirən komponent
+ * Məqalə mətnindəki `<div data-nm-banner-slot="article-between-h2">` yer tutucularını tapıb
+ * onların içinə banner çəkir (portal). Mətn serverdə təmizlənmiş HTML olaraq qalır, banner
+ * isə brauzerdə yüklənir — beləliklə ISR keşi bannerləri köhnəltmir və izləmə işləyir.
  */
-export function InjectBannersIntoContent({ html, location }: { html: string; location: AdBannerLocation }) {
-  const [processedHtml, setProcessedHtml] = useState('');
-  const [banners, setBanners] = useState<AdvancedAdBanner[]>([]);
-  const params = useParams<{ locale?: string }>();
-  const fromUrl = params?.locale;
-  const adLabel = getDictionary(fromUrl && isLocale(fromUrl) ? fromUrl : defaultLocale).ads.label;
+export function ArticleContentBanners({ category }: { category?: string }) {
+  const [slots, setSlots] = useState<{ el: Element; location: AdBannerLocation }[]>([]);
+  const [banners, setBanners] = useState<Record<string, AdvancedAdBanner | null>>({});
 
   useEffect(() => {
-    loadBannersAndInject();
-  }, [html, location]);
+    const found = Array.from(document.querySelectorAll(`[${BANNER_SLOT_ATTR}]`))
+      .map((el) => ({ el, location: el.getAttribute(BANNER_SLOT_ATTR) as AdBannerLocation }))
+      .filter((s) => s.location === "article-between-h2" || s.location === "article-between-h3");
+    setSlots(found);
 
-  async function loadBannersAndInject() {
-    try {
-      const res = await fetch(`/api/banners/${location}`);
-      if (res.ok) {
-        const data = await res.json();
-        const banner = data.banner;
-        
-        if (banner) {
-          // HTML-ə banner əlavə et və sanitize et
-          const injected = injectBanners(html, banner, location, adLabel);
-          const sanitized = DOMPurify.sanitize(injected, {
-            ALLOWED_TAGS: ['div', 'p', 'a', 'img', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'strong', 'em', 'br', 'span'],
-            ALLOWED_ATTR: ['class', 'href', 'src', 'alt', 'style', 'target', 'rel'],
-            ALLOW_DATA_ATTR: false,
-          });
-          setProcessedHtml(sanitized);
-        } else {
-          const sanitized = DOMPurify.sanitize(html);
-          setProcessedHtml(sanitized);
-        }
-      }
-    } catch (err) {
-      console.error("Banner injection failed:", err);
-      const sanitized = DOMPurify.sanitize(html);
-      setProcessedHtml(sanitized);
-    }
-  }
+    let alive = true;
+    const locations = Array.from(new Set(found.map((s) => s.location)));
+    Promise.all(locations.map(async (loc) => [loc, await fetchBanner(loc, category)] as const)).then((pairs) => {
+      if (alive) setBanners(Object.fromEntries(pairs));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [category]);
 
-  return <div dangerouslySetInnerHTML={{ __html: processedHtml }} />;
-}
-
-/**
- * HTML-ə banner əlavə edən helper funksiya
- */
-function injectBanners(html: string, banner: AdvancedAdBanner, location: AdBannerLocation, adLabel: string): string {
-  const tag = location === "article-between-h2" ? "h2" : "h3";
-  const regex = new RegExp(`(</${tag}>)`, "gi");
-  
-  // URL və text-i sanitize et
-  const safeLink = encodeURI(banner.linkUrl);
-  const safeAlt = banner.altText.replace(/"/g, '&quot;');
-  const safeImageUrl = encodeURI(banner.imageUrl);
-  
-  let count = 0;
-  const bannerHtml = `
-    <div class="my-8 flex justify-center">
-      <div class="banner-injected w-full max-w-3xl">
-        <div class="border border-line bg-cream-deep/30 p-4 text-center">
-          <p class="text-[9px] uppercase tracking-wider text-muted mb-3">${adLabel}</p>
-          <a href="${safeLink}" target="_blank" rel="noopener noreferrer" class="block">
-            <img 
-              src="${safeImageUrl}" 
-              alt="${safeAlt}"
-              class="w-full h-auto mx-auto"
-              style="max-width: ${Math.abs(Number(banner.dimensions.width))}px; max-height: ${Math.abs(Number(banner.dimensions.height))}px;"
-            />
-          </a>
-        </div>
-      </div>
-    </div>
-  `;
-
-  return html.replace(regex, (match) => {
-    count++;
-    // Hər 2-ci başlıqdan sonra banner əlavə et
-    if (count % 2 === 0) {
-      return match + bannerHtml;
-    }
-    return match;
-  });
+  return (
+    <>
+      {slots.map(({ el, location }, i) => {
+        const banner = banners[location];
+        if (!banner) return null;
+        return createPortal(
+          <BannerDisplay banner={banner} showPlaceholder={false} className="my-8 flex justify-center" />,
+          el,
+          `${location}-${i}`,
+        );
+      })}
+    </>
+  );
 }

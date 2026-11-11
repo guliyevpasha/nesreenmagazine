@@ -179,7 +179,13 @@ service cloud.firestore {
       // Hamı oxuya bilər (aktiv bannerləri göstərmək üçün)
       allow read:  if true;
       // Yalnız admin yazır
-      allow write: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        // Anonim oxucu yalnız göstərilmə/klik sayğacını +1 artıra bilər (/api/banner-impression, /api/banner-click)
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['impressions'])
+            && request.resource.data.impressions == resource.data.impressions + 1)
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['clicks'])
+            && request.resource.data.clicks == resource.data.clicks + 1);
     }
 
     /** E-kitab bannerləri */

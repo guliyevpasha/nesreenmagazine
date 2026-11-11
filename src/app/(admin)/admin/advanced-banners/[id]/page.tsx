@@ -5,6 +5,7 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageHeader, Alert, Panel, Field } from "@/components/admin/ui";
+import BannerCategoryPicker from "@/components/admin/BannerCategoryPicker";
 import { getBanner, updateBanner } from "@/lib/data/banners";
 import type { AdvancedAdBanner, AdBannerLocation } from "@/lib/types";
 import { adBannerLocationLabels } from "@/lib/types";
@@ -310,6 +311,16 @@ export default function EditBannerPage({
                   </label>
                 ))}
               </div>
+            </Panel>
+
+            <Panel
+              title="Bölmələr"
+              description="Banner hansı kateqoriyaların məqalələrində / səhifələrində göstərilsin"
+            >
+              <BannerCategoryPicker
+                value={banner.categories ?? []}
+                onChange={(next) => setBanner({ ...banner, categories: next })}
+              />
             </Panel>
 
             <Panel title="Ölçülər" description="Fayl yükləyəndə avtomatik təyin olunur">

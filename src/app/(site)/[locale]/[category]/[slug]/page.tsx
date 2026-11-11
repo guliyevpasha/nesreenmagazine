@@ -3,7 +3,8 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import ArticleCard from "@/components/ArticleCard";
-import ArticleBanners from "@/components/ArticleBanners";
+import ArticleBanners, { ArticleContentBanners } from "@/components/ArticleBanners";
+import { withBannerSlots } from "@/lib/content/banner-slots";
 import AdvertisementBanner from "@/components/AdvertisementBanner";
 import CoverArt from "@/components/CoverArt";
 import { RoseMark } from "@/components/Logo";
@@ -147,7 +148,8 @@ export default async function ArticlePage({
   // Mətni ikiyə bölürük ki, ortasına reklam sahəsi qoya bilək.
   // Word redaktorunun HTML-i (və köhnə Markdown) serverdə təmizlənir (XSS).
   const { html, toc } = addHeadingIds(sanitizeArticleHtml(markdownToHtml(body)));
-  const blocks = html.split("\n");
+  // H2/H3 başlıqlar arasına reklam yer tutucuları (banner brauzerdə yüklənir)
+  const blocks = withBannerSlots(html.split("\n"));
   const splitAt = Math.max(3, Math.floor(blocks.length * 0.45));
   const firstHalf = blocks.slice(0, splitAt).join("\n");
   const secondHalf = blocks.slice(splitAt).join("\n");
@@ -247,7 +249,7 @@ export default async function ArticlePage({
           {/* Sol reklam sahəsi - desktop */}
           <aside className="hidden lg:block">
             <div className="sticky top-24">
-              <ArticleBanners location="article-sidebar-left" />
+              <ArticleBanners location="article-sidebar-left" category={article.category} />
             </div>
           </aside>
 
@@ -255,7 +257,7 @@ export default async function ArticlePage({
           <div className="min-w-0">
             {/* Mobil/Tablet üçün üst reklam banneri */}
             <div className="mb-8 lg:hidden">
-              <ArticleBanners location="article-header" />
+              <ArticleBanners location="article-header" category={article.category} />
             </div>
 
             {toc.length >= 3 && (
@@ -279,11 +281,14 @@ export default async function ArticlePage({
               <>
                 {/* Mətn ortası reklam banneri */}
                 <div className="my-12">
-                  <ArticleBanners location="article-inline" />
+                  <ArticleBanners location="article-inline" category={article.category} />
                 </div>
                 <div className="prose-mag nm-continued" dangerouslySetInnerHTML={{ __html: secondHalf }} />
               </>
             )}
+
+            {/* H2/H3 başlıqlar arası bannerlər (yer tutucular mətnin içindədir) */}
+            <ArticleContentBanners category={article.category} />
 
             <div className="mt-14 flex justify-center">
               <RoseMark className="h-6 w-6 text-gold" strokeWidth={1.3} />
@@ -312,14 +317,14 @@ export default async function ArticlePage({
 
             {/* Mobil/Tablet üçün alt reklam banneri */}
             <div className="mt-8 lg:hidden">
-              <ArticleBanners location="article-inline" />
+              <ArticleBanners location="article-inline" category={article.category} />
             </div>
           </div>
 
           {/* Sağ reklam sahəsi - desktop */}
           <aside className="hidden lg:block">
             <div className="sticky top-24">
-              <ArticleBanners location="article-sidebar-right" />
+              <ArticleBanners location="article-sidebar-right" category={article.category} />
             </div>
           </aside>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import type { AdvancedAdBanner } from "@/lib/types";
 import { DEFAULT_BANNER_TEXT } from "@/lib/types";
@@ -29,32 +29,35 @@ export default function BannerDisplay({
   const fromUrl = params?.locale;
   const locale: Locale = localeProp ?? (fromUrl && isLocale(fromUrl) ? fromUrl : defaultLocale);
   const dict = getDictionary(locale);
-  const [isClient, setIsClient] = useState(false);
+  const [device, setDevice] = useState<"mobile" | "tablet" | "desktop" | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setIsClient(true);
+    const w = window.innerWidth;
+    setDevice(w < 768 ? "mobile" : w < 1024 ? "tablet" : "desktop");
   }, []);
+
+  const bannerId = banner?.id;
+  const shouldShow = !!banner && device !== null && banner.showOn?.[device] !== false;
+
+  // Göstərilmə sayğacı — hook-lar şərti return-dən ƏVVƏL olmalıdır (hook sırası pozulmasın).
+  useEffect(() => {
+    if (!shouldShow || !bannerId) return;
+    // CSS ilə gizlədilmiş (məs. mobildə sidebar) banner göstərilmiş sayılmır
+    if (rootRef.current && rootRef.current.getClientRects().length === 0) return;
+    fetch("/api/banner-impression", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bannerId }),
+    }).catch((err) => console.error("Banner impression tracking failed:", err));
+  }, [shouldShow, bannerId]);
 
   // Əgər banner yoxdursa və placeholder istənilirsə
   if (!banner && showPlaceholder) {
     return <PlaceholderBanner className={className} locale={locale} />;
   }
 
-  if (!banner || !isClient) {
-    return null;
-  }
-
-  // Device check
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-  const isTablet = typeof window !== "undefined" && window.innerWidth >= 768 && window.innerWidth < 1024;
-  const isDesktop = typeof window !== "undefined" && window.innerWidth >= 1024;
-
-  const shouldShow =
-    (isMobile && banner.showOn.mobile) ||
-    (isTablet && banner.showOn.tablet) ||
-    (isDesktop && banner.showOn.desktop);
-
-  if (!shouldShow) {
+  if (!banner || !shouldShow) {
     return null;
   }
 
@@ -78,25 +81,8 @@ export default function BannerDisplay({
     }
   };
 
-  // Track impression
-  useEffect(() => {
-    const trackImpression = async () => {
-      try {
-        await fetch("/api/banner-impression", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bannerId: banner.id }),
-        });
-      } catch (err) {
-        console.error("Banner impression tracking failed:", err);
-      }
-    };
-
-    trackImpression();
-  }, [banner.id]);
-
   return (
-    <div className={`banner-display ${className}`}>
+    <div ref={rootRef} className={`banner-display ${className}`}>
       <div
         className={`relative cursor-pointer overflow-hidden border border-line bg-cream-deep/30 ${animationClass}`}
         onClick={handleClick}

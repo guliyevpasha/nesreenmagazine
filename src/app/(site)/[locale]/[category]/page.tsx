@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 // MÜVƏQQƏTİ: reklam sahələri gizlədilib — geri qaytarmaq üçün bu sətri silin, aşağıdakı importu bərpa edin.
 // import AdSlot from "@/components/AdSlot";
 import AdvertisementBanner from "@/components/AdvertisementBanner";
+import ArticleBanners from "@/components/ArticleBanners";
 import ArticleCard from "@/components/ArticleCard";
 import AstrologyTabs, { type ReadingMap } from "@/components/AstrologyTabs";
 import { RoseMark } from "@/components/Logo";
@@ -104,6 +105,11 @@ export default async function CategoryPage({
         <AdSlot slot="category-top" locale={locale} />
       </div>
       */}
+
+      {/* Admin paneldən «Kateqoriya - Üst» (bölmə üzrə hədəflənə bilər); uyğun banner yoxdursa heç nə göstərilmir */}
+      <div className="container-mag empty:hidden">
+        <ArticleBanners location="category-top" category={category.slug} placeholder={false} className="pt-10" />
+      </div>
 
       <div className="container-mag pt-10">
         <AdvertisementBanner locale={locale} />

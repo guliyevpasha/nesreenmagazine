@@ -6,6 +6,7 @@ import { PageHeader, Alert, Empty } from "@/components/admin/ui";
 import { getAllBanners, deleteBanner, duplicateBanner, getBannerStats, toggleBannerStatus } from "@/lib/data/banners";
 import type { AdvancedAdBanner } from "@/lib/types";
 import { adBannerLocationLabels } from "@/lib/types";
+import { categoryName } from "@/lib/categories";
 
 export default function AdvancedBannersPage() {
   // useRoleAccess silindi
@@ -270,6 +271,14 @@ function BannerCard({
                   </span>
                 ))}
               </div>
+
+              {/* Bölmələr */}
+              <p className="mt-2 font-ui text-[11px] text-muted">
+                Bölmə:{" "}
+                {banner.categories && banner.categories.length > 0
+                  ? banner.categories.map((slug) => categoryName(slug, "az")).join(", ")
+                  : "hamısı"}
+              </p>
 
               {/* Stats */}
               <div className="mt-3 flex gap-6 text-sm">

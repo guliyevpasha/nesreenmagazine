@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 // MÜVƏQQƏTİ: reklam sahələri gizlədilib — geri qaytarmaq üçün bu sətri silin, aşağıdakı importu bərpa edin.
 // import AdSlot from "@/components/AdSlot";
 import AdvertisementBanner from "@/components/AdvertisementBanner";
+import ArticleBanners from "@/components/ArticleBanners";
 import ArticleCard from "@/components/ArticleCard";
 import HeroCarousel from "@/components/HeroCarousel";
 import { RoseMark } from "@/components/Logo";
@@ -89,6 +90,11 @@ export default async function HomePage({
       )}
 
       <div className="rule-gold" />
+
+      {/* Admin paneldən «Ana səhifə - Hero» bannerləri; uyğun banner yoxdursa heç nə göstərilmir */}
+      <div className="container-mag empty:hidden">
+        <ArticleBanners location="home-hero" placeholder={false} className="pt-10" />
+      </div>
 
       {/* ================= Ən son ================= */}
       {latestArticles.length > 0 && (

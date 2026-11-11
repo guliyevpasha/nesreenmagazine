@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBannersByLocation } from "@/lib/data/banners";
-import type { AdBannerLocation } from "@/lib/types";
+import { isCategorySlug } from "@/lib/categories";
+import { adBannerLocationLabels, type AdBannerLocation } from "@/lib/types";
 
 export async function GET(
   request: NextRequest,
@@ -8,15 +9,24 @@ export async function GET(
 ) {
   try {
     const { location } = await params;
+    if (!(location in adBannerLocationLabels)) {
+      return NextResponse.json({ banner: null });
+    }
 
-    const banners = await getBannersByLocation(location as AdBannerLocation);
+    // ?category=moda — bannerin bölmə məhdudiyyətini yoxlamaq üçün (bölməsiz səhifədə göndərilmir)
+    const rawCategory = request.nextUrl.searchParams.get("category");
+    const category = rawCategory && isCategorySlug(rawCategory) ? rawCategory : null;
+
+    const banners = await getBannersByLocation(location as AdBannerLocation, category);
 
     if (banners.length === 0) {
       return NextResponse.json({ banner: null });
     }
 
-    // Prioritetə görə ən yüksək olanı seç
-    const banner = banners.sort((a, b) => b.priority - a.priority)[0];
+    // Ən yüksək prioritetli bannerlər arasından təsadüfi biri (bərabər prioritet = növbələşmə)
+    const top = Number(banners[0].priority) || 0;
+    const tied = banners.filter((b) => (Number(b.priority) || 0) === top);
+    const banner = tied[Math.floor(Math.random() * tied.length)];
 
     return NextResponse.json({ banner });
   } catch (error) {
