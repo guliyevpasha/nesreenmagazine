@@ -18,6 +18,7 @@ import {
 } from "@/lib/analytics/track-views";
 import type { Article } from "@/lib/types";
 import { categories, getCategory } from "@/lib/categories";
+import { StatsRefreshBar, useAutoRefresh } from "@/components/admin/StatsRefreshBar";
 
 type DateRange = "7d" | "30d" | "90d";
 
@@ -39,12 +40,19 @@ export default function AnalyticsOverviewPage() {
 
   const days = dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : 90;
 
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
   useEffect(() => {
-    loadData();
+    void loadData();
   }, [dateRange]);
 
-  async function loadData() {
-    setLoading(true);
+  // Hər 15 dəqiqədən bir arxa planda yenilə (ekran «Yüklənir…» ilə bağlanmır)
+  useAutoRefresh(() => void loadData(true), updatedAt !== null);
+
+  async function loadData(background = false) {
+    if (background) setRefreshing(true);
+    else setLoading(true);
     setError("");
     try {
       const [arts, subs, stats, trend, tops, catStats, devStats, srcStats] = await Promise.all([
@@ -66,10 +74,12 @@ export default function AnalyticsOverviewPage() {
       setCategoryViews(catStats);
       setDeviceStats(devStats);
       setSourceStats(srcStats);
+      setUpdatedAt(new Date());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Yüklənmə xətası");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }
 
@@ -149,7 +159,13 @@ export default function AnalyticsOverviewPage() {
         {error && <Alert tone="error">{error}</Alert>}
 
         {/* Date Range Filter */}
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <StatsRefreshBar
+            className="mr-auto"
+            updatedAt={updatedAt}
+            refreshing={refreshing}
+            onRefresh={() => void loadData(true)}
+          />
           {(["7d", "30d", "90d"] as DateRange[]).map((range) => (
             <button
               key={range}

@@ -13,7 +13,8 @@ import {
 } from "@/lib/data/admin";
 import { useAuth } from "@/lib/firebase/auth";
 import type { Article } from "@/lib/types";
-import { getOverallStats } from "@/lib/analytics/track-views";
+import { getOverallStats, sinceDate } from "@/lib/analytics/track-views";
+import { StatsRefreshBar, useAutoRefresh } from "@/components/admin/StatsRefreshBar";
 
 type Stats = {
   articles: Article[];
@@ -21,6 +22,8 @@ type Stats = {
   publishedArticles: number;
   draftArticles: number;
   pageViews: number;
+  /** Günlük cəm baxışlar (analytics_daily) — dövr filtri üçün. */
+  dailyViews: { date: string; views: number }[];
   subscribers: number;
   totalRevenue: number;
 };
@@ -36,10 +39,15 @@ export default function AdminDashboard() {
   const [filteredStats, setFilteredStats] = useState<Stats | null>(null);
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    loadDashboardData();
+    void loadDashboardData();
   }, []);
+
+  // Hər 15 dəqiqədən bir statistikanı arxa planda yenilə
+  useAutoRefresh(() => void loadDashboardData(true), stats !== null);
 
   // Filter stats when dateRange changes
   useEffect(() => {
@@ -100,18 +108,37 @@ export default function AdminDashboard() {
     
     const published = filteredArticles.filter((a) => a.status === "published");
     const drafts = filteredArticles.filter((a) => a.status === "draft");
-    
+
+    // Baxışlar: seçilmiş dövrdəki günlük baxışların cəmi (analytics_daily).
+    // Məlumat günlük saxlanır, ona görə «Saatlıq» və «Günlük» = bu günün baxışları.
+    let fromDay: string;
+    let toDay = "9999-12-31";
+    if (customStartDate && customEndDate && dateRange === "custom") {
+      fromDay = customStartDate;
+      toDay = customEndDate;
+    } else {
+      const rangeDays: Record<string, number> = {
+        "1h": 1, "1d": 1, "7d": 7, "30d": 30, "90d": 90, "180d": 180,
+        "270d": 270, "365d": 365, "730d": 730, "1095d": 1095,
+      };
+      fromDay = sinceDate(rangeDays[dateRange] ?? 30);
+    }
+    const periodViews = stats.dailyViews
+      .filter((d) => d.date >= fromDay && d.date <= toDay)
+      .reduce((sum, d) => sum + d.views, 0);
+
     setFilteredStats({
       ...stats,
       articles: filteredArticles,
       totalArticles: filteredArticles.length,
       publishedArticles: published.length,
       draftArticles: drafts.length,
-      // Note: Views are still total - would need date-filtered analytics query
+      pageViews: periodViews,
     });
   }, [stats, dateRange, customStartDate, customEndDate]);
 
-  async function loadDashboardData() {
+  async function loadDashboardData(background = false) {
+    if (background) setRefreshing(true);
     try {
       // Yalnız rolun oxuya bildiyi məlumatlar sorğulanır
       const role = session?.role;
@@ -126,7 +153,7 @@ export default function AdminDashboard() {
         canReadOrders
           ? listAdOrders().catch(err => { console.error("AdOrders error:", err); return []; })
           : Promise.resolve([]),
-        getOverallStats().catch(err => { console.error("Analytics error:", err); return { totalViews: 0 }; }),
+        getOverallStats().catch(err => { console.error("Analytics error:", err); return { totalViews: 0, daily: [] }; }),
       ]);
 
       const published = articles.filter((a) => a.status === "published");
@@ -148,20 +175,12 @@ export default function AdminDashboard() {
         publishedArticles: published.length,
         draftArticles: drafts.length,
         pageViews: analyticsStats.totalViews,
+        dailyViews: analyticsStats.daily,
         subscribers,
         totalRevenue,
       });
-      
-      // Initialize filteredStats with full stats
-      setFilteredStats({
-        articles,
-        totalArticles: articles.length,
-        publishedArticles: published.length,
-        draftArticles: drafts.length,
-        pageViews: analyticsStats.totalViews,
-        subscribers,
-        totalRevenue,
-      });
+      // filteredStats yuxarıdakı effektdə seçilmiş dövrə görə hesablanır
+      setUpdatedAt(new Date());
 
       setFeaturedArticle(featured);
       setRecentArticles(recent);
@@ -175,11 +194,13 @@ export default function AdminDashboard() {
         publishedArticles: 0,
         draftArticles: 0,
         pageViews: 0,
+        dailyViews: [],
         subscribers: 0,
         totalRevenue: 0,
       };
-      setStats(emptyStats);
-      setFilteredStats(emptyStats);
+      if (!background) setStats(emptyStats);
+    } finally {
+      setRefreshing(false);
     }
   }
 
@@ -282,6 +303,11 @@ export default function AdminDashboard() {
               </button>
             )}
           </div>
+          <StatsRefreshBar
+            updatedAt={updatedAt}
+            refreshing={refreshing}
+            onRefresh={() => void loadDashboardData(true)}
+          />
         </div>
       </div>
 
@@ -299,7 +325,7 @@ export default function AdminDashboard() {
             value={displayStats.totalArticles.toLocaleString()}
           />
           <StatCard
-            label="Baxışlar"
+            label={dateRange === "1h" || dateRange === "1d" ? "Baxışlar (bu gün)" : "Baxışlar"}
             value={displayStats.pageViews.toLocaleString()}
           />
           <StatCard

@@ -15,6 +15,15 @@ export interface ViewRecord {
   uniqueVisitors: number;
 }
 
+/**
+ * «Son N gün» dövrünün başlanğıc tarixi (YYYY-MM-DD, UTC — yazma ilə eyni):
+ * bu gün + əvvəlki N-1 gün. sinceDate(1) = bu gün.
+ */
+export function sinceDate(days: number): string {
+  const n = Math.max(1, Math.floor(days));
+  return new Date(Date.now() - (n - 1) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 export interface ArticleViews {
   articleId: string;
   totalViews: number;
@@ -122,10 +131,8 @@ export async function getArticleViews(articleId: string): Promise<ArticleViews> 
       getDocs(query(collection(db, "analytics_daily"), where("articleId", "==", articleId))),
     ]);
 
-    // «Son 7 gün» = bu gün + əvvəlki 6 gün
-    const dayMs = 24 * 60 * 60 * 1000;
-    const date7 = new Date(Date.now() - 6 * dayMs).toISOString().slice(0, 10);
-    const date30 = new Date(Date.now() - 29 * dayMs).toISOString().slice(0, 10);
+    const date7 = sinceDate(7);
+    const date30 = sinceDate(30);
 
     let dailySum = 0;
     let last7Days = 0;
@@ -167,7 +174,7 @@ export async function getTopArticles(days: number = 30, limitCount: number = 10)
     const db = getDb();
     if (!db) return [];
     
-    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const since = sinceDate(days);
     
     // Günlük məlumatları topla
     const dailyQuery = query(
@@ -218,7 +225,7 @@ export async function getCategoryStats(days: number = 30): Promise<Record<string
     const db = getDb();
     if (!db) return {};
     
-    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const since = sinceDate(days);
     
     const dailyQuery = query(
       collection(db, "analytics_daily"),
@@ -249,7 +256,7 @@ export async function getDailyTrend(days: number = 30): Promise<ViewRecord[]> {
     const db = getDb();
     if (!db) return [];
     
-    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const since = sinceDate(days);
     
     const dailyQuery = query(
       collection(db, "analytics_daily"),
@@ -295,70 +302,76 @@ export interface OverallStats {
   viewsLast7Days: number;
   viewsLast30Days: number;
   avgViewsPerArticle: number;
+  /** Bütün günlər üzrə cəm baxış (tarix artan sırada) — dövr filtrləri üçün. */
+  daily: { date: string; views: number; uniqueVisitors: number }[];
 }
+
+const EMPTY_OVERALL: OverallStats = {
+  totalArticles: 0,
+  totalViews: 0,
+  viewsToday: 0,
+  viewsLast7Days: 0,
+  viewsLast30Days: 0,
+  avgViewsPerArticle: 0,
+  daily: [],
+};
 
 export async function getOverallStats(): Promise<OverallStats> {
   try {
     const db = getDb();
-    if (!db) {
-      return {
-        totalArticles: 0,
-        totalViews: 0,
-        viewsToday: 0,
-        viewsLast7Days: 0,
-        viewsLast30Days: 0,
-        avgViewsPerArticle: 0,
-      };
-    }
-    
-    const totalsQuery = query(collection(db, "analytics_totals"));
-    const totalsDocs = await getDocs(totalsQuery);
-    
-    const totalArticles = totalsDocs.size;
-    const totalViews = totalsDocs.docs.reduce((sum, doc) => sum + (doc.data().totalViews || 0), 0);
-    
-    const today = new Date().toISOString().slice(0, 10);
-    const todayQuery = query(
-      collection(db, "analytics_daily"),
-      where("date", "==", today)
-    );
-    const todayDocs = await getDocs(todayQuery);
-    const viewsToday = todayDocs.docs.reduce((sum, doc) => sum + (doc.data().views || 0), 0);
-    
-    const date7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const query7 = query(
-      collection(db, "analytics_daily"),
-      where("date", ">=", date7)
-    );
-    const docs7 = await getDocs(query7);
-    const viewsLast7Days = docs7.docs.reduce((sum, doc) => sum + (doc.data().views || 0), 0);
-    
-    const date30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const query30 = query(
-      collection(db, "analytics_daily"),
-      where("date", ">=", date30)
-    );
-    const docs30 = await getDocs(query30);
-    const viewsLast30Days = docs30.docs.reduce((sum, doc) => sum + (doc.data().views || 0), 0);
-    
+    if (!db) return EMPTY_OVERALL;
+
+    const [totalsDocs, dailyDocs] = await Promise.all([
+      getDocs(collection(db, "analytics_totals")),
+      getDocs(collection(db, "analytics_daily")),
+    ]);
+
+    // Məqalə üzrə: saxlanmış ümumi sayğac ilə günlük cəmdən böyüyü
+    // (analytics_totals bir müddət yazılmadığı üçün geridə qala bilər).
+    const perArticle = new Map<string, number>();
+    totalsDocs.forEach((d) => {
+      perArticle.set(d.id, Number(d.data().totalViews) || 0);
+    });
+    const dailySumByArticle = new Map<string, number>();
+    const byDate = new Map<string, { views: number; uniqueVisitors: number }>();
+    dailyDocs.forEach((d) => {
+      const data = d.data();
+      const views = Number(data.views) || 0;
+      if (typeof data.articleId === "string") {
+        dailySumByArticle.set(data.articleId, (dailySumByArticle.get(data.articleId) || 0) + views);
+      }
+      if (typeof data.date === "string") {
+        const cur = byDate.get(data.date) || { views: 0, uniqueVisitors: 0 };
+        cur.views += views;
+        cur.uniqueVisitors += Number(data.uniqueVisitors) || 0;
+        byDate.set(data.date, cur);
+      }
+    });
+    dailySumByArticle.forEach((sum, id) => {
+      perArticle.set(id, Math.max(perArticle.get(id) || 0, sum));
+    });
+
+    const totalArticles = perArticle.size;
+    const totalViews = Array.from(perArticle.values()).reduce((a, b) => a + b, 0);
+
+    const daily = Array.from(byDate.entries())
+      .map(([date, s]) => ({ date, ...s }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const sumSince = (since: string) =>
+      daily.filter((d) => d.date >= since).reduce((sum, d) => sum + d.views, 0);
+
     return {
       totalArticles,
       totalViews,
-      viewsToday,
-      viewsLast7Days,
-      viewsLast30Days,
+      viewsToday: sumSince(sinceDate(1)),
+      viewsLast7Days: sumSince(sinceDate(7)),
+      viewsLast30Days: sumSince(sinceDate(30)),
       avgViewsPerArticle: totalArticles > 0 ? Math.round(totalViews / totalArticles) : 0,
+      daily,
     };
   } catch (error) {
     console.error("Get overall stats error:", error);
-    return {
-      totalArticles: 0,
-      totalViews: 0,
-      viewsToday: 0,
-      viewsLast7Days: 0,
-      viewsLast30Days: 0,
-      avgViewsPerArticle: 0,
-    };
+    return EMPTY_OVERALL;
   }
 }
 
@@ -370,7 +383,7 @@ export async function getDeviceStats(days: number = 30): Promise<{ desktop: numb
     const db = getDb();
     if (!db) return { desktop: 0, mobile: 0, tablet: 0 };
     
-    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const since = sinceDate(days);
     
     const dailyQuery = query(
       collection(db, "analytics_daily"),
@@ -412,7 +425,7 @@ export async function getSourceStats(days: number = 30): Promise<{
     const db = getDb();
     if (!db) return { organic: 0, social: 0, direct: 0, referral: 0 };
     
-    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const since = sinceDate(days);
     
     const dailyQuery = query(
       collection(db, "analytics_daily"),
