@@ -201,6 +201,8 @@ export default function ArticlesListPage() {
   /* View statistics state */
   const [viewsMap, setViewsMap] = useState<Map<string, ArticleViews>>(new Map());
   const [loadingViews, setLoadingViews] = useState(false);
+  const [viewsUpdatedAt, setViewsUpdatedAt] = useState<Date | null>(null);
+  const [refreshingViews, setRefreshingViews] = useState(false);
 
   /* Bulk state */
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -211,44 +213,61 @@ export default function ArticlesListPage() {
       const list = await listArticles();
       setArticles(list);
       setSelected(new Set()); // seçimi sıfırla
-      
-      // Load view statistics for all articles
-      await loadViewStats(list);
+      // Baxış statistikası aşağıdakı [articles] effektində yüklənir
     } catch (caught) {
       console.error('❌ Error loading articles:', caught);
       setError(caught instanceof Error ? caught.message : "Məqalələr oxunmadı.");
     }
   }
 
-  async function loadViewStats(articleList: Article[]) {
-    setLoadingViews(true);
+  /**
+   * Baxış statistikasını yüklə. `background` = avtomatik yenilənmə:
+   * cədvəldəki rəqəmlər «...» ilə əvəz olunmur, yalnız yenisi gələndə dəyişir.
+   */
+  async function loadViewStats(articleList: Article[], background = false) {
+    if (background) setRefreshingViews(true);
+    else setLoadingViews(true);
     try {
-      console.log('📊 Loading view stats for', articleList.length, 'articles');
       const viewsData = await Promise.all(
-        articleList.map(async (article) => {
-          const views = await getArticleViews(article.id);
-          console.log('📈 Views for', article.id, ':', views);
-          return [article.id, views] as const;
-        })
+        articleList.map(async (article) => [article.id, await getArticleViews(article.id)] as const)
       );
-      console.log('✅ View stats loaded:', viewsData.length, 'articles');
       setViewsMap(new Map(viewsData));
+      setViewsUpdatedAt(new Date());
     } catch (error) {
-      console.error('❌ Error loading view stats:', error);
+      console.error("Baxış statistikası yüklənmədi:", error);
     } finally {
       setLoadingViews(false);
+      setRefreshingViews(false);
     }
   }
 
-  useEffect(() => { 
-    void load(); 
+  useEffect(() => {
+    void load();
   }, []);
 
-  // Məqalələr yükləndikdən sonra baxış statistikasını yüklə
+  // Məqalələr yükləndikdən sonra baxış statistikasını yüklə,
+  // sonra hər 15 dəqiqədən bir avtomatik yenilə (tab gizlidirsə, qayıdanda yenilə).
   useEffect(() => {
-    if (articles && articles.length > 0) {
-      void loadViewStats(articles);
-    }
+    if (!articles || articles.length === 0) return;
+    void loadViewStats(articles);
+
+    const REFRESH_MS = 15 * 60 * 1000;
+    let lastRun = Date.now();
+    const refresh = () => {
+      lastRun = Date.now();
+      void loadViewStats(articles, true);
+    };
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") refresh();
+    }, REFRESH_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && Date.now() - lastRun >= REFRESH_MS) refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [articles]);
 
   // Redaktor/müəllif yalnız öz bölmələrini görür (admin hamısını)
@@ -425,6 +444,23 @@ export default function ArticlesListPage() {
       />
 
       <div className="px-6 py-8 lg:px-10">
+        {viewsUpdatedAt && articles && articles.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center gap-3 font-ui text-[11px] text-muted">
+            <span>
+              Baxış statistikası:{" "}
+              {viewsUpdatedAt.toLocaleTimeString("az-AZ", { hour: "2-digit", minute: "2-digit" })}{" "}
+              vəziyyətinə · hər 15 dəqiqədən bir avtomatik yenilənir
+            </span>
+            <button
+              type="button"
+              onClick={() => void loadViewStats(articles, true)}
+              disabled={refreshingViews || loadingViews}
+              className="border border-line px-2 py-1 uppercase tracking-wide text-ink hover:border-gold disabled:opacity-50"
+            >
+              {refreshingViews ? "Yenilənir…" : "↻ İndi yenilə"}
+            </button>
+          </div>
+        )}
         {error && <div className="mb-4"><Alert tone="error">{error}</Alert></div>}
         {success && <div className="mb-4"><Alert tone="success">{success}</Alert></div>}
 

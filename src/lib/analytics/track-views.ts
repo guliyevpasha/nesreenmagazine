@@ -38,100 +38,72 @@ export async function trackArticleView(
     source?: string;
   }
 ): Promise<void> {
-  try {
-    const db = getDb();
-    if (!db) {
-      console.warn("Firebase not configured, skipping analytics");
-      return;
+  const db = getDb();
+  if (!db) {
+    console.warn("Firebase not configured, skipping analytics");
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const today = now.slice(0, 10);
+  const device = metadata?.device || "unknown";
+  const source = metadata?.source || "direct";
+  const dailyRef = doc(db, "analytics_daily", `${articleId}_${today}`);
+
+  // Hər yazma ayrıca try/catch-dədir: biri uğursuz olsa (məs. qaydaların rədd
+  // etdiyi device/source sahəsi), digərləri — xüsusən ümumi sayğac — yenə yazılır.
+  // Əvvəl device yazısı rədd edilib funksiyanı dayandırırdı və analytics_totals artmırdı.
+  const safe = async (label: string, fn: () => Promise<unknown>) => {
+    try {
+      await fn();
+      return true;
+    } catch (error) {
+      console.error(`View tracking (${label}) error:`, error);
+      return false;
     }
-    
-    const today = new Date().toISOString().slice(0, 10);
-    
-    // Device və source məlumatlarını əldə et
-    const device = metadata?.device || "unknown";
-    const source = metadata?.source || "direct";
-    
-    // Günlük statistika
-    const dailyRef = doc(db, "analytics_daily", `${articleId}_${today}`);
-    await setDoc(
+  };
+
+  // 1) Ümumi sayğac
+  await safe("totals", () =>
+    setDoc(
+      doc(db, "analytics_totals", articleId),
+      { articleId, slug, category, totalViews: increment(1), lastViewed: now, updatedAt: now },
+      { merge: true }
+    )
+  );
+
+  // 2) Günlük sayğac
+  await safe("daily", () =>
+    setDoc(
       dailyRef,
-      {
+      { articleId, slug, category, date: today, views: increment(1), updatedAt: now },
+      { merge: true }
+    )
+  );
+
+  // 3) Cihaz və trafik mənbəyi (günlük sənəddə, iç-içə xəritə kimi)
+  if (device !== "unknown") {
+    await safe("device", () => setDoc(dailyRef, { devices: { [device]: increment(1) } }, { merge: true }));
+  }
+  if (source !== "direct") {
+    await safe("source", () => setDoc(dailyRef, { sources: { [source]: increment(1) } }, { merge: true }));
+  }
+
+  // 4) Unikal ziyarətçi: «yaratmağa cəhd et» — sənəd artıq varsa qaydalar yazmanı
+  // rədd edir → bu ziyarətçi bu gün artıq sayılıb. Yalnız qaydaların icazə verdiyi
+  // sahələr yazılır (userAgent/referrer saxlanmır).
+  if (visitorId) {
+    const isNewVisitor = await safe("visitor", () =>
+      setDoc(doc(db, "analytics_visitors", `${articleId}_${visitorId}_${today}`), {
         articleId,
-        slug,
-        category,
+        visitorId,
         date: today,
-        views: increment(1),
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
+        timestamp: now,
+      })
     );
-
-    // Device statistikasını increment et
-    if (device !== "unknown") {
-      await setDoc(
-        dailyRef,
-        {
-          [`devices.${device}`]: increment(1),
-        },
-        { merge: true }
-      );
+    if (isNewVisitor) {
+      await safe("unique", () => setDoc(dailyRef, { uniqueVisitors: increment(1) }, { merge: true }));
     }
-
-    // Traffic source statistikasını increment et
-    if (source !== "direct") {
-      await setDoc(
-        dailyRef,
-        {
-          [`sources.${source}`]: increment(1),
-        },
-        { merge: true }
-      );
-    }
-
-    // Ümumi statistika
-    const totalRef = doc(db, "analytics_totals", articleId);
-    await setDoc(
-      totalRef,
-      {
-        articleId,
-        slug,
-        category,
-        totalViews: increment(1),
-        lastViewed: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    );
-
-    // Unikal ziyarətçi tracking (opsional)
-    // Anonim server oxuya bilmir, ona görə «yaratmağa cəhd et» yanaşması:
-    // sənəd artıq varsa qaydalar yazmanı rədd edir → bu ziyarətçi bu gün artıq sayılıb.
-    if (visitorId) {
-      const visitorRef = doc(db, "analytics_visitors", `${articleId}_${visitorId}_${today}`);
-      let isNewVisitor = false;
-      try {
-        await setDoc(visitorRef, {
-          articleId,
-          visitorId,
-          date: today,
-          timestamp: new Date().toISOString(),
-          userAgent: metadata?.userAgent,
-          referrer: metadata?.referrer,
-          device,
-          source,
-        });
-        isNewVisitor = true;
-      } catch {
-        isNewVisitor = false;
-      }
-
-      if (isNewVisitor) {
-        await setDoc(dailyRef, { uniqueVisitors: increment(1) }, { merge: true });
-      }
-    }
-  } catch (error) {
-    console.error("View tracking error:", error);
-    // Xəta olsa belə, səhifə yüklənməni bloklamasın
   }
 }
 
@@ -139,70 +111,51 @@ export async function trackArticleView(
  * Məqalə üzrə statistika
  */
 export async function getArticleViews(articleId: string): Promise<ArticleViews> {
+  const empty: ArticleViews = { articleId, totalViews: 0, last7Days: 0, last30Days: 0, lastViewed: "" };
   try {
     const db = getDb();
-    if (!db) {
-      return {
-        articleId,
-        totalViews: 0,
-        last7Days: 0,
-        last30Days: 0,
-        lastViewed: "",
-      };
-    }
-    
-    const totalRef = doc(db, "analytics_totals", articleId);
-    const totalDoc = await getDoc(totalRef);
+    if (!db) return empty;
 
-    if (!totalDoc.exists()) {
-      return {
-        articleId,
-        totalViews: 0,
-        last7Days: 0,
-        last30Days: 0,
-        lastViewed: "",
-      };
-    }
+    // Bir sorğu ilə məqalənin bütün günlük sənədləri (kompozit indeks tələb etmir)
+    const [totalDoc, dailyDocs] = await Promise.all([
+      getDoc(doc(db, "analytics_totals", articleId)),
+      getDocs(query(collection(db, "analytics_daily"), where("articleId", "==", articleId))),
+    ]);
 
-    const data = totalDoc.data();
-    const today = new Date();
-    
-    // Son 7 gün
-    const date7 = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const dailyQuery7 = query(
-      collection(db, "analytics_daily"),
-      where("articleId", "==", articleId),
-      where("date", ">=", date7)
-    );
-    const daily7Docs = await getDocs(dailyQuery7);
-    const last7Days = daily7Docs.docs.reduce((sum, doc) => sum + (doc.data().views || 0), 0);
+    // «Son 7 gün» = bu gün + əvvəlki 6 gün
+    const dayMs = 24 * 60 * 60 * 1000;
+    const date7 = new Date(Date.now() - 6 * dayMs).toISOString().slice(0, 10);
+    const date30 = new Date(Date.now() - 29 * dayMs).toISOString().slice(0, 10);
 
-    // Son 30 gün
-    const date30 = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const dailyQuery30 = query(
-      collection(db, "analytics_daily"),
-      where("articleId", "==", articleId),
-      where("date", ">=", date30)
-    );
-    const daily30Docs = await getDocs(dailyQuery30);
-    const last30Days = daily30Docs.docs.reduce((sum, doc) => sum + (doc.data().views || 0), 0);
+    let dailySum = 0;
+    let last7Days = 0;
+    let last30Days = 0;
+    let lastDailyUpdate = "";
+    dailyDocs.forEach((d) => {
+      const data = d.data();
+      const views = Number(data.views) || 0;
+      dailySum += views;
+      if (data.date >= date7) last7Days += views;
+      if (data.date >= date30) last30Days += views;
+      if (typeof data.updatedAt === "string" && data.updatedAt > lastDailyUpdate) lastDailyUpdate = data.updatedAt;
+    });
+
+    const totals = totalDoc.exists() ? totalDoc.data() : {};
+    const storedTotal = Number(totals.totalViews) || 0;
+    const storedLast = typeof totals.lastViewed === "string" ? totals.lastViewed : "";
 
     return {
       articleId,
-      totalViews: data.totalViews || 0,
+      // analytics_totals bir müddət yazılmadığı üçün geridə qala bilər —
+      // günlük sənədlərin cəmi böyükdürsə, onu göstər.
+      totalViews: Math.max(storedTotal, dailySum),
       last7Days,
       last30Days,
-      lastViewed: data.lastViewed || "",
+      lastViewed: storedLast > lastDailyUpdate ? storedLast : lastDailyUpdate,
     };
   } catch (error) {
     console.error("Get views error:", error);
-    return {
-      articleId,
-      totalViews: 0,
-      last7Days: 0,
-      last30Days: 0,
-      lastViewed: "",
-    };
+    return empty;
   }
 }
 

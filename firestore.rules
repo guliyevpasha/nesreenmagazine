@@ -124,9 +124,12 @@ service cloud.firestore {
                     && request.resource.data.date is string
                     && request.resource.data.views == 1;
       allow update: if request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(['views', 'uniqueVisitors', 'updatedAt'])
+                         .hasOnly(['views', 'uniqueVisitors', 'updatedAt', 'devices', 'sources'])
                     && request.resource.data.get('views', 0) <= resource.data.get('views', 0) + 1
-                    && request.resource.data.get('uniqueVisitors', 0) <= resource.data.get('uniqueVisitors', 0) + 1;
+                    && request.resource.data.get('uniqueVisitors', 0) <= resource.data.get('uniqueVisitors', 0) + 1
+                    // Cihaz və trafik mənbəyi xəritələri (yalnız məlum açarlar)
+                    && request.resource.data.get('devices', {}).keys().hasOnly(['desktop', 'mobile', 'tablet'])
+                    && request.resource.data.get('sources', {}).keys().hasOnly(['organic', 'social', 'direct', 'referral']);
       allow delete: if false;
     }
 
