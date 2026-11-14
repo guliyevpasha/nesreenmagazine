@@ -22,8 +22,8 @@ export async function generateMetadata({
   if (!isLocale(raw)) return {};
   const dict = getDictionary(raw as Locale);
   return {
-    title: dict.soon.subscribeTitle,
-    description: dict.soon.subscribeText,
+    title: dict.newsletter.title,
+    description: dict.newsletter.text,
     // Kanonik və dil alternativləri (əks halda ana səhifənin kanoniki miras qalır)
     alternates: {
       canonical: `${siteUrl}${routes.subscribe(raw as Locale)}`,
@@ -47,8 +47,9 @@ export default async function SubscribePage({
   return (
     <ComingSoon
       locale={locale}
-      title={dict.soon.subscribeTitle}
-      text={dict.soon.subscribeText}
+      title={dict.newsletter.title}
+      text={dict.newsletter.text}
+      badge={dict.newsletter.badge}
     />
   );
 }

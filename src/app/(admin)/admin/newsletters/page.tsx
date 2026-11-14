@@ -1,154 +1,207 @@
 "use client";
 
+import dynamic from "next/dynamic";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import "react-markdown-editor-lite/lib/index.css";
+
 import { authorizedFetch } from "@/lib/auth/authorized-fetch";
-import { useState } from "react";
-import dynamic from 'next/dynamic';
-import { useAuth } from "@/lib/firebase/auth";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { ensureSubscriberTokens, listSubscribers, type Subscriber } from "@/lib/data/admin";
+import { isAdmin, useAuth } from "@/lib/firebase/auth";
+import { locales, type Locale } from "@/lib/i18n/config";
+import { latestPerEmail } from "@/lib/newsletter/shared";
 import { PageHeader, Alert, Button, Field, inputClass } from "@/components/admin/ui";
-import 'react-markdown-editor-lite/lib/index.css';
 
 // Markdown editor (client-side only)
-const MdEditor = dynamic(() => import('react-markdown-editor-lite'), { ssr: false });
+const MdEditor = dynamic(() => import("react-markdown-editor-lite"), { ssr: false });
 
-// Markdown to HTML converter
+const LOCALE_LABELS: Record<Locale, string> = {
+  az: "Azərbaycan",
+  en: "İngilis",
+  ru: "Rus",
+  tr: "Türk",
+  ar: "Ərəb",
+};
+
+/** Bir API sorğusunda göndərilən alıcı sayı (server limiti 20) */
+const CHUNK = 15;
+
+// Sadə markdown → HTML (yalnız admin istifadə edir)
 const markdownToHtml = (markdown: string): string => {
-  // Sadə markdown → HTML converter
-  let html = markdown
-    // Headers
-    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-    // Bold
-    .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
-    // Italic
-    .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-    // Links
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2">$1</a>')
-    // Line breaks
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/\n/g, '<br/>');
-
+  const html = markdown
+    .replace(/^### (.*$)/gim, "<h3>$1</h3>")
+    .replace(/^## (.*$)/gim, "<h2>$1</h2>")
+    .replace(/^# (.*$)/gim, "<h1>$1</h1>")
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/gim, '<img src="$2" alt="$1" style="max-width:100%;height:auto;">')
+    .replace(/\*\*(.*?)\*\*/gim, "<strong>$1</strong>")
+    .replace(/\*(.*?)\*/gim, "<em>$1</em>")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" style="color:#5e1a2a;">$1</a>')
+    .replace(/\n\n/g, "</p><p>")
+    .replace(/\n/g, "<br/>");
   return `<p>${html}</p>`;
 };
 
+type Progress = { done: number; total: number; sent: number; failed: { email: string; error: string }[] };
+
 export default function NewslettersPage() {
   const { session } = useAuth();
-  const { hasAccess, loading: accessLoading } = useRoleAccess('/admin/newsletters');
+  const admin = isAdmin(session);
 
+  const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
+  const [loadingList, setLoadingList] = useState(true);
+  const [locale, setLocale] = useState<Locale>("az");
   const [subject, setSubject] = useState("");
   const [content, setContent] = useState("");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<Progress | null>(null);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
-  if (accessLoading) {
-    return (
-      <p className="px-10 py-16 text-center font-ui text-[13px] text-muted">Yüklənir…</p>
-    );
+  useEffect(() => {
+    if (!admin) return;
+    listSubscribers()
+      .then(setSubscribers)
+      .catch((err) => setMessage({ tone: "error", text: `Abunəçilər yüklənmədi: ${err.message}` }))
+      .finally(() => setLoadingList(false));
+  }, [admin]);
+
+  /** Hər dil üzrə göndəriləcək aktiv abunəçilər (təkrarsız, imtina edənlər çıxılıb) */
+  const activeByLocale = useMemo(() => {
+    const result = Object.fromEntries(locales.map((l) => [l, [] as Subscriber[]])) as Record<Locale, Subscriber[]>;
+    for (const s of latestPerEmail(subscribers)) {
+      if (!s.active) continue;
+      const loc = (locales as readonly string[]).includes(s.locale ?? "") ? (s.locale as Locale) : "az";
+      result[loc].push(s);
+    }
+    return result;
+  }, [subscribers]);
+
+  if (!session) {
+    return <p className="px-10 py-16 text-center font-ui text-[13px] text-muted">Yüklənir…</p>;
   }
 
-  if (!hasAccess) {
+  if (!admin) {
     return (
       <div className="px-6 py-16 lg:px-10">
-        <Alert tone="error">İcazə yoxdur</Alert>
+        <Alert tone="error">Bu bölmə yalnız admin üçündür.</Alert>
       </div>
     );
   }
 
-  async function handleSend() {
-    if (!subject.trim() || !content.trim()) {
-      setMessage({ tone: "error", text: "Başlıq və məzmun tələb olunur" });
-      return;
-    }
+  const recipients = activeByLocale[locale];
 
+  async function post(payload: Record<string, unknown>) {
+    const response = await authorizedFetch("/api/admin/send-newsletter", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subject, html: markdownToHtml(content), locale, ...payload }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    return data as { sent: string[]; failed: { email: string; error: string }[] };
+  }
+
+  async function handleTest() {
     setBusy(true);
     setMessage(null);
-
     try {
-      // Markdown-ı HTML-ə çevir
-      const htmlContent = markdownToHtml(content);
-      
-      // Email template-ə sar
-      const finalHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #8B1538; margin: 0;">NESREEN</h1>
-            <p style="color: #D4AF37; font-size: 12px; letter-spacing: 2px; margin: 5px 0;">MAGAZINE</p>
-          </div>
-          
-          <div style="line-height: 1.6; color: #333;">
-            ${htmlContent}
-          </div>
-          
-          <hr style="border: none; border-top: 1px solid #ddd; margin: 40px 0 20px;">
-          <p style="color: #666; font-size: 12px; text-align: center;">
-            Nesreen Magazine © ${new Date().getFullYear()}<br>
-            <a href="https://nesreenmagazine.com" style="color: #8B1538;">nesreenmagazine.com</a>
-          </p>
-        </div>
-      `;
-
-      const response = await authorizedFetch('/api/admin/send-newsletter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subject,
-          html: finalHtml,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Newsletter göndərilmədi');
-      }
-
-      setMessage({
-        tone: "success",
-        text: `✅ Newsletter göndərildi: ${data.sent} abunəçi`,
-      });
-      setSubject("");
-      setContent("");
+      await post({ test: true });
+      setMessage({ tone: "success", text: `Test məktubu ${session?.email} ünvanına göndərildi. Poçtu (və Spam qovluğunu) yoxlayın.` });
     } catch (error) {
-      setMessage({
-        tone: "error",
-        text: error instanceof Error ? error.message : "Xəta baş verdi",
-      });
+      setMessage({ tone: "error", text: error instanceof Error ? error.message : "Xəta baş verdi" });
     } finally {
       setBusy(false);
     }
   }
 
+  async function handleSend() {
+    if (recipients.length === 0) return;
+    if (!confirm(`«${subject}» məktubu ${recipients.length} nəfər ${LOCALE_LABELS[locale]} dilli abunəçiyə göndərilsin?`)) return;
+
+    setBusy(true);
+    setMessage(null);
+    const state: Progress = { done: 0, total: recipients.length, sent: 0, failed: [] };
+    setProgress({ ...state });
+
+    try {
+      const withTokens = await ensureSubscriberTokens(recipients);
+      for (let i = 0; i < withTokens.length; i += CHUNK) {
+        const chunk = withTokens.slice(i, i + CHUNK).map((s) => ({ id: s.id, email: s.email, token: s.token! }));
+        try {
+          const result = await post({ recipients: chunk });
+          state.sent += result.sent.length;
+          state.failed.push(...result.failed);
+        } catch (error) {
+          const text = error instanceof Error ? error.message : "Xəta";
+          state.failed.push(...chunk.map((c) => ({ email: c.email, error: text })));
+        }
+        state.done = Math.min(i + CHUNK, withTokens.length);
+        setProgress({ ...state, failed: [...state.failed] });
+      }
+      setMessage({
+        tone: state.failed.length ? "error" : "success",
+        text: `Göndərildi: ${state.sent}. Uğursuz: ${state.failed.length}.`,
+      });
+    } catch (error) {
+      setMessage({ tone: "error", text: error instanceof Error ? error.message : "Xəta baş verdi" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const canSend = !busy && subject.trim() && content.trim();
+
   return (
     <div className="space-y-8 p-8">
       <PageHeader
         title="Email Bülten"
-        description="Abunəçilərə email göndər"
+        description="«Həftənin seçimi» — abunəçilərə öz dillərində, info@nesreenmagazine.com ünvanından göndərilir."
       />
 
-      {message && (
-        <Alert tone={message.tone}>
-          {message.text}
-        </Alert>
-      )}
+      {message && <Alert tone={message.tone}>{message.text}</Alert>}
 
       <div className="max-w-4xl space-y-6">
-        <Field label="Başlıq">
+        <Field label="Hansı dildə abunə olanlara?">
+          <div className="flex flex-wrap gap-2">
+            {locales.map((l) => (
+              <button
+                key={l}
+                type="button"
+                onClick={() => setLocale(l)}
+                disabled={busy}
+                className={`border px-4 py-2 font-ui text-[13px] transition-colors ${
+                  locale === l ? "border-bordo bg-bordo text-cream" : "border-line bg-paper text-ink hover:border-bordo"
+                }`}
+              >
+                {LOCALE_LABELS[l]}{" "}
+                <span className={locale === l ? "text-cream/70" : "text-muted"}>
+                  ({loadingList ? "…" : activeByLocale[l].length})
+                </span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted">
+            Mötərizədə — həmin dildə aktiv abunəçi sayı. İmtina edənlərə məktub getmir.{" "}
+            <Link href="/admin/subscribers" className="text-bordo hover:underline">Abunəçilər siyahısı →</Link>
+          </p>
+        </Field>
+
+        <Field label={`Mövzu (${LOCALE_LABELS[locale]} dilində)`}>
           <input
             type="text"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
-            placeholder="Yeni məqalələr, təkliflər..."
+            placeholder="Həftənin seçimi: …"
             className={inputClass}
-            required
+            dir={locale === "ar" ? "rtl" : "ltr"}
+            maxLength={200}
           />
         </Field>
 
-        <Field label="Məzmun">
-          <div className="border border-line rounded-lg overflow-hidden">
+        <Field label={`Məzmun (${LOCALE_LABELS[locale]} dilində)`}>
+          <div className="overflow-hidden border border-line">
             <MdEditor
               value={content}
-              style={{ height: '500px' }}
+              style={{ height: "460px" }}
               onChange={({ text }) => setContent(text)}
               renderHTML={(text) => markdownToHtml(text)}
               config={{
@@ -158,30 +211,54 @@ export default function NewslettersPage() {
             />
           </div>
           <p className="mt-2 text-xs text-muted">
-            Markdown formatında yazın: **bold**, *italic*, [link](url)
+            Markdown: **qalın**, *kursiv*, [link](https://…), ![şəkil](https://…). Loqo, imtina linki və
+            altlıq avtomatik əlavə olunur.
           </p>
         </Field>
 
-        <div className="flex gap-4">
-          <Button
-            onClick={handleSend}
-            disabled={busy || !subject.trim() || !content.trim()}
-          >
-            {busy ? "Göndərilir..." : "Abunəçilərə göndər"}
-          </Button>
+        {progress && (
+          <div className="border border-line bg-paper p-4">
+            <div className="flex justify-between font-ui text-[12px] text-muted">
+              <span>Göndərilir: {progress.done} / {progress.total}</span>
+              <span>Uğurlu {progress.sent} · Uğursuz {progress.failed.length}</span>
+            </div>
+            <div className="mt-2 h-1.5 overflow-hidden bg-line">
+              <div className="h-full bg-bordo transition-all" style={{ width: `${(progress.done / progress.total) * 100}%` }} />
+            </div>
+            {progress.failed.length > 0 && (
+              <ul className="mt-3 max-h-40 overflow-auto font-ui text-[12px] text-bordo">
+                {progress.failed.map((f) => (
+                  <li key={f.email}>{f.email} — {f.error}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
+        <div className="flex flex-wrap gap-3">
+          <Button variant="ghost" onClick={() => void handleTest()} disabled={!canSend}>
+            Test — yalnız mənə göndər
+          </Button>
+          <Button onClick={() => void handleSend()} disabled={!canSend || recipients.length === 0}>
+            {busy ? "Göndərilir…" : `${recipients.length} abunəçiyə göndər`}
+          </Button>
           <button
             type="button"
             onClick={() => {
               setSubject("");
               setContent("");
               setMessage(null);
+              setProgress(null);
             }}
+            disabled={busy}
             className="px-4 py-2 text-sm text-muted hover:text-ink"
           >
             Təmizlə
           </button>
         </div>
+        <p className="text-xs text-muted">
+          Hostinger poçtunun gündəlik göndərmə limiti var. Göndərmə bitənə qədər bu səhifəni bağlamayın.
+        </p>
       </div>
     </div>
   );

@@ -30,9 +30,10 @@ const rolePermissions: Record<StaffRole, string[]> = {
 
   finance: ['/admin/crm', '/admin/ad-orders', '/admin/sales-forecast', '/admin/analytics'],
 
-  analyst: ['/admin/analytics', '/admin/subscribers'],
+  analyst: ['/admin/analytics'],
 
-  moderator: ['/admin/messages', '/admin/comments', '/admin/subscribers'],
+  moderator: ['/admin/messages', '/admin/comments'],
+  // Abunəçilər və Email Bülten — yalnız admin (e-poçt ünvanları şəxsi məlumatdır)
 };
 
 /**

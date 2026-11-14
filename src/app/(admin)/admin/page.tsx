@@ -143,7 +143,7 @@ export default function AdminDashboard() {
       // Yalnız rolun oxuya bildiyi məlumatlar sorğulanır
       const role = session?.role;
       const canReadOrders = role === "admin" || role === "sales" || role === "finance";
-      const canReadSubscribers = role === "admin" || role === "analyst" || role === "moderator";
+      const canReadSubscribers = role === "admin";
 
       const [articles, subscribers, adOrders, analyticsStats] = await Promise.all([
         listArticles().catch(err => { console.error("Articles error:", err); return []; }),

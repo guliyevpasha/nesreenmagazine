@@ -14,16 +14,19 @@ export default function ComingSoon({
   locale,
   title,
   text,
+  badge,
 }: {
   locale: Locale;
   title: string;
   text: string;
+  /** Göstərilməsə «Tezliklə» yazılır */
+  badge?: string;
 }) {
   const dict = getDictionary(locale);
 
   return (
     <section className="container-read py-20 text-center lg:py-28">
-      <span className="eyebrow text-gold">{dict.soon.badge}</span>
+      <span className="eyebrow text-gold">{badge ?? dict.soon.badge}</span>
 
       <RoseMark className="mx-auto mt-8 h-14 w-14 text-bordo/70" strokeWidth={1} />
 
