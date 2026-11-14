@@ -35,6 +35,14 @@ const transporter = nodemailer.createTransport({
 
 const FROM_ADDRESS = () => process.env.EMAIL_FROM || 'info@nesreenmagazine.com';
 
+/**
+ * Məktubdakı linklər üçün baza ünvan. Sayt www-ya 308 ilə yönləndirir, Gmail-in
+ * one-click imtina POST-u isə yönləndirməni izləməyə bilər — ona görə birbaşa www.
+ */
+const LINK_BASE =
+  process.env.NEWSLETTER_LINK_BASE_URL?.replace(/\/$/, '') ||
+  siteUrl.replace('://nesreenmagazine.com', '://www.nesreenmagazine.com');
+
 export interface EmailOptions {
   to: string | string[];
   subject: string;
@@ -93,8 +101,8 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
 export function unsubscribeLinks(locale: Locale, recipient: NewsletterRecipient) {
   const query = `id=${encodeURIComponent(recipient.id)}&t=${encodeURIComponent(recipient.token)}`;
   return {
-    page: `${siteUrl}${routes.unsubscribe(locale)}?${query}`,
-    oneClick: `${siteUrl}/api/newsletter/unsubscribe?${query}`,
+    page: `${LINK_BASE}${routes.unsubscribe(locale)}?${query}`,
+    oneClick: `${LINK_BASE}/api/newsletter/unsubscribe?${query}`,
   };
 }
 
@@ -120,7 +128,7 @@ export function renderNewsletterHtml(
     <tr><td align="center" style="padding:24px 12px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;">
         <tr><td align="center" style="padding:32px 24px 8px;border-bottom:1px solid #eadfd3;">
-          <a href="${siteUrl}/${locale}" style="text-decoration:none;">
+          <a href="${LINK_BASE}/${locale}" style="text-decoration:none;">
             <div style="font-family:Georgia,'Times New Roman',serif;font-size:28px;letter-spacing:6px;color:#1a1414;">NESREEN</div>
             <div style="font-family:Arial,sans-serif;font-size:10px;letter-spacing:4px;color:#b08d57;margin:4px 0 20px;">MAGAZINE</div>
           </a>
@@ -132,7 +140,7 @@ export function renderNewsletterHtml(
           ${escapeHtml(t.emailReason)}<br>
           <a href="${unsubscribeUrl}" style="color:#5e1a2a;">${escapeHtml(t.emailUnsubscribe)}</a>
           &nbsp;·&nbsp;
-          <a href="${siteUrl}/${locale}" style="color:#5e1a2a;">nesreenmagazine.com</a><br>
+          <a href="${LINK_BASE}/${locale}" style="color:#5e1a2a;">nesreenmagazine.com</a><br>
           Nesreen Magazine © ${new Date().getFullYear()}
         </td></tr>
       </table>
