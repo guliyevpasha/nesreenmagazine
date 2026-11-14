@@ -824,3 +824,14 @@
 .nm-word .ProseMirror.resize-cursor { cursor: col-resize; }
 .nm-style-h5 > span:first-child { font-size: 12.5px; font-weight: 600; color: #2a2a2a; }
 .nm-style-h6 > span:first-child { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #2a2a2a; }
+
+/* ── Məqalə mündəricatı (ArticleToc) ─────────────────────────────────── */
+/* Mobil yığılmış siyahının altı yumşaq solur */
+@media (max-width: 639px) {
+  .nm-toc-collapsed {
+    -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent);
+    mask-image: linear-gradient(to bottom, #000 72%, transparent);
+  }
+}
+/* Mündəricatdan keçid edəndə başlıq sabit menyunun altında qalmasın */
+.prose-mag :is(h2, h3)[id] { scroll-margin-top: 6.5rem; }
