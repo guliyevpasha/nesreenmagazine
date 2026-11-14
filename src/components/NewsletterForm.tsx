@@ -7,8 +7,8 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 
 /**
  * Məktub abunəliyi.
- * Firebase qoşulubsa e-poçt `subscribers` kolleksiyasına yazılır;
- * qoşulmayıbsa yalnız təsdiq mesajı göstərilir.
+ * E-poçt saytın cari dili ilə birlikdə `/api/subscribe` vasitəsilə
+ * `subscribers` kolleksiyasına yazılır (admin dil üzrə göndərə bilsin deyə).
  */
 export default function NewsletterForm({
   locale,
@@ -29,22 +29,13 @@ export default function NewsletterForm({
 
     setState("sending");
     try {
-      const { isFirebaseConfigured } = await import("@/lib/firebase/config");
-      if (isFirebaseConfigured) {
-        const [{ getDb }, { COLLECTIONS }, firestore] = await Promise.all([
-          import("@/lib/firebase/client"),
-          import("@/lib/firebase/config"),
-          import("firebase/firestore"),
-        ]);
-        const db = getDb();
-        if (db) {
-          await firestore.addDoc(firestore.collection(db, COLLECTIONS.subscribers), {
-            email: email.trim().toLowerCase(),
-            locale,
-            createdAt: new Date().toISOString(),
-          });
-        }
-      }
+      // Server təkrarı yoxlayır və imtina açarı yaradır (bax: /api/subscribe)
+      const response = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), locale }),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       setState("done");
       setEmail("");
     } catch (error) {

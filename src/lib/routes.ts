@@ -19,6 +19,7 @@ export const routes = {
   zodiac: (locale: Locale, sign: string) => `/${locale}/astrologiya/burc/${sign}`,
   contact: (locale: Locale) => `/${locale}/elaqe`,
   subscribe: (locale: Locale) => `/${locale}/abunelik`,
+  unsubscribe: (locale: Locale) => `/${locale}/abunelikden-cix`,
   issues: (locale: Locale) => `/${locale}/jurnallar`,
   ejournal: (locale: Locale) => `/${locale}/e-jurnal`,
   selected: (locale: Locale) => `/${locale}/secilenler`,

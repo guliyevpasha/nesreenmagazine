@@ -23,7 +23,7 @@ function fmtDate(d?: string) {
 }
 
 function exportCsv(subscribers: Subscriber[]) {
-  const header = "Email,Ad,Dil,Aktiv,Abunə tarixi";
+  const header = "Email,Ad,Dil,Aktiv,Abunə tarixi,İmtina tarixi";
   const rows = subscribers.map((s) =>
     [
       s.email,
@@ -31,6 +31,7 @@ function exportCsv(subscribers: Subscriber[]) {
       s.locale ?? "",
       s.active ? "Bəli" : "Xeyr",
       fmtDate(s.createdAt),
+      s.active ? "" : fmtDate(s.unsubscribedAt),
     ]
       .map((v) => `"${String(v).replace(/"/g, '""')}"`)
       .join(","),
@@ -48,8 +49,9 @@ function exportCsv(subscribers: Subscriber[]) {
 /* ── Əsas səhifə ────────────────────────────────────────────────────────── */
 export default function SubscribersPage() {
   const { session } = useAuth();
-  // Firestore qaydaları abunəçi silməyi yalnız adminə icazə verir
-  const canDelete = isAdmin(session);
+  // Abunəçilər yalnız adminə görünür (Firestore qaydaları da yalnız adminə icazə verir)
+  const admin = isAdmin(session);
+  const canDelete = admin;
 
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,7 +73,7 @@ export default function SubscribersPage() {
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { if (admin) void load(); }, [admin]);
 
   /* Filtr */
   const filtered = subscribers.filter((s) => {
@@ -188,11 +190,19 @@ export default function SubscribersPage() {
     ar: "Ərəb",
   };
 
+  if (!admin) {
+    return (
+      <div className="px-6 py-16 lg:px-10">
+        <Alert tone="error">Bu bölmə yalnız admin üçündür.</Alert>
+      </div>
+    );
+  }
+
   return (
     <>
       <PageHeader
         title="Abunəçilər"
-        description="Newsletter abunəliyi, abunəçi siyahısı və e-poçt idarəetməsi."
+        description="«Həftənin seçimi» bülleteninə abunə olanlar — hansı dildə abunə olublarsa, məktub o dildə göndərilir. İmtina edənlərə məktub getmir."
         actions={
           <Button
             variant="ghost"
@@ -211,7 +221,7 @@ export default function SubscribersPage() {
           {[
             { label: "Ümumi abunəçi", value: subscribers.length },
             { label: "Aktiv", value: activeCount },
-            { label: "Deaktiv", value: inactiveCount },
+            { label: "İmtina edib", value: inactiveCount },
             { label: "Bu ay yeni", value: thisMonth },
           ].map((stat) => (
             <div key={stat.label} className="border border-line bg-paper px-5 py-4">
@@ -263,7 +273,7 @@ export default function SubscribersPage() {
           >
             <option value="all">Hamısı</option>
             <option value="active">Aktiv</option>
-            <option value="inactive">Deaktiv</option>
+            <option value="inactive">İmtina edib</option>
           </select>
           {locales.length > 0 && (
             <select
@@ -384,8 +394,13 @@ export default function SubscribersPage() {
                             : "border-gray-200 bg-gray-100 text-gray-500"
                         }`}
                       >
-                        {sub.active ? "Aktiv" : "Deaktiv"}
+                        {sub.active ? "Aktiv" : "İmtina edib"}
                       </span>
+                      {!sub.active && sub.unsubscribedAt && (
+                        <span className="mt-1 block font-ui text-[11px] text-muted">
+                          {fmtDate(sub.unsubscribedAt)}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 font-ui text-[12px] text-muted">
                       {fmtDate(sub.createdAt)}

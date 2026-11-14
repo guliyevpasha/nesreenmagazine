@@ -576,9 +576,14 @@ export async function removeMessage(id: string): Promise<void> {
   await deleteDoc(doc(db(), COLLECTIONS.messages, id));
 }
 
+/** Abunəçi sayı — yalnız admin oxuya bilir, digər rollar üçün 0 qaytarır. */
 export async function countSubscribers(): Promise<number> {
-  const snapshot = await getDocs(collection(db(), COLLECTIONS.subscribers));
-  return snapshot.size;
+  try {
+    const snapshot = await getDocs(collection(db(), COLLECTIONS.subscribers));
+    return snapshot.size;
+  } catch {
+    return 0;
+  }
 }
 
 /* --------------------------------- Fayl --------------------------------- */
@@ -836,16 +841,46 @@ export type Subscriber = {
   active: boolean;
   createdAt: string;
   unsubscribedAt?: string;
+  resubscribedAt?: string;
+  /** Gizli imtina açarı — məktubdakı «Abunəlikdən çıx» linkində gedir */
+  token?: string;
+  source?: string;
 };
 
+/**
+ * Bütün abunəçilər (yalnız admin oxuya bilir).
+ * Köhnə qeydlər normallaşdırılır: `active` sahəsi yoxdursa aktiv sayılır,
+ * `subscribedAt` → `createdAt`. orderBy istifadə olunmur — sahəsi olmayan
+ * köhnə sənədlər sorğudan düşməsin.
+ */
 export async function listSubscribers(): Promise<Subscriber[]> {
-  const snapshot = await getDocs(
-    query(collection(db(), COLLECTIONS.subscribers), orderBy("createdAt", "desc")),
+  const snapshot = await getDocs(collection(db(), COLLECTIONS.subscribers));
+  return snapshot.docs
+    .map((item) => {
+      const data = item.data() as Partial<Subscriber> & { subscribedAt?: string };
+      return {
+        ...data,
+        id: item.id,
+        email: String(data.email ?? "").toLowerCase(),
+        active: data.active !== false,
+        createdAt: data.createdAt ?? data.subscribedAt ?? "",
+      } as Subscriber;
+    })
+    .filter((s) => s.email)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/** Token-i olmayan (köhnə) abunəçilərə imtina açarı yazır və yenilənmiş siyahını qaytarır. */
+export async function ensureSubscriberTokens(subscribers: Subscriber[]): Promise<Subscriber[]> {
+  const { newUnsubscribeToken } = await import("@/lib/newsletter/shared");
+  return Promise.all(
+    subscribers.map(async (s) => {
+      if (s.token) return s;
+      const token = newUnsubscribeToken();
+      await updateDoc(doc(db(), COLLECTIONS.subscribers, s.id), { token, active: s.active });
+      return { ...s, token };
+    }),
   );
-  return snapshot.docs.map((item) => ({
-    ...(item.data() as Omit<Subscriber, "id">),
-    id: item.id,
-  }));
 }
 
 export async function removeSubscriber(id: string): Promise<void> {
@@ -853,9 +888,10 @@ export async function removeSubscriber(id: string): Promise<void> {
 }
 
 export async function updateSubscriberStatus(id: string, active: boolean): Promise<void> {
+  const now = new Date().toISOString();
   await updateDoc(doc(db(), COLLECTIONS.subscribers, id), {
     active,
-    ...(active ? {} : { unsubscribedAt: new Date().toISOString() }),
+    ...(active ? { resubscribedAt: now } : { unsubscribedAt: now }),
   });
 }
 

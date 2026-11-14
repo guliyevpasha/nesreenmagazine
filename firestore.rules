@@ -215,12 +215,50 @@ service cloud.firestore {
     //  İctimai formalar
     // ═══════════════════════════════════════════
 
-    /** Məktub abunəliyi — hər kəs abunə ola bilər */
+    /**
+     * «Həftənin seçimi» bülleteni — hər kəs abunə ola bilər.
+     * Siyahını yalnız admin görür və idarə edir (e-poçtlar şəxsi məlumatdır).
+     * Sənəd id-si = sha256(email), `token` — gizli imtina açarı
+     * (bax: src/app/api/subscribe, src/app/api/newsletter/unsubscribe).
+     */
     match /subscribers/{subscriberId} {
-      allow create: if request.resource.data.email is string
-                    && request.resource.data.email.size() < 200;
-      allow read, update: if isStaff();
-      allow delete:       if isAdmin();
+      function validLocale(l) {
+        return l in ['az', 'en', 'ru', 'tr', 'ar'];
+      }
+
+      allow read:   if isAdmin();
+      allow delete: if isAdmin();
+
+      // Yeni abunəçi: yalnız gözlənilən sahələr
+      allow create: if isAdmin() || (
+        request.resource.data.keys().hasOnly(['email', 'locale', 'active', 'createdAt', 'token', 'source'])
+        && request.resource.data.email is string
+        && request.resource.data.email.size() < 200
+        && request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
+        && validLocale(request.resource.data.locale)
+        && request.resource.data.active == true
+        && request.resource.data.createdAt is string
+        && request.resource.data.token is string
+        && request.resource.data.token.size() >= 24
+        && request.resource.data.token.size() <= 64
+      );
+
+      allow update: if isAdmin()
+        // İmtina: yalnız düzgün gizli token ilə
+        || (
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['active', 'unsubscribedAt', 'unsubToken'])
+          && request.resource.data.active == false
+          && 'token' in resource.data
+          && request.resource.data.unsubToken == resource.data.token
+        )
+        // Yenidən abunə: yalnız aktivləşdirmə və dil
+        || (
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['active', 'locale', 'resubscribedAt'])
+          && request.resource.data.active == true
+          && validLocale(request.resource.data.locale)
+        );
     }
 
     /** Əlaqə mesajları — hər kəs göndərə bilər */
