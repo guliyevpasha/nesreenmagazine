@@ -282,6 +282,7 @@ const az = {
     resubscribed: "Yenidən abunə oldunuz. Xoş gəldiniz!",
     emailReason: "Bu məktubu nesreenmagazine.com saytında «Həftənin seçimi» bülleteninə abunə olduğunuz üçün alırsınız.",
     emailUnsubscribe: "Abunəlikdən çıx",
+    readMore: "Oxu →",
   },
   editions: {
     title: "Nəşrlər",
@@ -606,6 +607,7 @@ const en: Dictionary = {
     resubscribed: "You are subscribed again. Welcome back!",
     emailReason: "You are receiving this email because you subscribed to the “Pick of the Week” newsletter on nesreenmagazine.com.",
     emailUnsubscribe: "Unsubscribe",
+    readMore: "Read →",
   },
   editions: {
     title: "Editions",
@@ -928,6 +930,7 @@ const ru: Dictionary = {
     resubscribed: "Вы снова подписаны. С возвращением!",
     emailReason: "Вы получили это письмо, потому что подписались на рассылку «Выбор недели» на сайте nesreenmagazine.com.",
     emailUnsubscribe: "Отписаться",
+    readMore: "Читать →",
   },
   editions: {
     title: "Издания",
@@ -1249,6 +1252,7 @@ const tr: Dictionary = {
     resubscribed: "Yeniden abone oldunuz. Tekrar hoş geldiniz!",
     emailReason: "Bu e-postayı nesreenmagazine.com sitesinde «Haftanın Seçkisi» bültenine abone olduğunuz için alıyorsunuz.",
     emailUnsubscribe: "Abonelikten çık",
+    readMore: "Oku →",
   },
   editions: {
     title: "Yayınlar",
@@ -1571,6 +1575,7 @@ const ar: Dictionary = {
     resubscribed: "تم تجديد اشتراكك. أهلًا بعودتك!",
     emailReason: "تصلك هذه الرسالة لأنك اشتركت في نشرة «اختيار الأسبوع» على موقع nesreenmagazine.com.",
     emailUnsubscribe: "إلغاء الاشتراك",
+    readMore: "اقرئي المزيد ←",
   },
   editions: {
     title: "الإصدارات",
