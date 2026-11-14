@@ -9,7 +9,9 @@ import { authorizedFetch } from "@/lib/auth/authorized-fetch";
 import { ensureSubscriberTokens, listSubscribers, type Subscriber } from "@/lib/data/admin";
 import { isAdmin, useAuth } from "@/lib/firebase/auth";
 import { locales, type Locale } from "@/lib/i18n/config";
+import { newsletterMarkdownToHtml } from "@/lib/newsletter/markdown";
 import { latestPerEmail } from "@/lib/newsletter/shared";
+import NewsletterInsertTools from "@/components/admin/NewsletterInsertTools";
 import { PageHeader, Alert, Button, Field, inputClass } from "@/components/admin/ui";
 
 // Markdown editor (client-side only)
@@ -26,20 +28,7 @@ const LOCALE_LABELS: Record<Locale, string> = {
 /** Bir API sorğusunda göndərilən alıcı sayı (server limiti 20) */
 const CHUNK = 15;
 
-// Sadə markdown → HTML (yalnız admin istifadə edir)
-const markdownToHtml = (markdown: string): string => {
-  const html = markdown
-    .replace(/^### (.*$)/gim, "<h3>$1</h3>")
-    .replace(/^## (.*$)/gim, "<h2>$1</h2>")
-    .replace(/^# (.*$)/gim, "<h1>$1</h1>")
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/gim, '<img src="$2" alt="$1" style="max-width:100%;height:auto;">')
-    .replace(/\*\*(.*?)\*\*/gim, "<strong>$1</strong>")
-    .replace(/\*(.*?)\*/gim, "<em>$1</em>")
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" style="color:#5e1a2a;">$1</a>')
-    .replace(/\n\n/g, "</p><p>")
-    .replace(/\n/g, "<br/>");
-  return `<p>${html}</p>`;
-};
+const markdownToHtml = newsletterMarkdownToHtml;
 
 type Progress = { done: number; total: number; sent: number; failed: { email: string; error: string }[] };
 
@@ -198,6 +187,13 @@ export default function NewslettersPage() {
         </Field>
 
         <Field label={`Məzmun (${LOCALE_LABELS[locale]} dilində)`}>
+          <NewsletterInsertTools
+            locale={locale}
+            disabled={busy}
+            onInsert={(md) => setContent((prev) => (prev.trim() ? `${prev.trimEnd()}
+
+${md}` : md))}
+          />
           <div className="overflow-hidden border border-line">
             <MdEditor
               value={content}
@@ -211,8 +207,8 @@ export default function NewslettersPage() {
             />
           </div>
           <p className="mt-2 text-xs text-muted">
-            Markdown: **qalın**, *kursiv*, [link](https://…), ![şəkil](https://…). Loqo, imtina linki və
-            altlıq avtomatik əlavə olunur.
+            Markdown: ## başlıq, **qalın**, *kursiv*, [link](https://…), --- ayırıcı. Abzaslar arasında boş
+            sətir buraxın. Loqo, imtina linki və altlıq avtomatik əlavə olunur.
           </p>
         </Field>
 
