@@ -4,6 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import ArticleCard from "@/components/ArticleCard";
 import ArticleBanners, { ArticleContentBanners } from "@/components/ArticleBanners";
+import ArticleToc from "@/components/ArticleToc";
 import { withBannerSlots } from "@/lib/content/banner-slots";
 import AdvertisementBanner from "@/components/AdvertisementBanner";
 import CoverArt from "@/components/CoverArt";
@@ -47,14 +48,6 @@ function decodeSlug(value: string): string {
     return value;
   }
 }
-
-const TOC_LABEL: Record<Locale, string> = {
-  az: "Mündəricat",
-  en: "Contents",
-  ru: "Содержание",
-  tr: "İçindekiler",
-  ar: "المحتويات",
-};
 
 export const revalidate = 60; // 60 saniyə - dərc edildikdən sonra tez görünsün
 export const dynamicParams = true; // bilinməyən slug-lar runtime-da render olsun
@@ -260,20 +253,7 @@ export default async function ArticlePage({
               <ArticleBanners location="article-header" category={article.category} />
             </div>
 
-            {toc.length >= 3 && (
-              <nav aria-label={TOC_LABEL[locale]} className="mb-10 border-y border-line py-5" data-testid="article-toc">
-                <p className="eyebrow mb-3 text-muted">{TOC_LABEL[locale]}</p>
-                <ol className="space-y-1.5 font-ui text-[14px]">
-                  {toc.map((item) => (
-                    <li key={item.id} className={item.level === 3 ? "ps-5 text-[13px]" : ""}>
-                      <a href={`#${item.id}`} className="text-ink-soft hover:text-bordo">
-                        {item.text}
-                      </a>
-                    </li>
-                  ))}
-                </ol>
-              </nav>
-            )}
+            {toc.length >= 3 && <ArticleToc items={toc} locale={locale} />}
 
             <div className="prose-mag" dangerouslySetInnerHTML={{ __html: firstHalf }} />
 
