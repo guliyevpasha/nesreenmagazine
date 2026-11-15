@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import ArticleCard from "@/components/ArticleCard";
+import CategoryMosaic from "@/components/category/CategoryMosaic";
 import { RoseMark } from "@/components/Logo";
 import {
   categories,
@@ -78,7 +78,6 @@ export default async function SubcategoryPage({ params }: { params: Promise<Para
 
   const dict = getDictionary(locale);
   const articles = await getArticlesBySubcategory(category.slug, subcategory.slug);
-  const [lead, ...rest] = articles;
 
   return (
     <>
@@ -140,20 +139,10 @@ export default async function SubcategoryPage({ params }: { params: Promise<Para
           </Link>
         </section>
       ) : (
-        <section className="container-mag py-16 lg:py-20">
-          {lead && <ArticleCard article={lead} locale={locale} variant="hero" priority />}
-
-          {rest.length > 0 && (
-            <>
-              <div className="rule-gold my-14" aria-hidden="true" />
-              <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
-                {rest.map((article) => (
-                  <ArticleCard key={article.id} article={article} locale={locale} />
-                ))}
-              </div>
-            </>
-          )}
-        </section>
+        // Bölmə səhifələri ilə eyni «mozaika» düzülüşü: iki böyük kart + 4 sütunlu şəbəkə
+        <div className="pb-8 lg:pb-12">
+          <CategoryMosaic articles={articles} locale={locale} />
+        </div>
       )}
     </>
   );
