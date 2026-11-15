@@ -104,25 +104,53 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
   }
   const max = Math.max(1, ...points.map((p) => Math.max(p.articleViews, p.pageViews)));
   const labelEvery = Math.max(1, Math.ceil(points.length / 10));
+  // Sütunların üstündə rəqəm: sıx qrafikdə yazılar üst-üstə düşməsin deyə yalnız 31 nöqtəyədək
+  const showValues = points.length <= 31;
+  const totalArticle = points.reduce((s, p) => s + p.articleViews, 0);
+  const totalPage = points.reduce((s, p) => s + p.pageViews, 0);
+  const peak = points.reduce((best, p) => (p.articleViews + p.pageViews > best.articleViews + best.pageViews ? p : best), points[0]);
+  const bar = (value: number, color: string, textColor: string) => (
+    <div className="flex h-full w-1/2 max-w-[22px] flex-col items-center justify-end">
+      {showValues && value > 0 && (
+        <span className={`mb-0.5 font-ui text-[10px] leading-none ${textColor}`}>{value}</span>
+      )}
+      <div className={`w-full ${color}`} style={{ height: `${(value / max) * 85}%` }} />
+    </div>
+  );
   return (
     <div>
-      <div className="mb-3 flex flex-wrap gap-4 font-ui text-[11px] text-muted">
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 bg-bordo" /> Məqalə baxışı
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 bg-gold" /> Səhifə baxışı (bütün sayt)
-        </span>
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        <div className="border border-line px-4 py-3">
+          <p className="flex items-center gap-1.5 font-ui text-[11px] text-muted">
+            <span className="inline-block h-2.5 w-2.5 bg-bordo" /> Məqalə baxışı
+          </p>
+          <p className="mt-1 font-display text-2xl text-ink">{totalArticle.toLocaleString("az-AZ")}</p>
+        </div>
+        <div className="border border-line px-4 py-3">
+          <p className="flex items-center gap-1.5 font-ui text-[11px] text-muted">
+            <span className="inline-block h-2.5 w-2.5 bg-gold" /> Səhifə baxışı (bütün sayt)
+          </p>
+          <p className="mt-1 font-display text-2xl text-ink">{totalPage.toLocaleString("az-AZ")}</p>
+        </div>
+        <div className="border border-line px-4 py-3">
+          <p className="font-ui text-[11px] text-muted">Ən yüksək</p>
+          <p className="mt-1 font-ui text-[14px] text-ink">
+            {peak.title}
+            <span className="block text-[12px] text-muted">
+              {peak.articleViews} məqalə · {peak.pageViews} səhifə baxışı
+            </span>
+          </p>
+        </div>
       </div>
-      <div className="flex h-48 items-end gap-[2px] border-b border-line">
+      <div className="flex h-52 items-end gap-[2px] border-b border-line">
         {points.map((p) => (
           <div
             key={p.key}
-            className="group relative flex h-full min-w-0 flex-1 items-end justify-center gap-[1px]"
+            className="flex h-full min-w-0 flex-1 items-end justify-center gap-[1px] hover:bg-cream/40"
             title={`${p.title}\nMəqalə baxışı: ${p.articleViews}\nSəhifə baxışı: ${p.pageViews}`}
           >
-            <div className="w-1/2 max-w-[14px] bg-bordo/80" style={{ height: `${(p.articleViews / max) * 100}%` }} />
-            <div className="w-1/2 max-w-[14px] bg-gold/80" style={{ height: `${(p.pageViews / max) * 100}%` }} />
+            {bar(p.articleViews, "bg-bordo/80", "text-bordo")}
+            {bar(p.pageViews, "bg-gold/80", "text-gold")}
           </div>
         ))}
       </div>
@@ -140,7 +168,7 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
 export function Th({ children, right }: { children: ReactNode; right?: boolean }) {
   return (
     <th
-      className={`px-3 py-3 font-ui text-[11px] uppercase tracking-[0.14em] text-muted ${
+      className={`whitespace-nowrap px-3 py-3 font-ui text-[11px] uppercase tracking-[0.14em] text-muted ${
         right ? "text-right" : "text-left"
       }`}
     >
