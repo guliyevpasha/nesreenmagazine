@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import AdvertisementBanner from "@/components/AdvertisementBanner";
 import ArticleBanners from "@/components/ArticleBanners";
 import ArticleCard from "@/components/ArticleCard";
+import CategoryCover, { COVER_BY_CATEGORY } from "@/components/CategoryCover";
 import AstrologyTabs, { type ReadingMap } from "@/components/AstrologyTabs";
 import { RoseMark } from "@/components/Logo";
 import SectionHeading from "@/components/SectionHeading";
@@ -90,11 +91,7 @@ export default async function CategoryPage({
       <h1 className="sr-only">{category.name[locale]}</h1>
 
       {/* ---------- Üz qabığı: bölmənin baş məqaləsi ---------- */}
-      {lead && (
-        <div className="container-mag pt-6 sm:pt-8">
-          <ArticleCard article={lead} locale={locale} variant="cover" priority />
-        </div>
-      )}
+      {lead && <CategoryCover article={lead} locale={locale} variant={COVER_BY_CATEGORY[category.slug]} />}
 
       {/* MÜVƏQQƏTİ: reklam sahəsi gizlədilib — bu bloku şərhdən çıxarmaqla geri qaytarın.
       <div className="container-mag pt-10">
