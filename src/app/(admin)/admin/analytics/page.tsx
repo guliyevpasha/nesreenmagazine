@@ -197,7 +197,11 @@ export default function AnalyticsOverviewPage() {
         })}`
       : period === "all"
         ? "Bütün vaxt"
-        : `Son ${PERIOD_OPTIONS.find((o) => o.key === period)?.label}`;
+        : period === "today"
+          ? `Bu gün (${fmtDate(range.to, { day: "numeric", month: "long" })})`
+          : period === "yesterday"
+            ? `Dünən (${fmtDate(range.to, { day: "numeric", month: "long" })})`
+            : `Son ${PERIOD_OPTIONS.find((o) => o.key === period)?.label}`;
 
   const articleViewsPeriod = inPeriod.reduce((s, d) => s + d.views, 0);
 
@@ -261,20 +265,24 @@ export default function AnalyticsOverviewPage() {
   const articleRows = useMemo(() => {
     const d7 = sinceDate(7);
     const d30 = sinceDate(30);
-    const acc = new Map<string, { period: number; unique: number; d7: number; d30: number; loaded: number }>();
+    const yesterday = addDays(today, -1);
+    const blank = () => ({ period: 0, unique: 0, today: 0, yesterday: 0, d7: 0, d30: 0, loaded: 0 });
+    const acc = new Map<string, ReturnType<typeof blank>>();
     for (const d of articleDays) {
-      const r = acc.get(d.articleId) || { period: 0, unique: 0, d7: 0, d30: 0, loaded: 0 };
+      const r = acc.get(d.articleId) || blank();
       r.loaded += d.views;
       if (d.date >= range.from && d.date <= range.to) {
         r.period += d.views;
         r.unique += d.uniqueVisitors;
       }
+      if (d.date === today) r.today += d.views;
+      if (d.date === yesterday) r.yesterday += d.views;
       if (d.date >= d7) r.d7 += d.views;
       if (d.date >= d30) r.d30 += d.views;
       acc.set(d.articleId, r);
     }
     totals.forEach((_, id) => {
-      if (!acc.has(id)) acc.set(id, { period: 0, unique: 0, d7: 0, d30: 0, loaded: 0 });
+      if (!acc.has(id)) acc.set(id, blank());
     });
     return [...acc.entries()]
       .map(([id, r]) => ({
@@ -285,9 +293,9 @@ export default function AnalyticsOverviewPage() {
       }))
       .filter((r) => r.article && (period === "all" ? r.allTime > 0 : r.period > 0))
       .sort((a, b) => (period === "all" ? b.allTime - a.allTime : b.period - a.period || b.allTime - a.allTime));
-  }, [articleDays, totals, articleById, range, period]);
+  }, [articleDays, totals, articleById, range, period, today]);
 
-  const showPeriodColumn = !["all", "7d", "30d"].includes(period);
+  const showPeriodColumn = !["today", "yesterday", "7d", "30d"].includes(period);
 
   // Kateqoriya və alt kateqoriya
   const categoryRows = useMemo(() => {
@@ -609,7 +617,7 @@ export default function AnalyticsOverviewPage() {
         {/* Məqalələr */}
         <Panel
           title="Ən çox oxunan məqalələr"
-          description={`${periodLabel} üzrə sıralanıb · «Bütün vaxt» — izləmə başlayandan bəri cəm (7 və 30 gün onun içindədir)`}
+          description={`${periodLabel} üzrə sıralanıb · «Son 7 gün» «Son 30 gün»ün içindədir, ona görə sütunlar toplanmır`}
         >
           {articleRows.length === 0 ? (
             <p className="py-6 text-center font-ui text-[12px] text-muted">Bu dövr üçün məqalə baxışı yoxdur</p>
@@ -622,10 +630,11 @@ export default function AnalyticsOverviewPage() {
                       <Th>#</Th>
                       <Th>Məqalə</Th>
                       <Th>Kateqoriya</Th>
-                      <Th right>Bütün vaxt</Th>
-                      <Th right>7 gün</Th>
-                      <Th right>30 gün</Th>
-                      {showPeriodColumn && <Th right>Seçilmiş dövr</Th>}
+                      <Th right>Bu gün</Th>
+                      <Th right>Dünən</Th>
+                      <Th right>Son 7 gün</Th>
+                      <Th right>Son 30 gün</Th>
+                      {showPeriodColumn && <Th right>{period === "all" ? "Bütün vaxt" : "Seçilmiş dövr"}</Th>}
                       {period !== "all" && <Th right>Unikal</Th>}
                     </tr>
                   </thead>
@@ -652,7 +661,10 @@ export default function AnalyticsOverviewPage() {
                             )}
                           </td>
                           <td className="px-3 py-3 text-right font-ui text-[13px] text-ink">
-                            {r.allTime.toLocaleString("az-AZ")}
+                            {r.today.toLocaleString("az-AZ")}
+                          </td>
+                          <td className="px-3 py-3 text-right font-ui text-[13px] text-ink">
+                            {r.yesterday.toLocaleString("az-AZ")}
                           </td>
                           <td className="px-3 py-3 text-right font-ui text-[13px] text-gold">
                             {r.d7.toLocaleString("az-AZ")}
@@ -662,7 +674,7 @@ export default function AnalyticsOverviewPage() {
                           </td>
                           {showPeriodColumn && (
                             <td className="px-3 py-3 text-right font-ui text-[13px] font-semibold text-bordo">
-                              {r.period.toLocaleString("az-AZ")}
+                              {(period === "all" ? r.allTime : r.period).toLocaleString("az-AZ")}
                             </td>
                           )}
                           {period !== "all" && (

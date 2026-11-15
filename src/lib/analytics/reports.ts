@@ -15,16 +15,18 @@ import { SITE_DAILY, SITE_LIVE } from "./site-stats";
 
 /* ───────────── Dövrlər ───────────── */
 
-export type PeriodKey = "all" | "7d" | "30d" | "3m" | "6m" | "9m" | "12m" | "custom";
+export type PeriodKey = "today" | "yesterday" | "all" | "7d" | "30d" | "3m" | "6m" | "9m" | "12m" | "custom";
 
 export const PERIOD_OPTIONS: { key: PeriodKey; label: string; days?: number }[] = [
-  { key: "all", label: "Bütün vaxt" },
+  { key: "today", label: "Bu gün", days: 1 },
+  { key: "yesterday", label: "Dünən" },
   { key: "7d", label: "7 gün", days: 7 },
   { key: "30d", label: "30 gün", days: 30 },
   { key: "3m", label: "3 ay", days: 90 },
   { key: "6m", label: "6 ay", days: 180 },
   { key: "9m", label: "9 ay", days: 270 },
   { key: "12m", label: "12 ay", days: 365 },
+  { key: "all", label: "Bütün vaxt" },
   { key: "custom", label: "Özəl tarix" },
 ];
 
@@ -42,6 +44,10 @@ export function periodRange(key: PeriodKey, custom?: DateRange): DateRange {
     const from = custom.from <= custom.to ? custom.from : custom.to;
     const to = custom.from <= custom.to ? custom.to : custom.from;
     return { from, to };
+  }
+  if (key === "yesterday") {
+    const y = addDays(today, -1);
+    return { from: y, to: y };
   }
   const opt = PERIOD_OPTIONS.find((o) => o.key === key);
   if (!opt?.days) return { from: EPOCH, to: today };
