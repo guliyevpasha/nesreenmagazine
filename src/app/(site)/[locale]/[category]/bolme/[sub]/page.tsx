@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import CategoryMosaic from "@/components/category/CategoryMosaic";
-import { RoseMark } from "@/components/Logo";
 import {
   categories,
   getCategory,
@@ -81,54 +80,53 @@ export default async function SubcategoryPage({ params }: { params: Promise<Para
 
   return (
     <>
-      {/* ---------- Alt bölmə başlığı ---------- */}
-      <header className="border-b border-line bg-cream-deep/40">
-        <div className="container-mag py-14 text-center lg:py-20">
-          <RoseMark className="mx-auto h-8 w-8 text-gold" strokeWidth={1.2} />
+      {/* ---------- Yığcam başlıq: bölmə / alt bölmə + digər alt bölmələr (bir zolaqda) ---------- */}
+      <header className="border-b border-line">
+        <div className="container-mag flex flex-col gap-5 py-7 lg:flex-row lg:items-end lg:justify-between lg:gap-10 lg:py-9">
+          <div className="min-w-0">
+            <p className="flex items-center gap-3 font-ui text-[11px] uppercase tracking-[0.22em] text-muted">
+              <Link href={routes.category(locale, category.slug)} className="transition-colors hover:text-bordo">
+                {category.name[locale]}
+              </Link>
+              <span className="h-px w-6 bg-gold" aria-hidden="true" />
+              <span>
+                {articles.length} {dict.common.articles}
+              </span>
+            </p>
+            <h1 className="mt-2 text-[2rem] leading-[1.1] sm:text-[2.4rem]">{subcategory.name[locale]}</h1>
+          </div>
 
-          <p className="mt-6 font-ui text-[11px] uppercase tracking-[0.2em] text-muted">
-            <Link href={routes.category(locale, category.slug)} className="hover:text-bordo">
-              {category.name[locale]}
-            </Link>
-          </p>
-
-          <h1 className="mt-3 text-4xl sm:text-5xl lg:text-6xl">{subcategory.name[locale]}</h1>
-
-          <p className="mt-6 font-ui text-[11px] uppercase tracking-[0.2em] text-muted">
-            {articles.length} {dict.common.articles}
-          </p>
+          {/* Eyni bölmənin digər alt bölmələri */}
+          <nav aria-label={dict.nav.sections} className="-mx-4 min-w-0 sm:mx-0">
+            <div className="scrollbar-none flex gap-2 overflow-x-auto px-4 sm:flex-wrap sm:px-0 lg:justify-end">
+              {[
+                { slug: "", href: routes.category(locale, category.slug), label: dict.nav.allIn },
+                ...category.subcategories.map((item) => ({
+                  slug: item.slug,
+                  href: routes.subcategory(locale, category.slug, item.slug),
+                  label: item.name[locale],
+                })),
+              ].map((item) => {
+                const active = item.slug === subcategory.slug;
+                return (
+                  <Link
+                    key={item.slug || "all"}
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={`shrink-0 border px-3.5 py-2 font-ui text-[10.5px] font-semibold uppercase tracking-[0.14em] transition-colors duration-300 ${
+                      active
+                        ? "border-ink bg-ink text-white"
+                        : "border-line text-ink hover:border-ink"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
         </div>
       </header>
-
-      {/* ---------- Eyni bölmənin digər alt bölmələri ---------- */}
-      <nav
-        aria-label={dict.nav.sections}
-        className="border-b border-line bg-cream"
-      >
-        <div className="scrollbar-none container-mag flex gap-6 overflow-x-auto py-4">
-          <Link
-            href={routes.category(locale, category.slug)}
-            className="shrink-0 font-ui text-[11.5px] uppercase tracking-[0.18em] text-ink hover:text-bordo"
-          >
-            {dict.nav.allIn}
-          </Link>
-          {category.subcategories.map((item) => {
-            const active = item.slug === subcategory.slug;
-            return (
-              <Link
-                key={item.slug}
-                href={routes.subcategory(locale, category.slug, item.slug)}
-                aria-current={active ? "page" : undefined}
-                className={`shrink-0 font-ui text-[11.5px] uppercase tracking-[0.18em] transition-colors ${
-                  active ? "text-bordo" : "text-ink hover:text-bordo"
-                }`}
-              >
-                {item.name[locale]}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
 
       {/* ---------- Məqalələr ---------- */}
       {articles.length === 0 ? (
