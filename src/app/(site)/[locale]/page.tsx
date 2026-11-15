@@ -1,18 +1,18 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 // MÜVƏQQƏTİ: reklam sahələri gizlədilib — geri qaytarmaq üçün bu sətri silin, aşağıdakı importu bərpa edin.
 // import AdSlot from "@/components/AdSlot";
 import AdvertisementBanner from "@/components/AdvertisementBanner";
 import ArticleBanners from "@/components/ArticleBanners";
-import ArticleCard from "@/components/ArticleCard";
-import HeroCarousel from "@/components/HeroCarousel";
+import CategoryBlock from "@/components/home/CategoryBlock";
+import LatestEdit from "@/components/home/LatestEdit";
+import AstroSection from "@/components/home/AstroSection";
+import FrontPage from "@/components/home/FrontPage";
+import NewsletterBand from "@/components/home/NewsletterBand";
 import { RoseMark } from "@/components/Logo";
-import SectionHeading from "@/components/SectionHeading";
-import ZodiacStrip from "@/components/ZodiacStrip";
-import { categories } from "@/lib/categories";
+import { getCategory } from "@/lib/categories";
 import { isLocale, type Locale } from "@/lib/i18n/config";
-import { getDictionary, interpolate } from "@/lib/i18n/dictionaries";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import { routes } from "@/lib/routes";
 import { getHomepageContent } from "@/lib/data/homepage-editorial";
 import { cacheToArticle } from "@/lib/article-helpers";
@@ -20,6 +20,27 @@ import { getArticlesByCategory } from "@/lib/data/articles";
 import type { Article, HomepageArticleCache } from "@/lib/types";
 
 export const revalidate = 60; // 60 saniyə - yeni məqalələr tez görünsün
+
+/** Təkrarları atır (id üzrə), ilk görünən qalır. */
+function uniq(list: Article[]): Article[] {
+  const seen = new Set<string>();
+  return list.filter((a) => {
+    if (seen.has(a.id)) return false;
+    seen.add(a.id);
+    return true;
+  });
+}
+
+/** Tarixi müqayisə üçün millisaniyəyə çevirir (Date, string və ya Firestore Timestamp). */
+function time(value: unknown): number {
+  if (!value) return 0;
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "string" || typeof value === "number") return new Date(value).getTime() || 0;
+  const v = value as { toDate?: () => Date; seconds?: number };
+  if (typeof v.toDate === "function") return v.toDate().getTime();
+  if (typeof v.seconds === "number") return v.seconds * 1000;
+  return 0;
+}
 
 export default async function HomePage({
   params,
@@ -31,90 +52,141 @@ export default async function HomePage({
   const locale = raw as Locale;
   const dict = getDictionary(locale);
 
-  // Redaksiya seçimləri + əvvəlki avtomatik sorğular (fallback) paralel
+  // Redaksiya seçimləri + avtomatik sorğular (fallback) paralel
   const [homepageData, allGundem, allModa, allGozellik, allHeyatTerzi, allAstrologiya, allBiznes] =
     await Promise.all([
       getHomepageContent(locale).catch(() => null),
-      getArticlesByCategory("gundem", 6),
+      getArticlesByCategory("gundem", 8),
       getArticlesByCategory("moda", 15),
       getArticlesByCategory("gozellik", 15),
       getArticlesByCategory("heyat-terzi", 15),
-      getArticlesByCategory("astrologiya", 1),
+      getArticlesByCategory("astrologiya", 4),
       getArticlesByCategory("biznes", 15),
     ]);
 
   /**
-   * Bölmə: əvvəl redaksiya seçimi (sıra ilə), qalan yerlər avtomatik siyahı ilə doldurulur —
+   * Əvvəl redaksiya seçimi (sıra ilə), qalan yerlər avtomatik siyahı ilə doldurulur —
    * redaktorda bir məqalə seçmək bloku bir məqaləyə endirməsin.
    */
   const pick = (editorial: HomepageArticleCache[] | undefined, fallback: Article[]): Article[] => {
     if (!editorial || editorial.length === 0) return fallback;
     const chosen = editorial.map(cacheToArticle);
-    const ids = new Set(chosen.map((a) => a.id));
-    return [...chosen, ...fallback.filter((a) => !ids.has(a.id))].slice(
-      0,
-      Math.max(chosen.length, fallback.length),
-    );
+    return uniq([...chosen, ...fallback]).slice(0, Math.max(chosen.length, fallback.length));
   };
-  const plain = (list: Article[]) => list.filter((a) => !a.trending).slice(0, 5);
-  const trending = (list: Article[]) => list.filter((a) => a.trending).slice(0, 5);
+  const plain = (list: Article[]) => list.filter((a) => !a.trending);
+  const hot = (list: Article[]) => list.filter((a) => a.trending);
 
-  // Baş mövzu carousel (əvvəl: Gündəmdən 6 məqalə)
-  const heroArticles = pick(homepageData?.weeklyMainTopic, allGundem).slice(0, 6);
+  // Bütün dərc olunmuş yazılar — yenidən köhnəyə
+  const everything = uniq(
+    [...allGundem, ...allModa, ...allGozellik, ...allHeyatTerzi, ...allAstrologiya, ...allBiznes],
+  ).sort((a, b) => time(b.publishedAt) - time(a.publishedAt));
 
-  // Ən son (əvvəl: hər bölmədən 1 məqalə, carousel-dəkilər çıxılmaqla)
-  const heroIds = new Set(heroArticles.map((a) => a.id));
-  const latestFallback = [allGundem, allModa, allGozellik, allHeyatTerzi, allAstrologiya, allBiznes]
-    .map((list) => list[0])
-    .filter((a): a is Article => Boolean(a) && !heroIds.has(a.id))
-    .slice(0, 6);
-  const latestArticles = pick(homepageData?.latestArticles, latestFallback);
+  // ---------- Ön səhifə: baş mövzu + 2 əlavə yazı ----------
+  const heroArticles = pick(homepageData?.weeklyMainTopic, allGundem);
+  const lead = heroArticles[0] ?? everything[0];
+  const side = uniq([...heroArticles.slice(1), ...everything])
+    .filter((a) => a.id !== lead?.id)
+    .slice(0, 2);
+  const frontIds = new Set([lead?.id, ...side.map((a) => a.id)]);
 
-  const moda = pick(homepageData?.moda.editorial, plain(allModa));
-  const modaTrending = pick(homepageData?.moda.mostRead, trending(allModa));
+  // ---------- Bölmə blokları: redaksiya seçimi + çox oxunanlar + qalanlar ----------
+  const block = (
+    editorial: HomepageArticleCache[] | undefined,
+    mostRead: HomepageArticleCache[] | undefined,
+    all: Article[],
+  ) => {
+    const top = pick(mostRead, hot(all));
+    return {
+      articles: uniq([...pick(editorial, plain(all)), ...top, ...all]),
+      mostRead: top,
+    };
+  };
 
-  const gozellik = pick(homepageData?.gozellik.editorial, plain(allGozellik));
-  const gozellikTrending = pick(homepageData?.gozellik.mostRead, trending(allGozellik));
+  const sectionBlocks = (
+    [
+      { slug: "moda", ...block(homepageData?.moda.editorial, homepageData?.moda.mostRead, allModa) },
+      { slug: "gozellik", ...block(homepageData?.gozellik.editorial, homepageData?.gozellik.mostRead, allGozellik) },
+      { slug: "heyat-terzi", ...block(homepageData?.heyatTerzi.editorial, homepageData?.heyatTerzi.mostRead, allHeyatTerzi) },
+      { slug: "biznes", ...block(homepageData?.biznes.editorial, homepageData?.biznes.mostRead, allBiznes) },
+    ] as const
+  )
+    .map((b) => ({ ...b, category: getCategory(b.slug) }))
+    .filter(
+      (b): b is typeof b & { category: NonNullable<typeof b.category> } =>
+        Boolean(b.category) && b.articles.length > 0,
+    );
 
-  const heyatTerzi = pick(homepageData?.heyatTerzi.editorial, plain(allHeyatTerzi));
-  const heyatTerziTrending = pick(homepageData?.heyatTerzi.mostRead, trending(allHeyatTerzi));
+  // ---------- Çox oxunanlar (bütün sayt): redaksiyanın seçdikləri + «trend», sonra ən yenilər ----------
+  const trendingAll = uniq([
+    ...sectionBlocks.flatMap((b) => b.mostRead),
+    ...hot(everything),
+    ...everything,
+  ])
+    .filter((a) => !frontIds.has(a.id))
+    .slice(0, 5);
 
-  const biznes = pick(homepageData?.biznes.editorial, plain(allBiznes));
-  const biznesTrending = pick(homepageData?.biznes.mostRead, trending(allBiznes));
+  // ---------- Ən son: ön səhifədə olmayan ən yeni 5 yazı ----------
+  const latestArticles = uniq([...pick(homepageData?.latestArticles, []), ...everything])
+    .filter((a) => !frontIds.has(a.id))
+    .slice(0, 5);
+
+  const firstBlocks = sectionBlocks.slice(0, 2);
+  const restBlocks = sectionBlocks.slice(2);
 
   return (
     <>
-      {/* ================= Baş məqalə Carousel ================= */}
-      {heroArticles.length > 0 && (
-        <HeroCarousel articles={heroArticles} locale={locale} eyebrow={dict.home.heroEyebrow} />
-      )}
-
-      <div className="rule-gold" />
+      {/* ================= Ön səhifə ================= */}
+      {lead && <FrontPage lead={lead} side={side} trending={trendingAll} locale={locale} />}
 
       {/* Admin paneldən «Ana səhifə - Hero» bannerləri; uyğun banner yoxdursa heç nə göstərilmir */}
       <div className="container-mag empty:hidden">
-        <ArticleBanners location="home-hero" placeholder={false} className="pt-10" />
+        <ArticleBanners location="home-hero" placeholder={false} className="pb-12" />
       </div>
 
       {/* ================= Ən son ================= */}
-      {latestArticles.length > 0 && (
-        <section className="container-mag py-16 lg:py-20">
-          <SectionHeading
-            title={dict.home.latestTitle}
-            subtitle={dict.home.latestSub}
-          />
-          <div className="mt-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
-            {latestArticles.slice(0, 15).map((article) => (
-              <ArticleCard key={article.id} article={article} locale={locale} variant="compact" />
-            ))}
-          </div>
-        </section>
-      )}
+      <LatestEdit
+        title={dict.home.latestTitle}
+        subtitle={dict.home.latestSub}
+        articles={latestArticles}
+        locale={locale}
+      />
 
       {/* ================= Reklam ================= */}
-      <div className="container-mag pb-16">
+      <div className="container-mag py-16">
         <AdvertisementBanner locale={locale} />
       </div>
+
+      {/* ================= Astrologiya: bürclər + yazılar ================= */}
+      <AstroSection locale={locale} articles={allAstrologiya} />
+
+      {/* ================= Bölmə blokları (1-ci hissə) ================= */}
+      {firstBlocks.map((b, i) => (
+        <CategoryBlock
+          key={b.slug}
+          title={b.category.name[locale]}
+          href={routes.category(locale, b.slug)}
+          viewAllLabel={dict.common.viewAll}
+          articles={b.articles.slice(0, 5)}
+          locale={locale}
+          shaded={i % 2 === 1}
+        />
+      ))}
+
+      {/* ================= Bülleten ================= */}
+      <NewsletterBand locale={locale} />
+
+      {/* ================= Bölmə blokları (2-ci hissə) ================= */}
+      {restBlocks.map((b, i) => (
+        <CategoryBlock
+          key={b.slug}
+          title={b.category.name[locale]}
+          href={routes.category(locale, b.slug)}
+          viewAllLabel={dict.common.viewAll}
+          articles={b.articles.slice(0, 5)}
+          locale={locale}
+          shaded={i % 2 === 1}
+        />
+      ))}
 
       {/* ================= Redaktordan ================= */}
       <section className="relative overflow-hidden bg-bordo-deep py-10 text-cream sm:py-12 lg:py-14">
@@ -158,202 +230,6 @@ export default async function HomePage({
         </div>
       </section>
 
-      {/* ================= Astrologiya ================= */}
-      <section className="container-mag py-16 lg:py-20">
-        <SectionHeading title={dict.home.astroTitle} subtitle={dict.home.astroSub} />
-        <div className="mt-12">
-          <ZodiacStrip locale={locale} withDates />
-        </div>
-        <div className="mt-10 text-center">
-          <Link href={routes.astrology(locale)} className="btn-ghost">
-            {dict.astro.moreAstrology}
-          </Link>
-        </div>
-      </section>
-
-      <div className="rule-gold" />
-
-      {/* ================= Moda + Çox oxunanlar ================= */}
-      <section className="container-mag py-16 lg:py-20">
-        <div className="grid gap-14 lg:grid-cols-12 lg:gap-12">
-          <div className="lg:col-span-8">
-            <SectionHeading
-              align="start"
-              title={categories[1].name[locale]}
-              action={{
-                label: dict.common.viewAll,
-                href: routes.category(locale, "moda"),
-              }}
-            />
-            <div className="mt-8 grid gap-9 sm:grid-cols-2 lg:grid-cols-3 lg:gap-7">
-              {moda.slice(0, 9).map((article) => (
-                <ArticleCard
-                  key={article.id}
-                  article={article}
-                  locale={locale}
-                  variant="compact"
-                />
-              ))}
-            </div>
-          </div>
-
-          <aside className="lg:col-span-4">
-            <p className="eyebrow border-b border-line pb-4 text-bordo">
-              {dict.home.trendingTitle}
-            </p>
-            <div className="mt-5 space-y-5">
-              {modaTrending.slice(0, 7).map((article, index) => (
-                <ArticleCard
-                  key={article.id}
-                  article={article}
-                  locale={locale}
-                  variant="numbered"
-                  index={index}
-                />
-              ))}
-            </div>
-          </aside>
-        </div>
-      </section>
-
-      {/* ================= Gözəllik + Çox oxunanlar ================= */}
-      {gozellik.length > 0 && (
-        <section className="bg-cream-deep/55 py-16 lg:py-20">
-          <div className="container-mag">
-            <div className="grid gap-14 lg:grid-cols-12 lg:gap-12">
-              <div className="lg:col-span-8">
-                <SectionHeading
-                  align="start"
-                  title={categories[2].name[locale]}
-                  action={{
-                    label: dict.common.viewAll,
-                    href: routes.category(locale, "gozellik"),
-                  }}
-                />
-                <div className="mt-8 grid gap-9 sm:grid-cols-2 lg:grid-cols-3 lg:gap-7">
-                  {gozellik.slice(0, 9).map((article) => (
-                    <ArticleCard
-                      key={article.id}
-                      article={article}
-                      locale={locale}
-                      variant="compact"
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <aside className="lg:col-span-4">
-                <p className="eyebrow border-b border-line pb-4 text-bordo">
-                  {dict.home.trendingTitle}
-                </p>
-                <div className="mt-5 space-y-5">
-                  {gozellikTrending.slice(0, 7).map((article, index) => (
-                    <ArticleCard
-                      key={article.id}
-                      article={article}
-                      locale={locale}
-                      variant="numbered"
-                      index={index}
-                    />
-                  ))}
-                </div>
-              </aside>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ================= Həyat tərzi + Çox oxunanlar ================= */}
-      {heyatTerzi.length > 0 && (
-        <section className="container-mag py-16 lg:py-20">
-          <div className="grid gap-14 lg:grid-cols-12 lg:gap-12">
-            <div className="lg:col-span-8">
-              <SectionHeading
-                align="start"
-                title={categories[3].name[locale]}
-                action={{
-                  label: dict.common.viewAll,
-                  href: routes.category(locale, "heyat-terzi"),
-                }}
-              />
-              <div className="mt-8 grid gap-9 sm:grid-cols-2 lg:grid-cols-3 lg:gap-7">
-                {heyatTerzi.slice(0, 9).map((article) => (
-                  <ArticleCard
-                    key={article.id}
-                    article={article}
-                    locale={locale}
-                    variant="compact"
-                  />
-                ))}
-              </div>
-            </div>
-
-            <aside className="lg:col-span-4">
-              <p className="eyebrow border-b border-line pb-4 text-bordo">
-                {dict.home.trendingTitle}
-              </p>
-              <div className="mt-5 space-y-5">
-                {heyatTerziTrending.slice(0, 7).map((article, index) => (
-                  <ArticleCard
-                    key={article.id}
-                    article={article}
-                    locale={locale}
-                    variant="numbered"
-                    index={index}
-                  />
-                ))}
-              </div>
-            </aside>
-          </div>
-        </section>
-      )}
-
-      {/* ================= Biznes + Çox oxunanlar ================= */}
-      {biznes.length > 0 && (
-        <section className="bg-cream-deep/55 py-16 lg:py-20">
-          <div className="container-mag">
-            <div className="grid gap-14 lg:grid-cols-12 lg:gap-12">
-              <div className="lg:col-span-8">
-                <SectionHeading
-                  align="start"
-                  title={categories[5].name[locale]}
-                  action={{
-                    label: dict.common.viewAll,
-                    href: routes.category(locale, "biznes"),
-                  }}
-                />
-                <div className="mt-8 grid gap-9 sm:grid-cols-2 lg:grid-cols-3 lg:gap-7">
-                  {biznes.slice(0, 9).map((article) => (
-                    <ArticleCard
-                      key={article.id}
-                      article={article}
-                      locale={locale}
-                      variant="compact"
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <aside className="lg:col-span-4">
-                <p className="eyebrow border-b border-line pb-4 text-bordo">
-                  {dict.home.trendingTitle}
-                </p>
-                <div className="mt-5 space-y-5">
-                  {biznesTrending.slice(0, 7).map((article, index) => (
-                    <ArticleCard
-                      key={article.id}
-                      article={article}
-                      locale={locale}
-                      variant="numbered"
-                      index={index}
-                    />
-                  ))}
-                </div>
-              </aside>
-            </div>
-          </div>
-        </section>
-      )}
     </>
   );
 }

@@ -39,11 +39,11 @@ export const categories: Category[] = [
       ar: "الأحداث",
     },
     tagline: {
-      az: "Dünyada, Türkiyədə və Azərbaycanda qadın gündəmini müəyyən edən hadisələr, festivallar və maqazin xəbərləri.",
-      en: "The events, festivals and society stories shaping the women's agenda in the world, Türkiye and Azerbaijan.",
-      ru: "События, фестивали и светские новости, которые формируют женскую повестку в мире, Турции и Азербайджане.",
-      tr: "Dünyada, Türkiye'de ve Azerbaycan'da kadın gündemini belirleyen olaylar, festivaller ve magazin haberleri.",
-      ar: "الأحداث والمهرجانات وأخبار المجتمع التي تصنع أجندة المرأة في العالم وتركيا وأذربيجان.",
+      az: "Azərbaycanda, Türkiyədə və dünyada qadınların gündəmində olan hadisələr, festivallar və ulduz xəbərləri.",
+      en: "The news, festivals and celebrity stories women are talking about — in Azerbaijan, Türkiye and around the world.",
+      ru: "Новости, фестивали и светская хроника, о которых говорят женщины, — в Азербайджане, Турции и во всём мире.",
+      tr: "Azerbaycan'da, Türkiye'de ve dünyada kadınların konuştuğu haberler, festivaller ve magazin gelişmeleri.",
+      ar: "الأخبار والمهرجانات وأخبار المشاهير التي تشغل المرأة — في أذربيجان وتركيا وحول العالم.",
     },
     subcategories: [
       {
@@ -74,11 +74,11 @@ export const categories: Category[] = [
       ar: "الموضة",
     },
     tagline: {
-      az: "Podiumdan küçəyə: kolleksiyalar, siluetlər, dizaynerlər və mövsümün əsl ruhu.",
-      en: "From the runway to the street: collections, silhouettes, designers and the true mood of the season.",
-      ru: "От подиума до улицы: коллекции, силуэты, дизайнеры и истинное настроение сезона.",
-      tr: "Podyumdan sokağa: koleksiyonlar, siluetler, tasarımcılar ve mevsimin gerçek ruhu.",
-      ar: "من المنصة إلى الشارع: المجموعات والقصّات والمصممون وروح الموسم الحقيقية.",
+      az: "Mövsümün trendləri, yeni kolleksiyalar və gündəlik həyatda asanlıqla tətbiq edə biləcəyiniz üslub tövsiyələri.",
+      en: "Seasonal trends, new collections and style advice that is easy to wear every day.",
+      ru: "Тренды сезона, новые коллекции и советы по стилю, которые легко применить в повседневной жизни.",
+      tr: "Sezonun trendleri, yeni koleksiyonlar ve günlük hayatta kolayca uygulayabileceğiniz stil önerileri.",
+      ar: "صيحات الموسم وأحدث المجموعات ونصائح أناقة يسهل تطبيقها في الحياة اليومية.",
     },
     subcategories: [
       {
@@ -135,11 +135,11 @@ export const categories: Category[] = [
       ar: "الجمال",
     },
     tagline: {
-      az: "Dəri baxımı, makiyaj, ətir və saç — elmə söykənən, tələsməyən gözəllik ritualları.",
-      en: "Skincare, make-up, fragrance and hair — unhurried beauty rituals grounded in science.",
-      ru: "Уход за кожей, макияж, ароматы и волосы — неторопливые ритуалы красоты, основанные на науке.",
-      tr: "Cilt bakımı, makyaj, parfüm ve saç — bilime dayanan, acele etmeyen güzellik ritüelleri.",
-      ar: "العناية بالبشرة والمكياج والعطور والشعر — طقوس جمال متأنية قائمة على العلم.",
+      az: "Dəri və saç baxımı, makiyaj və ətirlər haqqında etibarlı məsləhətlər və həqiqətən işə yarayan vasitələr.",
+      en: "Trusted advice on skincare, hair, make-up and fragrance — and the products that really work.",
+      ru: "Проверенные советы по уходу за кожей и волосами, макияжу и ароматам — и средства, которые действительно работают.",
+      tr: "Cilt ve saç bakımı, makyaj ve parfüm üzerine güvenilir öneriler ve gerçekten işe yarayan ürünler.",
+      ar: "نصائح موثوقة للعناية بالبشرة والشعر والمكياج والعطور، ومنتجات أثبتت فعاليتها.",
     },
     subcategories: [
       {
@@ -176,11 +176,11 @@ export const categories: Category[] = [
       ar: "أسلوب الحياة",
     },
     tagline: {
-      az: "Texnologiyadan səyahətə, mətbəxdən ev dekorasiyasına — gündəlik həyatı gözəlləşdirən seçimlər.",
-      en: "From technology to travel, from the kitchen to the home — the choices that make daily life finer.",
-      ru: "От технологий до путешествий, от кухни до интерьера — выбор, который делает повседневность красивее.",
-      tr: "Teknolojiden seyahate, mutfaktan ev dekorasyonuna — gündelik hayatı güzelleştiren seçimler.",
-      ar: "من التقنية إلى السفر، ومن المطبخ إلى ديكور المنزل — خيارات تجعل الحياة اليومية أجمل.",
+      az: "Səyahət, ev, mətbəx və sağlam vərdişlər — gündəlik həyatınızı daha rahat və gözəl edən ideyalar.",
+      en: "Travel, home, food and healthy habits — ideas that make everyday life easier and more beautiful.",
+      ru: "Путешествия, дом, кухня и полезные привычки — идеи, которые делают каждый день удобнее и красивее.",
+      tr: "Seyahat, ev, mutfak ve sağlıklı alışkanlıklar — günlük hayatı daha kolay ve güzel kılan fikirler.",
+      ar: "السفر والمنزل والمطبخ والعادات الصحية — أفكار تجعل حياتك اليومية أسهل وأجمل.",
     },
     subcategories: [
       {
@@ -223,9 +223,9 @@ export const categories: Category[] = [
       ar: "الأبراج",
     },
     tagline: {
-      az: "Günlük, həftəlik və aylıq bürc şərhləri, tarot, yüksələn bürc və bürc uyğunluğu.",
-      en: "Daily, weekly and monthly horoscopes, tarot, rising signs and compatibility.",
-      ru: "Ежедневные, еженедельные и месячные гороскопы, таро, асцендент и совместимость знаков.",
+      az: "Günlük, həftəlik və aylıq bürc proqnozları, tarot, yüksələn bürc və bürclərin bir-birinə uyğunluğu.",
+      en: "Daily, weekly and monthly horoscopes, tarot, rising signs and how the signs get along.",
+      ru: "Гороскопы на день, неделю и месяц, таро, асцендент и совместимость знаков.",
       tr: "Günlük, haftalık ve aylık burç yorumları, tarot, yükselen burç ve burç uyumu.",
       ar: "توقعات يومية وأسبوعية وشهرية، والتاروت، والبرج الطالع، والتوافق بين الأبراج.",
     },
@@ -300,11 +300,11 @@ export const categories: Category[] = [
       ar: "الأعمال",
     },
     tagline: {
-      az: "Öz işini quran qadınlar, karyera strategiyaları, maliyyə savadı və liderlik.",
-      en: "Women building their own companies, career strategy, financial literacy and leadership.",
-      ru: "Женщины, строящие собственное дело, карьерные стратегии, финансовая грамотность и лидерство.",
-      tr: "Kendi işini kuran kadınlar, kariyer stratejileri, finansal okuryazarlık ve liderlik.",
-      ar: "نساء يبنين أعمالهن الخاصة، واستراتيجيات المهنة، والثقافة المالية، والقيادة.",
+      az: "Öz işini quran qadınların hekayələri, karyera məsləhətləri, maliyyə savadı və liderlik.",
+      en: "Stories of women who built their own business, career advice, money know-how and leadership.",
+      ru: "Истории женщин, создавших своё дело, советы по карьере, финансовая грамотность и лидерство.",
+      tr: "Kendi işini kuran kadınların hikâyeleri, kariyer önerileri, finansal okuryazarlık ve liderlik.",
+      ar: "قصص نساء أسّسن أعمالهن الخاصة، ونصائح مهنية، وثقافة مالية، وقيادة.",
     },
     subcategories: [
       {

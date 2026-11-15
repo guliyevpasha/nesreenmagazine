@@ -8,7 +8,7 @@ import { routes } from "@/lib/routes";
 import { pick, type Article } from "@/lib/types";
 import { getArticleSlug } from "@/lib/article-helpers";
 
-type Variant = "cover" | "hero" | "feature" | "compact" | "row" | "numbered";
+type Variant = "cover" | "overlay" | "hero" | "feature" | "compact" | "row" | "numbered";
 
 export default function ArticleCard({
   article,
@@ -68,15 +68,18 @@ export default function ArticleCard({
             className="media-frame relative block aspect-[4/5] sm:aspect-[4/3] lg:order-2 lg:col-span-5 lg:my-10 lg:me-10 lg:aspect-auto"
             aria-label={title}
           >
-            <CoverArt
-              src={article.coverImage}
-              alt={alt}
-              category={article.category}
-              seed={seed}
-              priority={priority}
-              sizes="(max-width: 1024px) 100vw, 40vw"
-              objectPosition="center 25%"
-            />
+            {/* absolute — naxışlı SVG örtüyü öz nisbəti ilə kartı uzatmasın */}
+            <span className="absolute inset-0">
+              <CoverArt
+                src={article.coverImage}
+                alt={alt}
+                category={article.category}
+                seed={seed}
+                priority={priority}
+                sizes="(max-width: 1024px) 100vw, 40vw"
+                objectPosition="center 25%"
+              />
+            </span>
             <span
               className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/0 lg:hidden"
               aria-hidden="true"
@@ -91,7 +94,7 @@ export default function ArticleCard({
                 <span className="font-ui text-[11px] tracking-wider text-white/70">{date}</span>
               </div>
 
-              <h2 className="mt-5 text-3xl leading-[1.08] text-white sm:text-[2.75rem] lg:text-[3.25rem] xl:text-[3.75rem]">
+              <h2 className="mt-5 text-3xl leading-[1.1] text-white sm:text-[2.6rem] lg:text-[2.75rem] xl:text-[3.1rem]">
                 <Link href={href} className="pointer-events-auto">
                   {title}
                 </Link>
@@ -124,6 +127,48 @@ export default function ArticleCard({
           className="pointer-events-none absolute inset-3 border border-gold-soft/30 sm:inset-5"
           aria-hidden="true"
         />
+      </article>
+    );
+  }
+
+  /* ---------------- Overlay — mətn şəklin üstündə (bölmə bloklarının baş kartı) ---------------- */
+  if (variant === "overlay") {
+    return (
+      <article className="@container group relative h-full overflow-hidden bg-ink">
+        <Link href={href} className="media-frame relative block h-full min-h-[420px]" aria-label={title}>
+          <span className="absolute inset-0">
+            <CoverArt
+              src={article.coverImage}
+              alt={alt}
+              category={article.category}
+              seed={getArticleSlug(article, locale)}
+              priority={priority}
+              sizes="(max-width: 1024px) 100vw, 60vw"
+              objectPosition="center 25%"
+            />
+          </span>
+          <span
+            className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent"
+            aria-hidden="true"
+          />
+        </Link>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 p-6 @xl:p-9">
+          <div className="flex items-center gap-3">
+            <span className="eyebrow text-gold-soft">{section}</span>
+            <span className="h-px w-6 bg-gold" aria-hidden="true" />
+            <span className="font-ui text-[11px] tracking-wider text-white/70">{reading}</span>
+          </div>
+          <h3 className="mt-3 max-w-xl text-[1.6rem] leading-[1.15] text-white @xl:text-[1.85rem] @3xl:text-[2.1rem]">
+            <Link href={href} className="pointer-events-auto">
+              {title}
+            </Link>
+          </h3>
+          {excerpt && (
+            <div className="mt-3 hidden max-w-lg @xl:block">
+              <p className="clamp-2 text-[0.95rem] leading-relaxed text-white/75">{excerpt}</p>
+            </div>
+          )}
+        </div>
       </article>
     );
   }
