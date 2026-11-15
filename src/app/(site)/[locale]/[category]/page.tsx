@@ -73,7 +73,7 @@ export default async function CategoryPage({
   const [lead, ...rest] = articles;
 
   const isAstrology = category.slug === "astrologiya";
-  // Gündəm, Gözəllik, Biznes — «mozaika» düzülüşü (iki böyük kart + 4 sütunlu şəbəkə)
+  // Gündəm, Gözəllik, Həyat tərzi, Biznes — «mozaika» düzülüşü (iki böyük kart + 4 sütunlu şəbəkə)
   const isMosaic = MOSAIC_CATEGORIES.has(category.slug);
 
   // Astrologiya bölməsi üçün hər dövrün 12 bürc üzrə şərhini hazırlayırıq.

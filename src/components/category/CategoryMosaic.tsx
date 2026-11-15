@@ -8,14 +8,14 @@ import { routes } from "@/lib/routes";
 import { pick, type Article } from "@/lib/types";
 
 /**
- * Bölmə səhifəsi üçün «mozaika» düzülüşü (Gündəm, Gözəllik, Biznes):
+ * Bölmə səhifəsi üçün «mozaika» düzülüşü (Gündəm, Gözəllik, Həyat tərzi, Biznes):
  *  1) iki böyük kart — şəkil üstündə tarix + başlıq (ağ serif);
  *  2) dörd sütunlu şəbəkə — yuvarlaq künclü şəkil, küncündə qara bölmə nişanı, altda başlıq.
  * Ritm hər 10 məqalədə təkrarlanır (2 böyük + 8 kiçik), uzun siyahı monoton görünməsin deyə.
  */
 
 /** Bu düzülüşü istifadə edən bölmələr. */
-export const MOSAIC_CATEGORIES: ReadonlySet<CategorySlug> = new Set<CategorySlug>(["gundem", "gozellik", "biznes"]);
+export const MOSAIC_CATEGORIES: ReadonlySet<CategorySlug> = new Set<CategorySlug>(["gundem", "gozellik", "heyat-terzi", "biznes"]);
 
 type Meta = { href: string; slug: string; title: string; alt: string; section: string; date: string };
 
@@ -68,7 +68,7 @@ function FeatureCard({
         </span>
         {/* oxunaqlıq üçün aşağıdan qaralma */}
         <span
-          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent"
           aria-hidden="true"
         />
         {/* incə daxili haşiyə — premium hiss */}
