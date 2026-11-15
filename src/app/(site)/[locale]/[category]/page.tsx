@@ -14,7 +14,7 @@ import { getHoroscope, horoscopePeriods } from "@/lib/content/horoscopes";
 import { getArticlesByCategory } from "@/lib/data/articles";
 import { siteUrl } from "@/lib/firebase/config";
 import { isLocale, locales, type Locale } from "@/lib/i18n/config";
-import { getDictionary, interpolate } from "@/lib/i18n/dictionaries";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import { zodiac } from "@/lib/zodiac";
 
 export const revalidate = 60; // 60 saniyə - yeni məqalələr tez görünsün
@@ -86,19 +86,15 @@ export default async function CategoryPage({
 
   return (
     <>
-      {/* ---------- Bölmə başlığı ---------- */}
-      <header className="border-b border-line bg-cream-deep/40">
-        <div className="container-mag py-14 text-center lg:py-20">
-          <RoseMark className="mx-auto h-8 w-8 text-gold" strokeWidth={1.2} />
-          <h1 className="mt-6 text-4xl sm:text-5xl lg:text-6xl">{category.name[locale]}</h1>
-          <p className="mx-auto mt-5 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-soft">
-            {category.tagline[locale]}
-          </p>
-          <p className="mt-6 font-ui text-[11px] uppercase tracking-[0.2em] text-muted">
-            {articles.length} {dict.common.articles}
-          </p>
+      {/* Bölmə adı vizual olaraq göstərilmir (menyuda aktivdir), amma SEO və ekran oxuyucuları üçün H1 qalır */}
+      <h1 className="sr-only">{category.name[locale]}</h1>
+
+      {/* ---------- Üz qabığı: bölmənin baş məqaləsi ---------- */}
+      {lead && (
+        <div className="container-mag pt-6 sm:pt-8">
+          <ArticleCard article={lead} locale={locale} variant="cover" priority />
         </div>
-      </header>
+      )}
 
       {/* MÜVƏQQƏTİ: reklam sahəsi gizlədilib — bu bloku şərhdən çıxarmaqla geri qaytarın.
       <div className="container-mag pt-10">
@@ -127,39 +123,29 @@ export default async function CategoryPage({
 
       {/* ---------- Məqalələr ---------- */}
       {articles.length === 0 ? (
-        <section className="container-read py-24 text-center">
-          <p className="font-display text-2xl text-ink">{dict.search.noResults}</p>
+        <section className="container-mag py-16 lg:py-24">
+          <div className="relative border border-line bg-cream-deep/40 px-6 py-20 text-center sm:py-28">
+            <span className="pointer-events-none absolute inset-3 border border-gold-soft/40" aria-hidden="true" />
+            <RoseMark className="mx-auto h-9 w-9 text-gold" strokeWidth={1.1} />
+            <p className="mt-6 font-display text-3xl text-ink sm:text-4xl">{dict.astro.comingSoonTab}</p>
+            <div className="rule-gold mx-auto mt-8 max-w-xs" aria-hidden="true" />
+          </div>
+        </section>
+      ) : rest.length > 0 ? (
+        <section className="container-mag py-16 lg:py-24">
+          <div className="flex items-center gap-5">
+            <span className="h-px flex-1 bg-line" aria-hidden="true" />
+            <RoseMark className="h-5 w-5 text-gold" strokeWidth={1.2} />
+            <span className="h-px flex-1 bg-line" aria-hidden="true" />
+          </div>
+          <div className="mt-14 grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3">
+            {rest.map((article) => (
+              <ArticleCard key={article.id} article={article} locale={locale} />
+            ))}
+          </div>
         </section>
       ) : (
-        <section className="container-mag py-16 lg:py-20">
-          {isAstrology && (
-            <SectionHeading
-              align="start"
-              title={dict.common.inThisSection}
-              subtitle={interpolate(dict.home.moreFrom, {
-                category: category.name[locale],
-              })}
-            />
-          )}
-
-          {/* Bölmənin baş məqaləsi */}
-          {lead && (
-            <div className={isAstrology ? "mt-10" : ""}>
-              <ArticleCard article={lead} locale={locale} variant="hero" priority />
-            </div>
-          )}
-
-          {rest.length > 0 && (
-            <>
-              <div className="rule-gold my-14" aria-hidden="true" />
-              <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
-                {rest.map((article) => (
-                  <ArticleCard key={article.id} article={article} locale={locale} />
-                ))}
-              </div>
-            </>
-          )}
-        </section>
+        <div className="pb-16 lg:pb-24" />
       )}
     </>
   );
