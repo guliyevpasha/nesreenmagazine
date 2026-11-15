@@ -51,6 +51,18 @@ const PAGE_NAMES: Record<string, string> = {
   loqo: "Loqo",
 };
 
+/** Məqalələr cədvəlinin sütun izahları (başlıq üzərində ⓘ və cədvəlin altında). */
+const COLUMN_HINTS = {
+  today: "Bu gün (Bakı vaxtı ilə 00:00-dan indiyədək) məqalənin neçə dəfə oxunduğu.",
+  yesterday: "Dünən bütün gün ərzində məqalənin neçə dəfə oxunduğu.",
+  d7: "Bu gün daxil son 7 gündə oxunma sayı. «Bu gün» və «Dünən» bunun içindədir.",
+  d30: "Bu gün daxil son 30 gündə oxunma sayı. «Son 7 gün» bunun içindədir, ona görə sütunlar toplanmır.",
+  period: "Yuxarıda seçdiyiniz dövr (məs. 3/6/12 ay və ya özəl tarix) ərzində oxunma sayı. Cədvəl bu sütuna görə sıralanır.",
+  all: "İzləmə başlayandan bəri ümumi oxunma sayı.",
+  unique:
+    "Seçilmiş dövrdə məqaləni oxuyan fərqli oxucuların sayı (anonim brauzer nişanı ilə; ad və IP saxlanmır). Eyni oxucu bir gündə neçə dəfə açsa da 1 sayılır, fərqli günlərdə isə hər gün ayrıca.",
+} as const;
+
 function regionName(code: string): string {
   try {
     return new Intl.DisplayNames(["az"], { type: "region" }).of(code) || code;
@@ -630,12 +642,20 @@ export default function AnalyticsOverviewPage() {
                       <Th>#</Th>
                       <Th>Məqalə</Th>
                       <Th>Kateqoriya</Th>
-                      <Th right>Bu gün</Th>
-                      <Th right>Dünən</Th>
-                      <Th right>Son 7 gün</Th>
-                      <Th right>Son 30 gün</Th>
-                      {showPeriodColumn && <Th right>{period === "all" ? "Bütün vaxt" : "Seçilmiş dövr"}</Th>}
-                      {period !== "all" && <Th right>Unikal</Th>}
+                      <Th right hint={COLUMN_HINTS.today}>Bu gün</Th>
+                      <Th right hint={COLUMN_HINTS.yesterday}>Dünən</Th>
+                      <Th right hint={COLUMN_HINTS.d7}>Son 7 gün</Th>
+                      <Th right hint={COLUMN_HINTS.d30}>Son 30 gün</Th>
+                      {showPeriodColumn && (
+                        <Th right hint={period === "all" ? COLUMN_HINTS.all : COLUMN_HINTS.period}>
+                          {period === "all" ? "Bütün vaxt" : "Seçilmiş dövr"}
+                        </Th>
+                      )}
+                      {period !== "all" && (
+                        <Th right hint={COLUMN_HINTS.unique}>
+                          Unikal oxucu
+                        </Th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
@@ -688,6 +708,29 @@ export default function AnalyticsOverviewPage() {
                   </tbody>
                 </table>
               </div>
+              <details className="mt-4 border-t border-line pt-3 font-ui text-[12px] text-muted">
+                <summary className="cursor-pointer select-none text-ink hover:text-bordo">
+                  ⓘ Sütunlar nə deməkdir?
+                </summary>
+                <dl className="mt-3 grid gap-2 sm:grid-cols-[140px_1fr]">
+                  {(
+                    [
+                      ["Bu gün", COLUMN_HINTS.today],
+                      ["Dünən", COLUMN_HINTS.yesterday],
+                      ["Son 7 gün", COLUMN_HINTS.d7],
+                      ["Son 30 gün", COLUMN_HINTS.d30],
+                      ["Seçilmiş dövr", COLUMN_HINTS.period],
+                      ["Bütün vaxt", COLUMN_HINTS.all],
+                      ["Unikal oxucu", `${COLUMN_HINTS.unique} Məs.: 24 baxış / 8 unikal = 8 oxucu cəmi 24 dəfə açıb.`],
+                    ] as const
+                  ).map(([term, text]) => (
+                    <div key={term} className="contents">
+                      <dt className="font-semibold text-ink">{term}</dt>
+                      <dd className="mb-1 leading-relaxed">{text}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </details>
               {articleRows.length > 15 && (
                 <div className="mt-4 text-center">
                   <Button variant="ghost" onClick={() => setShowAllArticles((v) => !v)}>

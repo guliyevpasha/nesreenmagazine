@@ -165,14 +165,24 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
   );
 }
 
-export function Th({ children, right }: { children: ReactNode; right?: boolean }) {
+export function Th({ children, right, hint }: { children: ReactNode; right?: boolean; hint?: string }) {
   return (
     <th
+      title={hint}
       className={`whitespace-nowrap px-3 py-3 font-ui text-[11px] uppercase tracking-[0.14em] text-muted ${
         right ? "text-right" : "text-left"
-      }`}
+      } ${hint ? "cursor-help" : ""}`}
     >
-      {children}
+      {hint ? (
+        <span className="border-b border-dotted border-muted">
+          {children}
+          <span className="ml-1 text-[10px] text-gold" aria-hidden>
+            ⓘ
+          </span>
+        </span>
+      ) : (
+        children
+      )}
     </th>
   );
 }
