@@ -153,6 +153,66 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Saytın günlük ümumi statistikası (src/lib/analytics/site-stats.ts, /api/track).
+    // Bir gün = bir sənəd. Sayğaclar yalnız kiçik addımlarla arta bilər, azala bilməz.
+    function siteDailyKeys() {
+      return ['date', 'updatedAt', 'views', 'visitors', 'sessions', 'multiPageSessions',
+              'engagedSeconds', 'engagedPages', 'pages', 'pageTime', 'locales', 'visitorLocales',
+              'countries', 'cities', 'devices', 'sources', 'referrers', 'searches'];
+    }
+    function siteCounterOk(name, maxStep) {
+      return request.resource.data.get(name, 0) is number
+          && request.resource.data.get(name, 0) >= (resource == null ? 0 : resource.data.get(name, 0))
+          && request.resource.data.get(name, 0) <= (resource == null ? 0 : resource.data.get(name, 0)) + maxStep;
+    }
+    function siteMapsOk() {
+      return request.resource.data.get('pages', {}) is map
+          && request.resource.data.get('pageTime', {}) is map
+          && request.resource.data.get('locales', {}).keys().hasOnly(['az', 'en', 'ru', 'tr', 'ar'])
+          && request.resource.data.get('visitorLocales', {}).keys().hasOnly(['az', 'en', 'ru', 'tr', 'ar'])
+          && request.resource.data.get('devices', {}).keys().hasOnly(['desktop', 'mobile', 'tablet'])
+          && request.resource.data.get('sources', {}).keys().hasOnly(['organic', 'social', 'direct', 'referral'])
+          && request.resource.data.get('countries', {}) is map
+          && request.resource.data.get('cities', {}) is map
+          && request.resource.data.get('referrers', {}) is map
+          && request.resource.data.get('searches', {}) is map;
+    }
+    match /analytics_site/{date} {
+      allow read: if isStaff();
+      allow create, update: if request.resource.data.keys().hasOnly(siteDailyKeys())
+                    && request.resource.data.date == date
+                    && date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+                    && siteCounterOk('views', 1)
+                    && siteCounterOk('visitors', 1)
+                    && siteCounterOk('sessions', 1)
+                    && siteCounterOk('multiPageSessions', 1)
+                    && siteCounterOk('engagedPages', 1)
+                    && siteCounterOk('engagedSeconds', 120)
+                    && siteMapsOk();
+      allow delete: if false;
+    }
+
+    // Sayt üzrə gündəlik unikal ziyarətçi qeydi: yalnız yaradılır
+    match /analytics_site_visitors/{docId} {
+      allow read: if isStaff();
+      allow create: if request.resource.data.keys().hasOnly(['visitorId', 'date'])
+                    && request.resource.data.visitorId is string
+                    && request.resource.data.visitorId.size() < 100
+                    && docId == request.resource.data.visitorId + '_' + request.resource.data.date;
+      allow update, delete: if false;
+    }
+
+    // Canlı istifadəçilər: sessiya başına bir sənəd, son görünmə vaxtı
+    match /analytics_live/{sessionId} {
+      allow read: if isStaff();
+      allow create, update: if request.resource.data.keys().hasOnly(['path', 'locale', 'country', 'lastSeen'])
+                    && request.resource.data.path is string
+                    && request.resource.data.path.size() <= 200
+                    && request.resource.data.lastSeen is string
+                    && sessionId.size() < 100;
+      allow delete: if false;
+    }
+
     /** Bürc şərhləri — hamı oxuya bilər, yalnız staff yazır */
     match /horoscopes/{sign} {
       allow read:  if true;

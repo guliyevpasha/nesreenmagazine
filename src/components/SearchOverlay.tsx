@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Locale } from "@/lib/i18n/config";
 import { getDictionary, interpolate } from "@/lib/i18n/dictionaries";
+import { trackSearch } from "@/lib/analytics/tracker";
 
 export type SearchItem = {
   title: string;
@@ -63,6 +64,22 @@ export default function SearchOverlay({
       document.body.style.overflow = "";
     };
   }, [open, onClose]);
+
+  // Axtarış sözlərini statistikaya yaz: yazmağı 1.5 s dayandırandan sonra, hər söz bir dəfə
+  const sentTerms = useRef(new Set<string>());
+  useEffect(() => {
+    if (!open) {
+      sentTerms.current.clear();
+      return;
+    }
+    const q = term.trim().toLocaleLowerCase();
+    if (q.length < 3 || sentTerms.current.has(q)) return;
+    const timer = window.setTimeout(() => {
+      sentTerms.current.add(q);
+      trackSearch(q, locale);
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [term, open, locale]);
 
   const results = useMemo(() => {
     const needle = normalize(term.trim());

@@ -15,13 +15,29 @@ export interface ViewRecord {
   uniqueVisitors: number;
 }
 
+/** Bakı vaxtı UTC+4-dür (yay vaxtı yoxdur). Günlər Bakı gecəyarısında dəyişir. */
+const BAKU_OFFSET_MS = 4 * 60 * 60 * 1000;
+
+/** Verilən anın Bakı vaxtı ilə tarixi (YYYY-MM-DD). */
+export function bakuDate(at: Date | number = Date.now()): string {
+  const ms = typeof at === "number" ? at : at.getTime();
+  return new Date(ms + BAKU_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/** YYYY-MM-DD tarixinə N gün əlavə edir (mənfi də ola bilər). */
+export function addDays(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 /**
- * «Son N gün» dövrünün başlanğıc tarixi (YYYY-MM-DD, UTC — yazma ilə eyni):
+ * «Son N gün» dövrünün başlanğıc tarixi (YYYY-MM-DD, Bakı vaxtı — yazma ilə eyni):
  * bu gün + əvvəlki N-1 gün. sinceDate(1) = bu gün.
  */
 export function sinceDate(days: number): string {
   const n = Math.max(1, Math.floor(days));
-  return new Date(Date.now() - (n - 1) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return addDays(bakuDate(), -(n - 1));
 }
 
 export interface ArticleViews {
@@ -54,7 +70,7 @@ export async function trackArticleView(
   }
 
   const now = new Date().toISOString();
-  const today = now.slice(0, 10);
+  const today = bakuDate();
   const device = metadata?.device || "unknown";
   const source = metadata?.source || "direct";
   const dailyRef = doc(db, "analytics_daily", `${articleId}_${today}`);
@@ -94,7 +110,8 @@ export async function trackArticleView(
   if (device !== "unknown") {
     await safe("device", () => setDoc(dailyRef, { devices: { [device]: increment(1) } }, { merge: true }));
   }
-  if (source !== "direct") {
+  // «direct» da yazılır (əvvəl atılırdı və panel həmişə 0 göstərirdi)
+  if (["organic", "social", "direct", "referral"].includes(source)) {
     await safe("source", () => setDoc(dailyRef, { sources: { [source]: increment(1) } }, { merge: true }));
   }
 
