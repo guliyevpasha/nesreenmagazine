@@ -3,7 +3,7 @@
  * Client-side tracking və data collection
  */
 
-export { initAnalytics, trackPage, trackEvent, trackTimeOnPage } from "./tracker";
+export { initAnalytics, trackPage, trackEvent, trackTimeOnPage, trackSearch, markStaffBrowser, isStaffBrowser } from "./tracker";
 export { useAnalytics } from "./useAnalytics";
 export { subscribeToRealtimeUsers, subscribeToArticleViews } from "./realtime";
 export {

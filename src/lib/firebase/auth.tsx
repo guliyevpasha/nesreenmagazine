@@ -22,6 +22,7 @@ import type { CategorySlug } from "@/lib/categories";
 import { getDb, getFirebaseAuth } from "@/lib/firebase/client";
 import { COLLECTIONS, isFirebaseConfigured } from "@/lib/firebase/config";
 import type { StaffMember, StaffRole } from "@/lib/types";
+import { markStaffBrowser } from "@/lib/analytics/tracker";
 
 /**
  * Admin panelin giriş sistemi.
@@ -86,6 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<AdminSession | null>(null);
   const [unauthorized, setUnauthorized] = useState(false);
+
+  // İşçinin brauzeri saytın statistikasına düşməsin (öz baxışları rəqəmləri şişirtməsin)
+  useEffect(() => {
+    if (session) markStaffBrowser();
+  }, [session]);
 
   useEffect(() => {
     if (!isFirebaseConfigured) {

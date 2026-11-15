@@ -1,240 +1,216 @@
 /**
  * Client-side Analytics Tracker
- * Ziyarətçi davranışını izləyir və Firestore-a yazır.
+ *
+ * Hər səhifə keçidində `/api/track`-a «pageview», oxucu səhifədə aktiv olduqca
+ * (tab görünür) hər 60 saniyədən bir və səhifədən çıxanda «engagement» göndərir.
+ *
+ * - Sessiya: tabda 30 dəqiqə fəaliyyətsizlikdən sonra yeni sessiya başlayır.
+ * - Ziyarətçi: localStorage-dakı anonim id (ViewTracker ilə eyni).
+ * - İşçilər: admin panelə daxil olmuş brauzer statistikaya düşmür (markStaffBrowser).
  */
 
-import { trackPageView, trackSession, incrementArticleView } from "@/lib/data/admin";
-import type { PageViewInput, SessionDataInput } from "@/lib/types";
 import * as gtag from "./google-analytics";
 
-// Session ID - browser session üçün unikal identifikator
-let sessionId: string | null = null;
-let sessionStartTime: number | null = null;
-let pageViewCount = 0;
-let landingPage: string | null = null;
+const VISITOR_KEY = "nesreen_visitor_id";
+const SESSION_KEY = "nm_session";
+const STAFF_KEY = "nm-staff";
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+const FLUSH_INTERVAL_MS = 60 * 1000;
 
-// Google Analytics initialized flag
 let gaInitialized = false;
 
-/**
- * Session ID yaradır və ya mövcud olanı qaytarır.
- */
-function getSessionId(): string {
-  if (sessionId) return sessionId;
-
-  // SessionStorage-dan oxu
-  if (typeof window !== "undefined") {
-    const stored = sessionStorage.getItem("nesreen_session_id");
-    if (stored) {
-      sessionId = stored;
-      return sessionId;
-    }
-  }
-
-  // Yeni session ID yarat
-  sessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
-
-  if (typeof window !== "undefined") {
-    sessionStorage.setItem("nesreen_session_id", sessionId);
-  }
-
-  return sessionId;
+function randomId(prefix: string): string {
+  return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
 }
 
-/**
- * User agent-dən device type təyin edir.
- */
-function getDeviceType(ua: string): "mobile" | "tablet" | "desktop" {
-  if (/mobile/i.test(ua) && !/tablet|ipad/i.test(ua)) return "mobile";
-  if (/tablet|ipad/i.test(ua)) return "tablet";
-  return "desktop";
-}
+/* ───────────── İşçi brauzeri ───────────── */
 
-/**
- * User agent-dən browser təyin edir.
- */
-function getBrowser(ua: string): string {
-  if (ua.includes("Firefox")) return "Firefox";
-  if (ua.includes("Chrome")) return "Chrome";
-  if (ua.includes("Safari")) return "Safari";
-  if (ua.includes("Edge")) return "Edge";
-  if (ua.includes("Opera")) return "Opera";
-  return "Other";
-}
-
-/**
- * User agent-dən OS təyin edir.
- */
-function getOS(ua: string): string {
-  if (ua.includes("Win")) return "Windows";
-  if (ua.includes("Mac")) return "MacOS";
-  if (ua.includes("Linux")) return "Linux";
-  if (ua.includes("Android")) return "Android";
-  if (ua.includes("iOS") || ua.includes("iPhone") || ua.includes("iPad")) return "iOS";
-  return "Other";
-}
-
-/**
- * Referrer-dən traffic source təyin edir.
- */
-function getTrafficSource(referrer: string): "organic" | "social" | "direct" | "referral" | "email" | "ads" {
-  if (!referrer || referrer === "") return "direct";
-
-  const ref = referrer.toLowerCase();
-
-  // Social media
-  if (ref.includes("facebook") || ref.includes("instagram") || ref.includes("twitter") || 
-      ref.includes("linkedin") || ref.includes("tiktok") || ref.includes("youtube")) {
-    return "social";
-  }
-
-  // Search engines
-  if (ref.includes("google") || ref.includes("bing") || ref.includes("yahoo") || 
-      ref.includes("duckduckgo") || ref.includes("yandex")) {
-    return "organic";
-  }
-
-  // Email
-  if (ref.includes("mail.") || ref.includes("email")) {
-    return "email";
-  }
-
-  // Ads
-  if (ref.includes("ads") || ref.includes("campaign") || ref.includes("utm_")) {
-    return "ads";
-  }
-
-  return "referral";
-}
-
-/**
- * IP hash (privacy-friendly) - sadələşdirilmiş versiya.
- * Real implementasiyada server-side hash lazımdır.
- */
-function getIpHash(): string {
-  // Client-side IP əldə etmək mümkün deyil, placeholder
-  return "hashed-ip";
-}
-
-/**
- * Səhifə baxışını qeyd edir.
- */
-export async function trackPage(params: {
-  path: string;
-  articleId?: string;
-  articleTitle?: string;
-  category?: string;
-  locale: string;
-}): Promise<void> {
-  if (typeof window === "undefined") return; // SSR check
-
+/** Admin panelə daxil olanda çağırılır — bu brauzer artıq statistikaya düşmür. */
+export function markStaffBrowser(): void {
   try {
-    const sessionIdValue = getSessionId();
-    const now = Date.now();
-
-    // İlk baxışdırsa
-    if (!sessionStartTime) {
-      sessionStartTime = now;
-      landingPage = params.path;
-    }
-
-    pageViewCount++;
-
-    const pageViewData: PageViewInput = {
-      path: params.path,
-      articleId: params.articleId,
-      articleTitle: params.articleTitle,
-      category: params.category as any,
-      locale: params.locale as any,
-      sessionId: sessionIdValue,
-      referrer: document.referrer || "",
-      userAgent: navigator.userAgent,
-      ipHash: getIpHash(),
-      viewedAt: new Date().toISOString(),
-    };
-
-    // Firestore `undefined` dəyəri qəbul etmir — boş sahələr göndərilmir.
-    const clean = Object.fromEntries(
-      Object.entries(pageViewData).filter(([, v]) => v !== undefined),
-    ) as PageViewInput;
-    await trackPageView(clean);
-
-    // Məqalə səhifəsidirsə, article analytics-i yenilə
-    if (params.articleId) {
-      await incrementArticleView(params.articleId, sessionIdValue);
-    }
-
-    // Session məlumatını yenilə
-    await updateSession(params.path);
-  } catch (error) {
-    // Səssiz xəta - tracking user experience-ə təsir etməməlidir
-    console.warn("[Analytics] Track page failed:", error);
+    localStorage.setItem(STAFF_KEY, "1");
+  } catch {
+    /* localStorage bağlıdır */
   }
 }
 
-/**
- * Session məlumatını yeniləyir.
- */
-async function updateSession(currentPath: string): Promise<void> {
-  if (!sessionId || !sessionStartTime) return;
+export function isStaffBrowser(): boolean {
+  try {
+    return localStorage.getItem(STAFF_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
+/* ───────────── Ziyarətçi və sessiya ───────────── */
+
+export function getVisitorId(): string {
+  try {
+    let id = localStorage.getItem(VISITOR_KEY) || "";
+    if (!/^[A-Za-z0-9_-]{4,80}$/.test(id)) {
+      id = randomId("v");
+      localStorage.setItem(VISITOR_KEY, id);
+    }
+    return id;
+  } catch {
+    return "";
+  }
+}
+
+type SessionState = { id: string; last: number; pages: number };
+
+/** Sessiyanı yeniləyir: yeni səhifə sayılır, vaxt aşıbsa yeni sessiya başlayır. */
+function touchSession(countPage: boolean): { state: SessionState; isNew: boolean } {
   const now = Date.now();
-  const duration = Math.floor((now - sessionStartTime) / 1000); // seconds
-
-  const ua = navigator.userAgent;
-
-  const sessionData: SessionDataInput = {
-    sessionId,
-    startedAt: new Date(sessionStartTime).toISOString(),
-    endedAt: new Date(now).toISOString(),
-    duration,
-    pageViews: pageViewCount,
-    landingPage: landingPage || currentPath,
-    exitPage: currentPath,
-    referrer: document.referrer || "",
-    source: getTrafficSource(document.referrer),
-    device: getDeviceType(ua),
-    browser: getBrowser(ua),
-    os: getOS(ua),
-    locale: document.documentElement.lang as any || "az",
-    bounced: pageViewCount === 1,
-  };
-
+  let state: SessionState | null = null;
   try {
-    await trackSession(sessionData);
-  } catch (error) {
-    console.warn("[Analytics] Update session failed:", error);
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (raw) state = JSON.parse(raw) as SessionState;
+  } catch {
+    state = null;
+  }
+  let isNew = false;
+  if (!state || !state.id || now - state.last > SESSION_TIMEOUT_MS) {
+    state = { id: randomId("s"), last: now, pages: 0 };
+    isNew = true;
+  }
+  state.last = now;
+  if (countPage) state.pages += 1;
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(state));
+  } catch {
+    /* sessionStorage bağlıdır — sessiya yalnız yaddaşda qalır */
+  }
+  return { state, isNew };
+}
+
+/* ───────────── Göndərmə ───────────── */
+
+function send(payload: Record<string, unknown>, beacon = false): void {
+  const body = JSON.stringify(payload);
+  try {
+    if (beacon && typeof navigator.sendBeacon === "function") {
+      if (navigator.sendBeacon("/api/track", new Blob([body], { type: "application/json" }))) return;
+    }
+    void fetch("/api/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      keepalive: true,
+    }).catch(() => undefined);
+  } catch {
+    /* tracking oxucuya mane olmamalıdır */
   }
 }
 
-/**
- * Səhifədə qalma müddətini qeyd edir (page view-a timeOnPage əlavə edir).
- */
-export function trackTimeOnPage(): void {
-  if (typeof window === "undefined") return;
+/* ───────────── Aktiv vaxt ───────────── */
 
-  let startTime = Date.now();
-  let isActive = true;
+const engagement = {
+  path: "",
+  locale: "az",
+  accumulated: 0, // ms, hələ göndərilməyib
+  visibleSince: 0, // tab görünürsə başlanğıc, deyilsə 0
+  first: true,
+};
+let listenersReady = false;
+let flushTimer: number | undefined;
 
-  // Visibility API - tab aktivdirmi?
+function flushEngagement(beacon: boolean): void {
+  if (!engagement.path) return;
+  const now = Date.now();
+  let ms = engagement.accumulated;
+  if (engagement.visibleSince) {
+    ms += now - engagement.visibleSince;
+    engagement.visibleSince = now;
+  }
+  engagement.accumulated = 0;
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 1) return;
+  const { state } = touchSession(false);
+  send(
+    {
+      type: "engagement",
+      path: engagement.path,
+      locale: engagement.locale,
+      sessionId: state.id,
+      seconds: Math.min(seconds, 120),
+      first: engagement.first,
+    },
+    beacon,
+  );
+  engagement.first = false;
+}
+
+function ensureListeners(): void {
+  if (listenersReady) return;
+  listenersReady = true;
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
-      isActive = false;
+      flushEngagement(true);
+      engagement.visibleSince = 0;
     } else {
-      isActive = true;
-      startTime = Date.now(); // Reset timer
+      engagement.visibleSince = Date.now();
     }
   });
-
-  // Qeyd: əvvəllər burada mövcud olmayan /api/analytics/time ünvanına sendBeacon göndərilirdi (404).
-  // Açıq API endpoint yaratmamaq üçün (CLAUDE.md, qayda 4) beacon silindi.
-  void startTime;
-  void isActive;
+  window.addEventListener("pagehide", () => flushEngagement(true));
+  flushTimer = window.setInterval(() => {
+    if (!document.hidden) flushEngagement(false);
+  }, FLUSH_INTERVAL_MS);
+  void flushTimer;
 }
 
+function startEngagement(path: string, locale: string): void {
+  flushEngagement(false); // əvvəlki səhifənin vaxtı
+  engagement.path = path;
+  engagement.locale = locale;
+  engagement.accumulated = 0;
+  engagement.visibleSince = document.hidden ? 0 : Date.now();
+  engagement.first = true;
+  ensureListeners();
+}
+
+/* ───────────── İctimai API ───────────── */
+
+let lastTracked = { path: "", at: 0 };
+
+/** Səhifə baxışını qeyd edir. */
+export function trackPage(params: { path: string; locale: string }): void {
+  if (typeof window === "undefined") return;
+  if (isStaffBrowser()) return;
+
+  // React StrictMode / təkrar render eyni səhifəni iki dəfə saymasın
+  const now = Date.now();
+  if (lastTracked.path === params.path && now - lastTracked.at < 2000) return;
+  lastTracked = { path: params.path, at: now };
+
+  const { state, isNew } = touchSession(true);
+  send({
+    type: "pageview",
+    path: params.path,
+    locale: params.locale,
+    visitorId: getVisitorId() || undefined,
+    sessionId: state.id,
+    newSession: isNew,
+    sessionPage: state.pages,
+    // Referrer yalnız sessiyanın girişində mənalıdır (daxili keçidlərdə köhnə dəyər qalır)
+    referrer: isNew ? document.referrer || "" : "",
+  });
+  startEngagement(params.path, params.locale);
+}
+
+/** Saytdaxili axtarış sözünü qeyd edir (açar sözlər statistikası). */
+export function trackSearch(term: string, locale: string): void {
+  if (typeof window === "undefined" || isStaffBrowser()) return;
+  const q = term.trim();
+  if (q.length < 2) return;
+  send({ type: "search", q: q.slice(0, 100), locale });
+}
+
+/** Köhnə API ilə uyğunluq üçün — aktiv vaxt artıq trackPage içində ölçülür. */
+export function trackTimeOnPage(): void {}
+
 /**
- * Analytics-i initialize edir.
- * Hər səhifə yüklənərkən çağırılmalıdır.
+ * Analytics-i initialize edir. Hər səhifə keçidində çağırılır.
  */
 export function initAnalytics(params: {
   path: string;
@@ -244,23 +220,18 @@ export function initAnalytics(params: {
   locale: string;
 }): void {
   if (typeof window === "undefined") return;
+  const staff = isStaffBrowser();
 
-  // Google Analytics-i initialize et (yalnız bir dəfə)
-  if (!gaInitialized && gtag.GA_MEASUREMENT_ID) {
-    gtag.initGA();
-    gaInitialized = true;
-  }
-
-  // İlk track
-  trackPage(params);
-
-  // Google Analytics page view
-  if (gtag.GA_MEASUREMENT_ID) {
+  // Google Analytics (işçilər GA-da da sayılmır)
+  if (!staff && gtag.GA_MEASUREMENT_ID) {
+    if (!gaInitialized) {
+      gtag.initGA();
+      gaInitialized = true;
+    }
     gtag.pageview(params.path);
   }
 
-  // Time tracking
-  trackTimeOnPage();
+  trackPage({ path: params.path, locale: params.locale });
 }
 
 /**
@@ -274,7 +245,6 @@ export function trackEvent(params: {
 }): void {
   if (typeof window === "undefined") return;
 
-  // Google Analytics event
   if (gtag.GA_MEASUREMENT_ID) {
     gtag.event({
       action: params.eventName,
@@ -284,7 +254,6 @@ export function trackEvent(params: {
     });
   }
 
-  // Console log (development üçün)
   if (process.env.NODE_ENV === "development") {
     console.log("[Analytics] Custom event:", params);
   }
