@@ -65,13 +65,14 @@ type NavItem = {
 /**
  * Naviqasiyada bölmənin altında açılan siyahı.
  * Açılma yalnız CSS ilə idarə olunur: kursor üstünə gələndə (`group-hover`)
- * və ya daxildəki linklərdən biri fokus alanda (`group-focus-within`).
+ * və ya daxildəki link klaviatura fokusu alanda (`:focus-visible`). Siçanla kliklənəndən sonra
+ * link fokusda qalsa da menyu açıq qalmır (əvvəl `focus-within` ilə ilişib qalırdı).
  * Beləliklə klaviatura ilə gəzinti də işləyir.
  */
 function Dropdown({ items, label }: { items: SubLink[]; label: string }) {
   return (
     <div
-      className="invisible absolute left-1/2 top-full z-50 -translate-x-1/2 pt-4 opacity-0 transition-opacity duration-200 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
+      className="invisible absolute left-1/2 top-full z-50 -translate-x-1/2 pt-4 opacity-0 transition-opacity duration-200 group-hover:visible group-hover:opacity-100 group-has-[:focus-visible]:visible group-has-[:focus-visible]:opacity-100"
     >
       <ul
         aria-label={label}
