@@ -36,6 +36,7 @@ export default function CoverArt({
   className = "",
   priority = false,
   sizes = "100vw",
+  objectPosition = "center",
 }: {
   src?: string;
   alt: string;
@@ -44,6 +45,8 @@ export default function CoverArt({
   className?: string;
   priority?: boolean;
   sizes?: string;
+  /** Şəklin kəsilmə nöqtəsi (məs. "center 25%" — üz qabığında başı kəsməsin deyə). */
+  objectPosition?: string;
 }) {
   if (src) {
     return (
@@ -57,7 +60,7 @@ export default function CoverArt({
         sizes={sizes}
         decoding="async"
         fetchPriority={priority ? "high" : "auto"}
-        style={{ objectFit: 'cover', objectPosition: 'center' }}
+        style={{ objectFit: 'cover', objectPosition }}
       />
     );
   }
