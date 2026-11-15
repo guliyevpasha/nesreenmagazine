@@ -7,7 +7,8 @@ import AdvertisementBanner from "@/components/AdvertisementBanner";
 import ArticleBanners from "@/components/ArticleBanners";
 import ArticleCard from "@/components/ArticleCard";
 import CategoryCover, { COVER_BY_CATEGORY } from "@/components/CategoryCover";
-import AstrologyTabs, { type ReadingMap } from "@/components/AstrologyTabs";
+import CategoryMosaic, { MOSAIC_CATEGORIES } from "@/components/category/CategoryMosaic";
+import AstrologyTabs,{ type ReadingMap } from "@/components/AstrologyTabs";
 import { RoseMark } from "@/components/Logo";
 import SectionHeading from "@/components/SectionHeading";
 import { categories, getCategory, isCategorySlug } from "@/lib/categories";
@@ -72,6 +73,8 @@ export default async function CategoryPage({
   const [lead, ...rest] = articles;
 
   const isAstrology = category.slug === "astrologiya";
+  // Gündəm, Gözəllik, Biznes — «mozaika» düzülüşü (iki böyük kart + 4 sütunlu şəbəkə)
+  const isMosaic = MOSAIC_CATEGORIES.has(category.slug);
 
   // Astrologiya bölməsi üçün hər dövrün 12 bürc üzrə şərhini hazırlayırıq.
   const readings: ReadingMap = isAstrology
@@ -91,7 +94,8 @@ export default async function CategoryPage({
       <h1 className="sr-only">{category.name[locale]}</h1>
 
       {/* ---------- Üz qabığı: bölmənin baş məqaləsi ---------- */}
-      {lead && <CategoryCover article={lead} locale={locale} variant={COVER_BY_CATEGORY[category.slug]} />}
+      {isMosaic && articles.length > 0 && <CategoryMosaic articles={articles} locale={locale} />}
+      {!isMosaic && lead && <CategoryCover article={lead} locale={locale} variant={COVER_BY_CATEGORY[category.slug]} />}
 
       {/* MÜVƏQQƏTİ: reklam sahəsi gizlədilib — bu bloku şərhdən çıxarmaqla geri qaytarın.
       <div className="container-mag pt-10">
@@ -128,6 +132,8 @@ export default async function CategoryPage({
             <div className="rule-gold mx-auto mt-8 max-w-xs" aria-hidden="true" />
           </div>
         </section>
+      ) : isMosaic ? (
+        <div className="pb-16 lg:pb-24" />
       ) : rest.length > 0 ? (
         <section className="container-mag py-16 lg:py-24">
           <div className="flex items-center gap-5">
