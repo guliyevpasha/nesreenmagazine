@@ -77,7 +77,7 @@ const az = {
     astroSub: "Bürcünüzü seçin, günün şərhini oxuyun",
     newsletterTitle: "Həftəlik məktub",
     newsletterText:
-      "Hər cümə axşamı — bizdən həftənin seçimi. Oxumağa dəyər beş yazı, gözəllik tövsiyəsi və həftənin ulduz xəritəsi. Həftənizə yaxşı bir seçimlə başlayın.",
+      "Moda, gözəllik, həyat tərzi və gündəmdən seçdiyimiz ən maraqlı məzmunu hər həftə elektron poçtunuza göndərək. Nesreen Magazine-in həftəlik bülleteni ilə yeniliklərdən xəbərdar olun, ilham verən yazıları ilk oxuyanlardan biri olun.",
     newsletterPlaceholder: "E-poçt ünvanınız",
     newsletterCta: "Abunə ol",
     newsletterNote: "İstənilən vaxt bir kliklə imtina edə bilərsiniz.",
@@ -271,7 +271,7 @@ const az = {
   newsletter: {
     badge: "Həftəlik bülleten",
     title: "Həftənin seçimi",
-    text: "Hər cümə axşamı — bizdən həftənin seçimi. Oxumağa dəyər beş yazı, gözəllik tövsiyəsi və həftənin ulduz xəritəsi. Həftənizə yaxşı bir seçimlə başlayın.",
+    text: "Moda, gözəllik, həyat tərzi və gündəmdən seçdiyimiz ən maraqlı məzmunu hər həftə elektron poçtunuza göndərək. Nesreen Magazine-in həftəlik bülleteni ilə yeniliklərdən xəbərdar olun, ilham verən yazıları ilk oxuyanlardan biri olun.",
     note: "İstənilən vaxt bir kliklə imtina edə bilərsiniz.",
     unsubWorking: "Sorğunuz emal olunur…",
     unsubTitle: "Abunəlikdən çıxdınız",
@@ -402,7 +402,7 @@ const en: Dictionary = {
     astroSub: "Choose your sign and read today's reading",
     newsletterTitle: "The weekly letter",
     newsletterText:
-      "Every Thursday — our pick of the week. Five pieces worth reading, one beauty recommendation and the star chart of the week. Begin your week with a good choice.",
+      "Let us send the most interesting stories we pick from fashion, beauty, lifestyle and news to your inbox every week. Stay up to date with the Nesreen Magazine weekly newsletter and be among the first to read inspiring stories.",
     newsletterPlaceholder: "Your email address",
     newsletterCta: "Subscribe",
     newsletterNote: "You can unsubscribe at any time with one click.",
@@ -596,7 +596,7 @@ const en: Dictionary = {
   newsletter: {
     badge: "Weekly newsletter",
     title: "Pick of the Week",
-    text: "Every Thursday — our pick of the week. Five stories worth reading, a beauty tip and the week's star chart. Start your week with a good pick.",
+    text: "Let us send the most interesting stories we pick from fashion, beauty, lifestyle and news to your inbox every week. Stay up to date with the Nesreen Magazine weekly newsletter and be among the first to read inspiring stories.",
     note: "You can unsubscribe at any time with one click.",
     unsubWorking: "Processing your request…",
     unsubTitle: "You have unsubscribed",
@@ -725,7 +725,7 @@ const ru: Dictionary = {
     astroSub: "Выберите свой знак и прочитайте прогноз дня",
     newsletterTitle: "Еженедельное письмо",
     newsletterText:
-      "Каждый четверг — наш выбор недели. Пять текстов, которые стоит прочесть, совет по красоте и звёздная карта недели. Начните неделю с хорошего выбора.",
+      "Каждую неделю мы будем присылать на вашу почту самые интересные материалы о моде, красоте, стиле жизни и актуальных событиях. Будьте в курсе новостей с еженедельной рассылкой Nesreen Magazine и читайте вдохновляющие статьи одними из первых.",
     newsletterPlaceholder: "Ваш адрес электронной почты",
     newsletterCta: "Подписаться",
     newsletterNote: "Отписаться можно в любой момент одним щелчком.",
@@ -919,7 +919,7 @@ const ru: Dictionary = {
   newsletter: {
     badge: "Еженедельная рассылка",
     title: "Выбор недели",
-    text: "Каждый четверг — наш выбор недели. Пять материалов, которые стоит прочитать, совет по красоте и звёздная карта недели. Начните неделю с хорошего выбора.",
+    text: "Каждую неделю мы будем присылать на вашу почту самые интересные материалы о моде, красоте, стиле жизни и актуальных событиях. Будьте в курсе новостей с еженедельной рассылкой Nesreen Magazine и читайте вдохновляющие статьи одними из первых.",
     note: "Отписаться можно в любой момент одним щелчком.",
     unsubWorking: "Обрабатываем запрос…",
     unsubTitle: "Вы отписались",
@@ -1047,7 +1047,7 @@ const tr: Dictionary = {
     astroSub: "Burcunuzu seçin, günün yorumunu okuyun",
     newsletterTitle: "Haftalık mektup",
     newsletterText:
-      "Her perşembe — bizden haftanın seçkisi. Okumaya değer beş yazı, bir güzellik önerisi ve haftanın yıldız haritası. Haftanıza iyi bir seçimle başlayın.",
+      "Moda, güzellik, yaşam tarzı ve gündemden seçtiğimiz en ilgi çekici içerikleri her hafta e-posta adresinize gönderelim. Nesreen Magazine haftalık bülteniyle yeniliklerden haberdar olun, ilham veren yazıları ilk okuyanlardan biri olun.",
     newsletterPlaceholder: "E-posta adresiniz",
     newsletterCta: "Abone ol",
     newsletterNote: "Dilediğiniz an tek tıkla çıkabilirsiniz.",
@@ -1241,7 +1241,7 @@ const tr: Dictionary = {
   newsletter: {
     badge: "Haftalık bülten",
     title: "Haftanın Seçkisi",
-    text: "Her perşembe — bizden haftanın seçkisi. Okumaya değer beş yazı, bir güzellik önerisi ve haftanın yıldız haritası. Haftanıza iyi bir seçkiyle başlayın.",
+    text: "Moda, güzellik, yaşam tarzı ve gündemden seçtiğimiz en ilgi çekici içerikleri her hafta e-posta adresinize gönderelim. Nesreen Magazine haftalık bülteniyle yeniliklerden haberdar olun, ilham veren yazıları ilk okuyanlardan biri olun.",
     note: "Dilediğiniz an tek tıkla abonelikten çıkabilirsiniz.",
     unsubWorking: "İsteğiniz işleniyor…",
     unsubTitle: "Abonelikten çıktınız",
@@ -1370,7 +1370,7 @@ const ar: Dictionary = {
     astroSub: "اختاري برجك واقرئي توقّعات اليوم",
     newsletterTitle: "الرسالة الأسبوعية",
     newsletterText:
-      "كل يوم خميس — اختيارنا لهذا الأسبوع: خمس مقالات تستحقّ القراءة، ونصيحة جمال، وخريطة نجوم الأسبوع. ابدئي أسبوعك باختيار جيّد.",
+      "دعينا نرسل إلى بريدك الإلكتروني كل أسبوع أكثر المواد إثارةً للاهتمام التي نختارها من عالم الموضة والجمال وأسلوب الحياة والأحداث. ابقي على اطلاع بآخر المستجدات مع النشرة الأسبوعية لـ Nesreen Magazine، وكوني من أوائل من يقرأ المقالات المُلهمة.",
     newsletterPlaceholder: "بريدك الإلكتروني",
     newsletterCta: "اشتركي",
     newsletterNote: "يمكنك إلغاء الاشتراك في أي وقت بنقرة واحدة.",
@@ -1564,7 +1564,7 @@ const ar: Dictionary = {
   newsletter: {
     badge: "النشرة الأسبوعية",
     title: "اختيار الأسبوع",
-    text: "كل خميس — اختيارنا لهذا الأسبوع. خمس مقالات تستحق القراءة، ونصيحة جمال، وخريطة النجوم للأسبوع. ابدئي أسبوعك باختيار جميل.",
+    text: "دعينا نرسل إلى بريدك الإلكتروني كل أسبوع أكثر المواد إثارةً للاهتمام التي نختارها من عالم الموضة والجمال وأسلوب الحياة والأحداث. ابقي على اطلاع بآخر المستجدات مع النشرة الأسبوعية لـ Nesreen Magazine، وكوني من أوائل من يقرأ المقالات المُلهمة.",
     note: "يمكنك إلغاء الاشتراك في أي وقت بنقرة واحدة.",
     unsubWorking: "جارٍ تنفيذ طلبك…",
     unsubTitle: "تم إلغاء اشتراكك",
