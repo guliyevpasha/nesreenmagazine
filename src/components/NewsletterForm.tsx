@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 
 import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -22,6 +22,8 @@ export default function NewsletterForm({
   const [state, setState] = useState<"idle" | "sending" | "done" | "error">("idle");
 
   const dark = variant === "dark";
+  // Səhifədə bir neçə form ola bilər (məqalə + footer) — id təkrarlanmasın
+  const inputId = `newsletter-${useId()}`;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -62,11 +64,11 @@ export default function NewsletterForm({
           dark ? "" : ""
         }`}
       >
-        <label htmlFor={`newsletter-${variant}`} className="sr-only">
+        <label htmlFor={inputId} className="sr-only">
           {dict.home.newsletterPlaceholder}
         </label>
         <input
-          id={`newsletter-${variant}`}
+          id={inputId}
           type="email"
           required
           value={email}
