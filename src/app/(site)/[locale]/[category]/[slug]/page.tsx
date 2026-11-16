@@ -11,6 +11,7 @@ import CoverArt from "@/components/CoverArt";
 import { RoseMark } from "@/components/Logo";
 import SectionHeading from "@/components/SectionHeading";
 import ShareButtons from "@/components/ShareButtons";
+import ArticleNewsletterCta from "@/components/article/ArticleNewsletterCta";
 import ViewTracker from "@/components/ViewTracker";
 import { getArticleSlug } from "@/lib/article-helpers";
 import { categoryName, isCategorySlug } from "@/lib/categories";
@@ -273,6 +274,9 @@ export default async function ArticlePage({
             <div className="mt-14 flex justify-center">
               <RoseMark className="h-6 w-6 text-gold" strokeWidth={1.3} />
             </div>
+
+            {/* Mətnin sonunda bülleten abunəsi */}
+            <ArticleNewsletterCta locale={locale} />
 
             {/* Etiketlər */}
             {tags.length > 0 && (

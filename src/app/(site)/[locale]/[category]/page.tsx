@@ -7,7 +7,8 @@ import AdvertisementBanner from "@/components/AdvertisementBanner";
 import ArticleBanners from "@/components/ArticleBanners";
 import ArticleCard from "@/components/ArticleCard";
 import CategoryCover, { COVER_BY_CATEGORY } from "@/components/CategoryCover";
-import CategoryMosaic, { MOSAIC_CATEGORIES } from "@/components/category/CategoryMosaic";
+import FashionLookbook from "@/components/category/FashionLookbook";
+import CategoryMosaic,{ MOSAIC_CATEGORIES } from "@/components/category/CategoryMosaic";
 import AstrologyTabs,{ type ReadingMap } from "@/components/AstrologyTabs";
 import { RoseMark } from "@/components/Logo";
 import SectionHeading from "@/components/SectionHeading";
@@ -134,6 +135,9 @@ export default async function CategoryPage({
         </section>
       ) : isMosaic ? (
         <div className="pb-16 lg:pb-24" />
+      ) : category.slug === "moda" && rest.length > 0 ? (
+        // Moda — üz qabığından sonra «lookbook» kartları
+        <FashionLookbook articles={rest} locale={locale} />
       ) : rest.length > 0 ? (
         <section className="container-mag py-16 lg:py-24">
           <div className="flex items-center gap-5">
