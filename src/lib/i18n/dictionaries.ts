@@ -115,6 +115,7 @@ const az = {
     comingSoonTab: "Bu bölmə tezliklə açılır.",
     readSign: "Şərhi oxu",
     moreAstrology: "Daha çox astrologiya",
+    seasonNow: "Hazırkı bürc dövrü",
   },
   contact: {
     title: "Əlaqə",
@@ -440,6 +441,7 @@ const en: Dictionary = {
     comingSoonTab: "This section opens soon.",
     readSign: "Read the reading",
     moreAstrology: "More astrology",
+    seasonNow: "Current sun sign",
   },
   contact: {
     title: "Contact",
@@ -763,6 +765,7 @@ const ru: Dictionary = {
     comingSoonTab: "Этот раздел откроется совсем скоро.",
     readSign: "Читать прогноз",
     moreAstrology: "Больше астрологии",
+    seasonNow: "Текущий знак Солнца",
   },
   contact: {
     title: "Контакты",
@@ -1085,6 +1088,7 @@ const tr: Dictionary = {
     comingSoonTab: "Bu bölüm çok yakında açılıyor.",
     readSign: "Yorumu oku",
     moreAstrology: "Daha fazla astroloji",
+    seasonNow: "Güncel burç dönemi",
   },
   contact: {
     title: "İletişim",
@@ -1408,6 +1412,7 @@ const ar: Dictionary = {
     comingSoonTab: "هذا القسم يُفتح قريبًا.",
     readSign: "اقرئي التوقّعات",
     moreAstrology: "المزيد عن الأبراج",
+    seasonNow: "البرج الحالي",
   },
   contact: {
     title: "اتصل بنا",
