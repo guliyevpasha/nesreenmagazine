@@ -10,6 +10,7 @@ import {
   isCategorySlug,
 } from "@/lib/categories";
 import { getArticlesBySubcategory } from "@/lib/data/articles";
+import { applyPinnedOrder, getCategoryPinnedIds } from "@/lib/data/category-layout";
 import { siteUrl } from "@/lib/firebase/config";
 import { isLocale, locales, type Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -76,7 +77,12 @@ export default async function SubcategoryPage({ params }: { params: Promise<Para
   if (!category || !subcategory) notFound();
 
   const dict = getDictionary(locale);
-  const articles = await getArticlesBySubcategory(category.slug, subcategory.slug);
+  // Bölmə düzülüşündəki sıra alt bölmədə də qorunur (yalnız bu alt bölmənin məqalələri)
+  const [subArticles, pinnedIds] = await Promise.all([
+    getArticlesBySubcategory(category.slug, subcategory.slug),
+    getCategoryPinnedIds(category.slug),
+  ]);
+  const articles = applyPinnedOrder(subArticles, pinnedIds);
 
   return (
     <>

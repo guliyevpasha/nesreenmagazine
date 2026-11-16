@@ -22,6 +22,7 @@ const rolePermissions: Record<StaffRole, string[]> = {
     '/admin/tags',
     '/admin/categories',
     '/admin/translations',
+    '/admin/category-layout',
   ],
 
   seo: ['/admin/seo', '/admin/articles', '/admin/analytics'],

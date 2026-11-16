@@ -143,6 +143,11 @@ export default async function HomePage({
         <ArticleBanners location="home-hero" placeholder={false} className="pb-12" />
       </div>
 
+      {/* ================= Reklam: «Ən son»-un üstündə ================= */}
+      <div className="container-mag pt-12 lg:pt-16">
+        <AdvertisementBanner locale={locale} />
+      </div>
+
       {/* ================= Ən son ================= */}
       <LatestEdit
         title={dict.home.latestTitle}
@@ -150,11 +155,6 @@ export default async function HomePage({
         articles={latestArticles}
         locale={locale}
       />
-
-      {/* ================= Reklam ================= */}
-      <div className="container-mag py-16">
-        <AdvertisementBanner locale={locale} />
-      </div>
 
       {/* ================= Astrologiya: bürclər + yazılar ================= */}
       <AstroSection locale={locale} articles={allAstrologiya} />

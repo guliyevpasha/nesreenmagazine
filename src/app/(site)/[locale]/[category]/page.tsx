@@ -15,6 +15,7 @@ import SectionHeading from "@/components/SectionHeading";
 import { categories, getCategory, isCategorySlug } from "@/lib/categories";
 import { getHoroscope, horoscopePeriods } from "@/lib/content/horoscopes";
 import { getArticlesByCategory } from "@/lib/data/articles";
+import { applyPinnedOrder, getCategoryPinnedIds } from "@/lib/data/category-layout";
 import { siteUrl } from "@/lib/firebase/config";
 import { isLocale, locales, type Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -70,7 +71,12 @@ export default async function CategoryPage({
   if (!category) notFound();
 
   const dict = getDictionary(locale);
-  const articles = await getArticlesByCategory(category.slug);
+  // Admin «Bölmə düzülüşü»ndə sabitlənmiş məqalələr əvvələ, qalanları tarixə görə
+  const [allInCategory, pinnedIds] = await Promise.all([
+    getArticlesByCategory(category.slug),
+    getCategoryPinnedIds(category.slug),
+  ]);
+  const articles = applyPinnedOrder(allInCategory, pinnedIds);
   const [lead, ...rest] = articles;
 
   const isAstrology = category.slug === "astrologiya";
