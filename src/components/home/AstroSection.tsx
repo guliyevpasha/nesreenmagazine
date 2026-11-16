@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import ArticleCard from "@/components/ArticleCard";
+import DailyHoroscopeCarousel, { type DailySlide } from "@/components/home/DailyHoroscopeCarousel";
 import EditorialHeading from "@/components/home/EditorialHeading";
 import ZodiacIcon from "@/components/ZodiacIcon";
 import { getHoroscope } from "@/lib/content/horoscopes";
@@ -17,7 +18,7 @@ function bakuToday(): Date {
 
 /**
  * Ana səhifənin astrologiya bölməsi — açıq, jurnal üslubunda:
- *  solda «günün bürcü» kartı (cari Günəş bürcü + bugünkü şərh),
+ *  solda günlük şərh slayderi (hazırkı bürcdən başlayır, 12 bürc),
  *  sağda 12 bürcün seçimi, altda astrologiya yazıları.
  */
 export default function AstroSection({
@@ -29,7 +30,20 @@ export default function AstroSection({
 }) {
   const dict = getDictionary(locale);
   const sign = signForDate(bakuToday());
-  const reading = getHoroscope(sign.key, "daily", locale);
+  // Hazırkı bürc birinci, sonra təqvim (ay) ardıcıllığı ilə qalan 11 bürc.
+  const start = zodiac.findIndex((s) => s.key === sign.key);
+  const slides: DailySlide[] = zodiac.map((_, i) => {
+    const s = zodiac[(start + i) % zodiac.length];
+    return {
+      key: s.key,
+      element: s.element,
+      name: zodiacName(s.key, locale),
+      dates: zodiacDateRange(s, locale),
+      elementLabel: dict.astro.elements[s.element],
+      reading: getHoroscope(s.key, "daily", locale),
+      href: routes.zodiac(locale, s.key),
+    };
+  });
   const posts = articles.slice(0, 3);
 
   return (
@@ -42,45 +56,18 @@ export default function AstroSection({
 
         <div className="mt-12 grid gap-12 lg:grid-cols-12 lg:gap-14">
           {/* ---------- Günün bürcü ---------- */}
-          <article className="relative bg-paper px-7 py-10 text-center shadow-[0_30px_60px_-40px_rgba(26,22,20,0.35)] sm:px-10 lg:col-span-5">
-            <span className="pointer-events-none absolute inset-3 border border-gold/35" aria-hidden="true" />
-            <p className="eyebrow relative text-gold">{dict.astro.tabs.daily}</p>
-            <Link
-              href={routes.zodiac(locale, sign.key)}
-              className="group relative mx-auto mt-6 block w-36 sm:w-40"
-            >
-              <span className="block transition-transform duration-700 ease-out group-hover:rotate-[8deg]">
-                <ZodiacIcon sign={sign.key} element={sign.element} className="w-full" strokeWidth={1.6} />
-              </span>
-            </Link>
-            <h3 className="relative mt-6 text-4xl leading-none sm:text-[2.75rem]">
-              <Link href={routes.zodiac(locale, sign.key)} className="link-underline">
-                {zodiacName(sign.key, locale)}
-              </Link>
-            </h3>
-            <p className="relative mt-3 font-ui text-[11px] uppercase tracking-[0.2em] text-muted">
-              {zodiacDateRange(sign, locale)}
-            </p>
-            {reading && (
-              <>
-                <div className="relative mx-auto mt-7 flex max-w-[10rem] items-center gap-3" aria-hidden="true">
-                  <span className="h-px flex-1 bg-gold/50" />
-                  <span className="h-1 w-1 rotate-45 bg-gold" />
-                  <span className="h-px flex-1 bg-gold/50" />
-                </div>
-                <p className="relative mx-auto mt-7 max-w-md font-display text-[1.15rem] italic leading-relaxed text-ink-soft">
-                  {reading}
-                </p>
-              </>
-            )}
-            <Link
-              href={routes.zodiac(locale, sign.key)}
-              className="relative mt-8 inline-flex items-center gap-3 font-ui text-[11px] uppercase tracking-[0.2em] text-bordo"
-            >
-              <span className="link-underline">{dict.common.readMore}</span>
-              <span aria-hidden="true" className="rtl:-scale-x-100">→</span>
-            </Link>
-          </article>
+          <div className="min-w-0 lg:col-span-5">
+            <DailyHoroscopeCarousel
+              slides={slides}
+              labels={{
+                daily: dict.astro.tabs.daily,
+                seasonNow: dict.astro.seasonNow,
+                readMore: dict.common.readMore,
+                previous: dict.common.previous,
+                next: dict.common.next,
+              }}
+            />
+          </div>
 
           {/* ---------- 12 bürc ---------- */}
           <div className="lg:col-span-7">
