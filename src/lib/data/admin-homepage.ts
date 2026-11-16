@@ -213,6 +213,8 @@ export async function getArticleHomepagePlacements(
     const snapshot = await getDocs(collection(db, COLLECTIONS.homepageEditorial));
     return snapshot.docs.flatMap((d) => {
       const s = d.data() as HomepageEditorialSection;
+      // «Bölmə düzülüşü» sənədləri ana səhifə yeri deyil
+      if ((s.sectionId as string) === "category-layout") return [];
       const index = Array.isArray(s.articleIds) ? s.articleIds.indexOf(articleId) : -1;
       return index >= 0 ? [{ sectionId: s.sectionId, locale: s.locale, position: index + 1 }] : [];
     });

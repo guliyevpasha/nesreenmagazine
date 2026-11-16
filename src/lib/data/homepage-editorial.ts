@@ -280,6 +280,8 @@ export async function getArticlePlacements(articleId: string): Promise<
 
     for (const docSnap of allSections.docs) {
       const section = docSnap.data() as HomepageEditorialSection;
+      // «Bölmə düzülüşü» sənədləri ana səhifə yeri deyil
+      if ((section.sectionId as string) === "category-layout") continue;
       const index = section.articleIds?.indexOf(articleId);
 
       if (index !== undefined && index >= 0) {

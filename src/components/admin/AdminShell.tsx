@@ -327,6 +327,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       title: "Kontent",
       items: [
         { href: "/admin/homepage-builder", label: "Ana Səhifə İdarəsi", icon: ICONS.homepage, active: startsWith("/admin/homepage-builder") },
+        { href: "/admin/category-layout", label: "Bölmə düzülüşü", icon: ICONS.homepage, active: startsWith("/admin/category-layout") },
         { href: "/admin/articles", label: "Məqalələr", icon: ICONS.articles, active: pathname === "/admin/articles" && !activeCategory },
         ...categories
           .slice(0, 5)
